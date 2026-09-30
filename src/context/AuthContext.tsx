@@ -2,7 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole, Permission, hasPermission } from '../types/auth';
 import { StorageService } from '../services/storage';
 import { PlatformNotification } from '../types/manga';
-import { signInWithGooglePopup, signOutFirebase, testFirestoreConnection } from '../services/firebase';
+import { authenticateWithGoogleOAuth } from '../services/googleAuth';
+import { testFirestoreConnection } from '../services/firebase';
 
 interface AuthContextType {
   user: User;
@@ -17,7 +18,7 @@ interface AuthContextType {
   switchUserRole: (role: UserRole) => void;
   signIn: (email: string, pass?: string, requestedRole?: UserRole) => Promise<boolean>;
   signUp: (name: string, email: string, pass?: string, requestedRole?: UserRole, customUsername?: string) => Promise<boolean>;
-  signInWithGoogle: (requestedRole?: UserRole, customUsername?: string) => Promise<boolean>;
+  signInWithGoogle: (requestedRole?: UserRole, customUsername?: string, overrideClientId?: string) => Promise<boolean>;
   signOut: () => void;
   updateUser: (updates: Partial<User>) => void;
   updateUsername: (newUsername: string) => { success: boolean; error?: string };
@@ -198,29 +199,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   };
 
-  const signInWithGoogle = async (requestedRole: UserRole = 'free_user', customUsername?: string): Promise<boolean> => {
+  const signInWithGoogle = async (
+    requestedRole: UserRole = 'free_user',
+    customUsername?: string,
+    overrideClientId?: string
+  ): Promise<boolean> => {
     try {
-      const result = await signInWithGooglePopup();
-      const fbUser = result.user;
-      if (!fbUser.email) return false;
+      const googleProfile = await authenticateWithGoogleOAuth(overrideClientId);
+      if (!googleProfile.email) return false;
 
       const allUsers = StorageService.getUsers();
-      let found = allUsers.find(u => u.email.toLowerCase() === fbUser.email?.toLowerCase());
+      let found = allUsers.find(u => u.email.toLowerCase() === googleProfile.email.toLowerCase());
 
-      const isAdminEmail = fbUser.email.toLowerCase() === 'huntsmp51@gmail.com';
+      const isAdminEmail = googleProfile.email.toLowerCase() === 'huntsmp51@gmail.com';
       const assignedRole = isAdminEmail ? 'admin' : requestedRole;
 
       if (!found) {
-        const username = customUsername || fbUser.displayName?.replace(/\s+/g, '_').toLowerCase() || fbUser.email.split('@')[0];
+        const username = customUsername || googleProfile.name?.replace(/\s+/g, '_').toLowerCase() || googleProfile.email.split('@')[0];
         const isCreatorRole = assignedRole === 'creator';
         const creatorId = isCreatorRole ? `creator_${Date.now()}` : undefined;
 
         found = {
-          id: fbUser.uid,
-          name: fbUser.displayName || 'Manga Reader',
+          id: googleProfile.id || `google_${Date.now()}`,
+          name: googleProfile.name || 'Manga Reader',
           username: username.replace(/[^a-zA-Z0-9_]/g, ''),
-          email: fbUser.email,
-          avatarUrl: fbUser.photoURL || undefined,
+          email: googleProfile.email,
+          avatarUrl: googleProfile.avatarUrl || undefined,
           role: assignedRole,
           isVIP: assignedRole === 'admin' || assignedRole === 'subscriber',
           creatorProfileId: creatorId,
@@ -256,13 +260,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsAuthenticated(true);
       return true;
     } catch (err) {
-      console.warn('Google sign-in popup cancelled or error:', err);
+      console.warn('Google OAuth sign-in error or cancelled:', err);
       return false;
     }
   };
 
   const signOut = () => {
-    signOutFirebase().catch(() => {});
     setIsAuthenticated(false);
     const guestUser: User = {
       id: 'guest_reader',

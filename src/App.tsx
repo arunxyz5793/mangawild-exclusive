@@ -272,33 +272,70 @@ function AppContent() {
     };
   }, []);
 
-  // Dynamic document title update based on current view & series
+  // Dynamic document title & meta tags update based on current view & series
   useEffect(() => {
+    let title = 'MangaWild Exclusive - Premium Indie Manga Publishing & Reader';
+    let desc = 'Read original indie manga, exclusive webtoons, and serial chapters like Chitra Khatha Chintu & Silent Heads. Support creators with VIP passes.';
+
     if (currentView === 'series' && viewParams.id) {
       const s = StorageService.getSeriesById(viewParams.id);
-      document.title = s ? `${s.title} - MangaWild Exclusive` : 'Manga Series - MangaWild Exclusive';
+      if (s) {
+        title = `${s.title} - Read Manga Online | MangaWild Exclusive`;
+        desc = s.synopsis ? `${s.synopsis.slice(0, 150)}... Read ${s.title} on MangaWild.` : desc;
+      } else {
+        title = 'Manga Series - MangaWild Exclusive';
+      }
     } else if (currentView === 'read') {
       const s = viewParams.seriesId ? StorageService.getSeriesById(viewParams.seriesId) : undefined;
       const ch = viewParams.chapterId ? StorageService.getChapterById(viewParams.chapterId) : undefined;
-      document.title = s && ch ? `${s.title} Chapter ${ch.chapterNumber} - MangaWild Reader` : 'Reading Manga - MangaWild';
+      if (s && ch) {
+        title = `${s.title} Chapter ${ch.chapterNumber}: ${ch.title} - MangaWild Reader`;
+        desc = `Read Chapter ${ch.chapterNumber} of ${s.title} online in high quality. Exclusive release on MangaWild.`;
+      } else {
+        title = 'Reading Manga - MangaWild';
+      }
     } else if (currentView === 'browse') {
-      document.title = 'Browse Manga Catalog - MangaWild';
+      title = 'Browse All Manga & Webtoons Catalog - MangaWild';
+      desc = 'Explore our library of indie manga, thrillers, supernatural horrors, and action comics from passionate creators.';
     } else if (currentView === 'trending') {
-      document.title = 'Trending Manga Leaderboard - MangaWild';
+      title = 'Trending Manga Leaderboard & Top Reads - MangaWild';
+      desc = 'Discover the most popular trending manga ranked by reader engagement and community ratings on MangaWild.';
     } else if (currentView === 'creator') {
-      document.title = 'Creator Studio & Publishing Desk - MangaWild';
+      title = 'Creator Studio & Indie Publishing Desk - MangaWild';
+      desc = 'Publish your original manga, earn 70% royalties, track reader analytics, and reach a passionate audience.';
     } else if (currentView === 'admin') {
-      document.title = 'Admin Editorial Suite - MangaWild';
+      title = 'Admin Editorial & Moderation Suite - MangaWild';
+      desc = 'Editorial desk for verifying scan quality, approving new series, and managing creator payouts.';
     } else if (currentView === 'membership') {
-      document.title = 'VIP Pass & Subscription - MangaWild';
+      title = 'VIP Pass & Unlimited Subscription Plans - MangaWild';
+      desc = 'Unlock all locked VIP manga chapters, read without delays, and directly support indie mangaka artists.';
     } else if (currentView === 'library') {
-      document.title = 'My Library & Bookmarks - MangaWild';
+      title = 'My Manga Library & Bookmarks - MangaWild';
+      desc = 'Access your saved manga collection, reading history, and bookmarked chapters.';
     } else if (currentView === 'creators') {
-      document.title = 'Featured Manga Creators - MangaWild';
+      title = 'Featured Indie Manga Creators & Artists - MangaWild';
+      desc = 'Meet the mangaka and artists behind MangaWild original series and follow their journeys.';
     } else if (currentView === 'news') {
-      document.title = 'Manga Community News & Updates - MangaWild';
-    } else {
-      document.title = 'MangaWild Exclusive - Premium Manga Publishing & Reader';
+      title = 'Manga Community News, Releases & Announcements - MangaWild';
+      desc = 'Stay updated with the latest manga releases, author interviews, and community updates on MangaWild.';
+    }
+
+    document.title = title;
+
+    // Update meta description
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', desc);
+    }
+    // Update og:title
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    if (ogTitle) {
+      ogTitle.setAttribute('content', title);
+    }
+    // Update og:description
+    const ogDesc = document.querySelector('meta[property="og:description"]');
+    if (ogDesc) {
+      ogDesc.setAttribute('content', desc);
     }
   }, [currentView, viewParams]);
 
