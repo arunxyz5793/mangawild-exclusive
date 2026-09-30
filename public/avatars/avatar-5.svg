@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <rect width="120" height="120" rx="60" fill="#1c1917"/>
+  <circle cx="60" cy="60" r="58" fill="none" stroke="#292524" stroke-width="2"/>
+  <!-- Topknot -->
+  <circle cx="60" cy="20" r="7" fill="#292524"/>
+  <!-- Neck & Face -->
+  <rect x="54" y="68" width="12" height="16" fill="#44403c" rx="2"/>
+  <ellipse cx="60" cy="50" rx="19" ry="21" fill="#d6d3d1"/>
+  <!-- Tied Back Hair -->
+  <path d="M40 48 C40 28 48 22 60 22 C72 22 80 28 80 48 C76 44 72 36 60 36 C48 36 44 44 40 48 Z" fill="#292524"/>
+  <!-- Strong Manga Eyes -->
+  <line x1="48" y1="50" x2="56" y2="48" stroke="#1c1917" stroke-width="2" stroke-linecap="round"/>
+  <line x1="64" y1="48" x2="72" y2="50" stroke="#1c1917" stroke-width="2" stroke-linecap="round"/>
+  <ellipse cx="52" cy="53" rx="2" ry="2" fill="#1c1917"/>
+  <ellipse cx="68" cy="53" rx="2" ry="2" fill="#1c1917"/>
+  <!-- Minimalist Haori Cross Collar -->
+  <path d="M26 108 C30 84 44 80 60 80 C76 80 90 84 94 108 Z" fill="#292524"/>
+  <line x1="46" y1="80" x2="68" y2="108" stroke="#d6d3d1" stroke-width="2"/>
+  <line x1="74" y1="80" x2="52" y2="108" stroke="#d6d3d1" stroke-width="2"/>
+</svg>

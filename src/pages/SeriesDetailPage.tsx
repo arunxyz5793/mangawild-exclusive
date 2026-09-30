@@ -1,0 +1,389 @@
+import React, { useState, useMemo } from 'react';
+import { Star, Bookmark, Share2, BookOpen, Sparkles, Check, ChevronRight, Search, ArrowUpDown, Plus, MessageSquare } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import { StorageService } from '../services/storage';
+import { RatingReviewSection } from '../components/RatingReviewSection';
+import { MangaCommentsSection } from '../components/MangaCommentsSection';
+import { MangaSeries, Chapter } from '../types/manga';
+
+interface SeriesDetailPageProps {
+  seriesId: string;
+  onReadChapter: (seriesId: string, chapterId: string) => void;
+  onNavigate: (view: string, params?: Record<string, string>) => void;
+  onOpenVIPModal?: () => void;
+}
+
+export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
+  seriesId,
+  onReadChapter,
+  onNavigate,
+  onOpenVIPModal,
+}) => {
+  const { user, isVIP, bookmarks, toggleBookmark, followedCreators, toggleFollowCreator } = useAuth();
+  const { theme } = useTheme();
+
+  const series = useMemo(() => StorageService.getSeriesById(seriesId), [seriesId]);
+  const chapters = useMemo(() => StorageService.getChapters(seriesId), [seriesId]);
+  const creator = useMemo(() => (series ? StorageService.getCreatorById(series.creatorId) : undefined), [series]);
+  const readingHistory = useMemo(() => StorageService.getReadingHistory(user.id), [user.id]);
+
+  const [shareCopied, setShareCopied] = useState(false);
+  const [chapterSearchQuery, setChapterSearchQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  const isCreatorOfSeries = series && (
+    series.creatorId === user.creatorProfileId ||
+    series.creatorId === `creator_${user.id}` ||
+    series.author.toLowerCase() === user.name.toLowerCase()
+  );
+
+  const displayedChapters = useMemo(() => {
+    let list = [...chapters];
+    if (chapterSearchQuery.trim()) {
+      const q = chapterSearchQuery.toLowerCase().trim();
+      list = list.filter(
+        c => c.title.toLowerCase().includes(q) ||
+             c.chapterNumber.toString().includes(q) ||
+             Boolean(c.titleHindi && c.titleHindi.toLowerCase().includes(q))
+      );
+    }
+    if (sortOrder === 'desc') {
+      list.sort((a, b) => b.chapterNumber - a.chapterNumber);
+    } else {
+      list.sort((a, b) => a.chapterNumber - b.chapterNumber);
+    }
+    return list;
+  }, [chapters, chapterSearchQuery, sortOrder]);
+
+  if (!series) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
+        <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-zinc-900'}`}>
+          Manga Series Not Found
+        </h2>
+        <p className="text-zinc-400">The manga you are looking for might have been moved or unpublished.</p>
+        <button
+          onClick={() => onNavigate('browse')}
+          className="px-4 py-2 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer"
+        >
+          Return to Browse
+        </button>
+      </div>
+    );
+  }
+
+  const isBookmarked = bookmarks.includes(series.id);
+  const isFollowingCreator = creator ? followedCreators.includes(creator.id) : false;
+
+  const handleShare = () => {
+    navigator.clipboard?.writeText(window.location.href);
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 2000);
+  };
+
+  const firstChapter = chapters[0];
+  const seriesProgress = readingHistory.find(h => h.seriesId === series.id);
+  const resumeChapter = seriesProgress
+    ? chapters.find(c => c.id === seriesProgress.chapterId) || firstChapter
+    : firstChapter;
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-12 select-none">
+      {/* 1. Series Hero Header */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+        {/* Cover Art (3:4 ratio) */}
+        <div className="md:col-span-4 lg:col-span-3">
+          <div
+            className={`relative aspect-[3/4] rounded-2xl overflow-hidden border shadow-2xl ${
+              theme === 'dark'
+                ? 'bg-zinc-900 border-zinc-800 shadow-black/80'
+                : 'bg-zinc-100 border-zinc-300 shadow-zinc-300'
+            }`}
+          >
+            <img
+              src={series.coverUrl}
+              alt={series.title}
+              className="w-full h-full object-cover"
+            />
+            {series.isExclusive && (
+              <span className="absolute top-3 right-3 bg-zinc-950 text-white text-xs font-black tracking-widest px-2.5 py-1 rounded shadow-lg uppercase font-mono border border-zinc-700">
+                VIP EXCLUSIVE
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Series Metadata & Actions */}
+        <div className="md:col-span-8 lg:col-span-9 space-y-5">
+          <div className="space-y-2">
+            {/* Clean Unboxed Metadata with · Separators */}
+            <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400 font-mono">
+              <span className="text-zinc-200 font-bold">{series.genres.join(' · ')}</span>
+              <span>·</span>
+              <span>{series.releaseYear}</span>
+              <span>·</span>
+              <span className="capitalize text-zinc-300 font-bold">{series.status}</span>
+            </div>
+
+            <h1
+              className={`text-3xl sm:text-4xl lg:text-5xl font-extrabold font-serif tracking-tight leading-tight ${
+                theme === 'dark' ? 'text-white' : 'text-zinc-900'
+              }`}
+            >
+              {series.title}
+            </h1>
+
+            {/* Author Attribution */}
+            <div className="flex items-center gap-3 pt-1 text-sm">
+              <span className="text-zinc-400">
+                Created by{' '}
+                <strong className={theme === 'dark' ? 'text-white' : 'text-zinc-900'}>
+                  {series.author}
+                </strong>
+              </span>
+              {creator && (
+                <button
+                  onClick={() => toggleFollowCreator(creator.id)}
+                  className={`text-xs px-2.5 py-1 rounded-lg border font-semibold transition-all cursor-pointer ${
+                    isFollowingCreator
+                      ? 'bg-zinc-800 border-zinc-700 text-white'
+                      : 'border-zinc-700 text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  {isFollowingCreator ? '✓ Following' : '+ Follow'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Aggregate Stats */}
+          <div
+            className={`flex items-center gap-6 py-3 px-4 rounded-xl border max-w-md ${
+              theme === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-50 border-zinc-200'
+            }`}
+          >
+            <div>
+              <span className="text-[10px] font-mono uppercase text-zinc-400 block">Rating</span>
+              <div className="flex items-center gap-1 text-zinc-200 font-bold font-mono text-sm">
+                <Star className="w-3.5 h-3.5 fill-current" />
+                <span>{series.rating.toFixed(1)}</span>
+                <span className="text-zinc-500 text-xs font-normal">/ 5.0</span>
+              </div>
+            </div>
+
+            <div className="w-px h-8 bg-zinc-800" />
+
+            <div>
+              <span className="text-[10px] font-mono uppercase text-zinc-400 block">Readership</span>
+              <span className="text-sm font-bold font-mono">
+                {series.totalReads.toLocaleString()}
+              </span>
+            </div>
+
+            <div className="w-px h-8 bg-zinc-800" />
+
+            <div>
+              <span className="text-[10px] font-mono uppercase text-zinc-400 block">Chapters</span>
+              <span className="text-sm font-bold font-mono">{chapters.length}</span>
+            </div>
+          </div>
+
+          {/* Synopsis */}
+          <p
+            className={`text-sm leading-relaxed max-w-3xl ${
+              theme === 'dark' ? 'text-zinc-300' : 'text-zinc-600'
+            }`}
+          >
+            {series.synopsis}
+          </p>
+
+          {/* Action Row */}
+          <div className="flex flex-wrap items-center gap-3 pt-2">
+            {resumeChapter ? (
+              <button
+                onClick={() => onReadChapter(series.id, resumeChapter.id)}
+                className="px-6 py-3 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center gap-2 hover:scale-[1.02] cursor-pointer"
+              >
+                <BookOpen className="w-4 h-4" />
+                <span>
+                  {seriesProgress ? `Resume Ch. ${resumeChapter.chapterNumber}` : 'Read First Chapter'}
+                </span>
+              </button>
+            ) : (user.role === 'admin' || isCreatorOfSeries) ? (
+              <button
+                onClick={() => onNavigate('creator')}
+                className="px-6 py-3 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center gap-2 hover:scale-[1.02] cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Upload First Chapter</span>
+              </button>
+            ) : null}
+
+            <button
+              onClick={() => toggleBookmark(series.id)}
+              className={`px-4 py-3 rounded-xl border text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
+                isBookmarked
+                  ? 'bg-zinc-800 border-zinc-700 text-white'
+                  : theme === 'dark'
+                  ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white'
+                  : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
+              }`}
+            >
+              <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-current' : ''}`} />
+              <span>{isBookmarked ? 'In Library' : 'Save to Library'}</span>
+            </button>
+
+            <button
+              onClick={handleShare}
+              className={`p-3 rounded-xl border transition-all cursor-pointer ${
+                theme === 'dark'
+                  ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white'
+                  : 'bg-white border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50'
+              }`}
+              title="Share link"
+            >
+              {shareCopied ? <Check className="w-4 h-4 text-white" /> : <Share2 className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Chapter Directory */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3 border-zinc-200 dark:border-zinc-800">
+          <div>
+            <h2
+              className={`text-xl font-bold font-serif ${
+                theme === 'dark' ? 'text-white' : 'text-zinc-900'
+              }`}
+            >
+              All Chapters ({chapters.length})
+            </h2>
+            <span className="text-xs text-zinc-400 font-mono">
+              Updated regularly by verified creators
+            </span>
+          </div>
+
+          {chapters.length > 0 && (
+            <div className="flex items-center gap-2">
+              {/* Search Filter */}
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-2.5" />
+                <input
+                  type="text"
+                  value={chapterSearchQuery}
+                  onChange={e => setChapterSearchQuery(e.target.value)}
+                  placeholder="Filter chapters..."
+                  className={`pl-8 pr-3 py-1.5 rounded-xl text-xs transition-colors border focus:outline-none ${
+                    theme === 'dark'
+                      ? 'bg-zinc-900 border-zinc-800 text-white placeholder-zinc-500 focus:border-zinc-600'
+                      : 'bg-white border-zinc-200 text-zinc-900 placeholder-zinc-400 focus:border-zinc-400'
+                  }`}
+                />
+              </div>
+
+              {/* Sort Order Toggle */}
+              <button
+                onClick={() => setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-mono font-semibold transition-all cursor-pointer ${
+                  theme === 'dark'
+                    ? 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:text-white hover:bg-zinc-800'
+                    : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
+                }`}
+                title="Toggle chapter order"
+              >
+                <ArrowUpDown className="w-3.5 h-3.5" />
+                <span>{sortOrder === 'asc' ? '1 → N' : 'N → 1'}</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {chapters.length === 0 ? (
+          <div
+            className={`p-10 text-center rounded-2xl border space-y-3 ${
+              theme === 'dark' ? 'bg-zinc-900/40 border-zinc-800' : 'bg-zinc-50 border-zinc-200'
+            }`}
+          >
+            <BookOpen className="w-9 h-9 text-zinc-500 mx-auto" />
+            <h4
+              className={`text-sm font-bold ${
+                theme === 'dark' ? 'text-white' : 'text-zinc-900'
+              }`}
+            >
+              No Chapters Published Yet
+            </h4>
+            <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+              This series is in active production. Follow this creator to be notified when Chapter 1 drops!
+            </p>
+            {(user.role === 'admin' || isCreatorOfSeries) && (
+              <button
+                onClick={() => onNavigate('creator')}
+                className="mt-2 px-4 py-2 bg-white text-zinc-950 font-bold text-xs rounded-xl shadow-xs cursor-pointer inline-flex items-center gap-1.5 hover:bg-zinc-200 transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Upload Chapter Pages in Creator Studio</span>
+              </button>
+            )}
+          </div>
+        ) : displayedChapters.length === 0 ? (
+          <div className="py-10 text-center text-xs text-zinc-400">
+            No chapters match &ldquo;{chapterSearchQuery}&rdquo;
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {displayedChapters.map(chapter => {
+              return (
+                <div
+                  key={chapter.id}
+                  onClick={() => onReadChapter(series.id, chapter.id)}
+                  className={`group p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                    theme === 'dark'
+                      ? 'bg-zinc-900/60 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900'
+                      : 'bg-white border-zinc-200 hover:border-zinc-300 shadow-xs hover:bg-zinc-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-zinc-800 text-zinc-300 flex items-center justify-center font-mono font-bold text-xs shrink-0">
+                      {chapter.chapterNumber}
+                    </div>
+                    <div>
+                      <h4
+                        className={`text-xs font-bold group-hover:text-zinc-300 transition-colors ${
+                          theme === 'dark' ? 'text-white' : 'text-zinc-900'
+                        }`}
+                      >
+                        {chapter.title}
+                      </h4>
+                      <span className="text-[10px] text-zinc-400 font-mono">
+                        {chapter.panels?.length || 0} pages · Free to read
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-zinc-300 font-bold flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
+                      <span>Read</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* 3. Manga Reader Comments & Discussion Section */}
+      <div className="pt-6 border-t border-zinc-200 dark:border-zinc-800">
+        <MangaCommentsSection seriesId={series.id} />
+      </div>
+
+      {/* 4. Community Reviews & Rating Component */}
+      <div className="pt-6 border-t border-zinc-200 dark:border-zinc-800">
+        <RatingReviewSection seriesId={series.id} seriesTitle={series.title} />
+      </div>
+    </div>
+  );
+};

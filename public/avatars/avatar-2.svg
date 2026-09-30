@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <rect width="120" height="120" rx="60" fill="#09090b"/>
+  <circle cx="60" cy="60" r="58" fill="none" stroke="#27272a" stroke-width="2"/>
+  <!-- Head & Neck -->
+  <rect x="54" y="68" width="12" height="16" fill="#3f3f46" rx="2"/>
+  <ellipse cx="60" cy="50" rx="19" ry="21" fill="#e4e4e7"/>
+  <!-- Sleek Hair -->
+  <path d="M40 48 C40 30 48 24 60 24 C72 24 80 30 80 48 C76 42 72 36 60 36 C48 36 44 42 40 48 Z" fill="#27272a"/>
+  <!-- Minimal Dark Shades -->
+  <rect x="44" y="46" width="13" height="7" rx="2" fill="#18181b"/>
+  <rect x="63" y="46" width="13" height="7" rx="2" fill="#18181b"/>
+  <line x1="57" y1="49" x2="63" y2="49" stroke="#18181b" stroke-width="1.5"/>
+  <!-- Modern Headphones -->
+  <path d="M37 50 C37 32 45 20 60 20 C75 20 83 32 83 50" fill="none" stroke="#52525b" stroke-width="3"/>
+  <rect x="34" y="44" width="7" height="16" rx="3" fill="#71717a"/>
+  <rect x="79" y="44" width="7" height="16" rx="3" fill="#71717a"/>
+  <!-- Hoodie Collar -->
+  <path d="M28 108 C32 86 44 80 60 80 C76 80 88 86 92 108 Z" fill="#18181b"/>
+  <path d="M45 80 Q60 92 75 80" fill="none" stroke="#3f3f46" stroke-width="2"/>
+</svg>

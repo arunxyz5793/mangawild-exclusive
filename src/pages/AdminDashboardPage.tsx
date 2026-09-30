@@ -1,0 +1,1104 @@
+import React, { useState, useMemo } from 'react';
+import {
+  Shield,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  Eye,
+  Star,
+  Users,
+  CreditCard,
+  Layers,
+  Sparkles,
+  Search,
+  MessageSquare,
+  DollarSign,
+  TrendingUp,
+  Flag,
+  Trash2,
+  Filter,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Sun,
+  Moon,
+  Clock,
+  BookOpen,
+  ArrowRight,
+  X,
+  FileText,
+  AlertCircle,
+} from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import { StorageService } from '../services/storage';
+import { MangaSeries, Chapter, SeriesReview, PaymentRecord, CreatorProfile } from '../types/manga';
+import { User, UserRole } from '../types/auth';
+import { AuthModal } from '../components/AuthModal';
+
+interface AdminDashboardPageProps {
+  onNavigate: (view: string, params?: Record<string, string>) => void;
+  onPreviewChapter: (seriesId: string, chapterId: string) => void;
+}
+
+export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
+  onNavigate,
+  onPreviewChapter,
+}) => {
+  const { user, canAccessAdmin, switchUserRole } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+
+  // Active navigation tab
+  const [activeTab, setActiveTab] = useState<'moderation' | 'reviews' | 'catalog' | 'creators' | 'users' | 'analytics'>('moderation');
+
+  // Live data from StorageService
+  const [seriesList, setSeriesList] = useState<MangaSeries[]>(() => StorageService.getSeries());
+  const [chaptersList, setChaptersList] = useState<Chapter[]>(() => StorageService.getChapters());
+  const [reviewsList, setReviewsList] = useState<SeriesReview[]>(() => StorageService.getReviews());
+  const [creatorsList, setCreatorsList] = useState<CreatorProfile[]>(() => StorageService.getCreators());
+  const [usersList, setUsersList] = useState<User[]>(() => StorageService.getUsers());
+  const [paymentsList, setPaymentsList] = useState<PaymentRecord[]>(() => StorageService.getPayments());
+
+  // Review & Flag Moderation Filters & State
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'flagged' | 'approved' | 'hidden'>('all');
+  const [reviewSearchQuery, setReviewSearchQuery] = useState('');
+  const [expandedReviewFlags, setExpandedReviewFlags] = useState<Record<string, boolean>>({});
+  const [isAdminAuthModalOpen, setIsAdminAuthModalOpen] = useState(false);
+
+  // Toast notification state
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Inspection Modal States
+  const [inspectingSeries, setInspectingSeries] = useState<MangaSeries | null>(null);
+  const [inspectingChapter, setInspectingChapter] = useState<{ chapter: Chapter; series?: MangaSeries } | null>(null);
+  const [rejectionFeedback, setRejectionFeedback] = useState('');
+  const [showRejectPrompt, setShowRejectPrompt] = useState<'series' | 'chapter' | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const refreshData = () => {
+    setSeriesList(StorageService.getSeries());
+    setChaptersList(StorageService.getChapters());
+    setReviewsList(StorageService.getReviews());
+    setCreatorsList(StorageService.getCreators());
+    setUsersList(StorageService.getUsers());
+    setPaymentsList(StorageService.getPayments());
+  };
+
+  // Series Approval / Rejection Handlers
+  const handleApproveSeries = (seriesId: string) => {
+    const s = seriesList.find(item => item.id === seriesId);
+    StorageService.updateSeries(seriesId, {
+      moderationStatus: 'approved',
+      reviewerNotes: 'Approved by MangaWild Chief Editorial Board. Live on platform.',
+    });
+
+    // Notify creator
+    if (s) {
+      StorageService.addNotification({
+        id: `notif_${Date.now()}`,
+        userId: s.creatorId,
+        title: 'Manga Series Approved!',
+        message: `Congratulations! Your manga series "${s.title}" has been approved and is now live for all readers on MangaWild!`,
+        type: 'moderation',
+        read: false,
+        createdAt: new Date().toISOString(),
+        link: `/series/${s.slug}`,
+      });
+    }
+
+    refreshData();
+    setInspectingSeries(null);
+    showToast(`Series "${s?.title}" approved and published live to catalog!`);
+  };
+
+  const handleRejectSeries = (seriesId: string) => {
+    const s = seriesList.find(item => item.id === seriesId);
+    StorageService.updateSeries(seriesId, {
+      moderationStatus: 'rejected',
+      reviewerNotes: rejectionFeedback.trim() || 'Submission requires revisions to meet quality guidelines.',
+    });
+
+    if (s) {
+      StorageService.addNotification({
+        id: `notif_${Date.now()}`,
+        userId: s.creatorId,
+        title: 'Manga Needs Revision',
+        message: `Your series "${s.title}" needs revisions: ${rejectionFeedback.trim() || 'Please check editorial feedback.'}`,
+        type: 'moderation',
+        read: false,
+        createdAt: new Date().toISOString(),
+        link: '/creator',
+      });
+    }
+
+    refreshData();
+    setShowRejectPrompt(null);
+    setInspectingSeries(null);
+    setRejectionFeedback('');
+    showToast(`Series "${s?.title}" marked for revision.`);
+  };
+
+  // Chapter Approval / Rejection Handlers
+  const handleApproveChapter = (chapterId: string) => {
+    const ch = chaptersList.find(c => c.id === chapterId);
+    const s = seriesList.find(item => item.id === ch?.seriesId);
+
+    StorageService.updateChapter(chapterId, {
+      moderationStatus: 'approved',
+      reviewerNotes: 'Approved by Editorial Board.',
+    });
+
+    if (s) {
+      StorageService.addNotification({
+        id: `notif_${Date.now()}`,
+        userId: s.creatorId,
+        title: 'Chapter Approved!',
+        message: `Chapter ${ch?.chapterNumber} of "${s.title}" has been approved and is now readable by users!`,
+        type: 'chapter',
+        read: false,
+        createdAt: new Date().toISOString(),
+        link: `/series/${s.slug}`,
+      });
+    }
+
+    refreshData();
+    setInspectingChapter(null);
+    showToast(`Chapter ${ch?.chapterNumber} approved!`);
+  };
+
+  const handleRejectChapter = (chapterId: string) => {
+    const ch = chaptersList.find(c => c.id === chapterId);
+    const s = seriesList.find(item => item.id === ch?.seriesId);
+
+    StorageService.updateChapter(chapterId, {
+      moderationStatus: 'rejected',
+      reviewerNotes: rejectionFeedback.trim() || 'Panels require reformatting or correction.',
+    });
+
+    if (s) {
+      StorageService.addNotification({
+        id: `notif_${Date.now()}`,
+        userId: s.creatorId,
+        title: 'Chapter Revision Required',
+        message: `Chapter ${ch?.chapterNumber} of "${s.title}" requires revisions: ${rejectionFeedback.trim() || 'Check panel order and resolution.'}`,
+        type: 'chapter',
+        read: false,
+        createdAt: new Date().toISOString(),
+        link: '/creator',
+      });
+    }
+
+    refreshData();
+    setShowRejectPrompt(null);
+    setInspectingChapter(null);
+    setRejectionFeedback('');
+    showToast(`Chapter ${ch?.chapterNumber} marked for revision.`);
+  };
+
+  // Toggle Trending Rank
+  const handleSetTrendingRank = (seriesId: string, rank?: number) => {
+    StorageService.updateSeries(seriesId, {
+      isTrending: !!rank,
+      rankNumber: rank,
+    });
+    refreshData();
+    showToast(rank ? `Assigned Trending rank #${rank}` : 'Removed from Trending leaderboard');
+  };
+
+  // Review Moderation Handlers
+  const handleToggleReviewFlag = (reviewId: string) => {
+    StorageService.toggleReviewFlagStatus(reviewId, user.name);
+    refreshData();
+    showToast('Review flag status toggled');
+  };
+
+  const handleDismissFlag = (reviewId: string) => {
+    StorageService.unflagReview(reviewId, user.name);
+    refreshData();
+    showToast('Flag dismissed and review approved');
+  };
+
+  const handleConfirmFlagAndHide = (reviewId: string) => {
+    StorageService.updateReviewStatus(reviewId, 'hidden', 'Confirmed policy violation by Administrator', user.name);
+    refreshData();
+    showToast('Review marked as hidden from public view');
+  };
+
+  const handleDeleteReview = (reviewId: string) => {
+    StorageService.deleteReview(reviewId);
+    refreshData();
+    showToast('Review permanently removed');
+  };
+
+  const handleToggleFlagInspection = (reviewId: string) => {
+    setExpandedReviewFlags(prev => ({
+      ...prev,
+      [reviewId]: !prev[reviewId],
+    }));
+  };
+
+  // Toggle Creator Verified Status
+  const handleToggleCreatorVerified = (creatorId: string, current: boolean) => {
+    StorageService.updateCreatorProfile(creatorId, { verified: !current });
+    refreshData();
+    showToast(!current ? 'Creator verified successfully' : 'Verification badge removed');
+  };
+
+  // Change User Role
+  const handleChangeUserRole = (targetUserId: string, newRole: UserRole) => {
+    StorageService.updateUser(targetUserId, { role: newRole });
+    refreshData();
+    showToast(`User role updated to ${newRole}`);
+  };
+
+  // Filtered reviews
+  const filteredReviews = useMemo(() => {
+    return reviewsList.filter(r => {
+      const matchesSearch =
+        r.reviewTitle.toLowerCase().includes(reviewSearchQuery.toLowerCase()) ||
+        r.seriesTitle.toLowerCase().includes(reviewSearchQuery.toLowerCase()) ||
+        r.userName.toLowerCase().includes(reviewSearchQuery.toLowerCase());
+
+      if (!matchesSearch) return false;
+
+      if (reviewFilter === 'flagged') return r.isFlagged || r.status === 'flagged';
+      if (reviewFilter === 'approved') return r.status === 'approved' && !r.isFlagged;
+      if (reviewFilter === 'hidden') return r.status === 'hidden';
+      return true;
+    });
+  }, [reviewsList, reviewSearchQuery, reviewFilter]);
+
+  const pendingSeries = seriesList.filter(s => s.moderationStatus === 'pending_review');
+  const pendingChapters = chaptersList.filter(c => c.moderationStatus === 'pending_review');
+  const flaggedCount = reviewsList.filter(r => r.isFlagged || r.status === 'flagged').length;
+  const totalPendingModeration = pendingSeries.length + pendingChapters.length;
+
+  // Role Gate
+  if (!canAccessAdmin) {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-20 text-center space-y-6">
+        <div className="w-16 h-16 rounded-3xl bg-zinc-900 border border-zinc-800 mx-auto flex items-center justify-center text-white shadow-xl">
+          <Shield className="w-8 h-8 text-purple-400" />
+        </div>
+        <h1 className="text-2xl font-black text-white">Administrator Access Required</h1>
+        <p className="text-xs text-zinc-400 leading-relaxed max-w-md mx-auto">
+          The MangaWild Editorial Suite is restricted to verified administrators and content moderators. Please sign in with your administrator credentials.
+        </p>
+        <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <button
+            onClick={() => setIsAdminAuthModalOpen(true)}
+            className="px-6 py-2.5 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-xs transition-all shadow-md active:scale-95 cursor-pointer flex items-center gap-2"
+          >
+            <Shield className="w-4 h-4 text-purple-600" />
+            <span>Admin Sign In</span>
+          </button>
+          <button
+            onClick={() => onNavigate('home')}
+            className="px-5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 font-medium text-xs transition-all cursor-pointer"
+          >
+            Return to Home
+          </button>
+        </div>
+
+        <AuthModal
+          isOpen={isAdminAuthModalOpen}
+          onClose={() => setIsAdminAuthModalOpen(false)}
+          defaultRole="admin"
+          onSuccess={() => {
+            setIsAdminAuthModalOpen(false);
+            refreshData();
+          }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className={`min-h-screen ${theme === 'dark' ? 'bg-[#000000] text-[#fafafa]' : 'bg-[#ffffff] text-[#09090b]'}`}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8 select-none">
+        {/* Toast Alert */}
+        {toastMessage && (
+          <div className="fixed bottom-6 right-6 z-50 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 border border-zinc-700 dark:border-zinc-300 px-5 py-3 rounded-2xl shadow-2xl text-xs font-bold flex items-center gap-2 animate-fade-in font-mono">
+            <CheckCircle className="w-4 h-4" />
+            <span>{toastMessage}</span>
+          </div>
+        )}
+
+        {/* Top Header Bar */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6 border-zinc-200 dark:border-zinc-800">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-xs font-mono">
+              <span className="text-zinc-500">Suite</span>
+              <span className="text-zinc-600">/</span>
+              <span className="font-bold uppercase tracking-wider text-purple-400">
+                Administrator & Editorial Desk
+              </span>
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight">
+              MangaWild Editorial Approval Suite
+            </h1>
+            <p className="text-xs text-zinc-400">
+              Admin approval desk for original manga submissions, multi-page scan verification, review flags, and creator royalties.
+            </p>
+          </div>
+
+          {/* Theme Switcher & Admin Badge */}
+          <div className="flex items-center gap-2.5">
+            <span className="text-[10px] font-mono px-3 py-1.5 rounded-xl bg-purple-950 text-purple-300 border border-purple-800 font-bold flex items-center gap-1.5">
+              <Shield className="w-3.5 h-3.5" />
+              <span>Admin: {user.username ? `@${user.username}` : user.name || 'Editorial Board'}</span>
+            </span>
+            <button
+              onClick={toggleTheme}
+              className={`p-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer border ${
+                theme === 'dark'
+                  ? 'bg-zinc-900 border-zinc-800 text-white hover:bg-zinc-800'
+                  : 'bg-zinc-100 border-zinc-300 text-zinc-900 hover:bg-zinc-200'
+              }`}
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Navigation Sub-Tabs */}
+        <div
+          className={`flex items-center gap-1.5 p-1.5 rounded-2xl overflow-x-auto border ${
+            theme === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-100 border-zinc-200'
+          }`}
+        >
+          {[
+            { id: 'moderation', label: 'Approval Desk', count: totalPendingModeration },
+            { id: 'reviews', label: 'Reviews & Flags', count: flaggedCount },
+            { id: 'catalog', label: 'Catalog & Ranks' },
+            { id: 'creators', label: 'Creators & Payouts' },
+            { id: 'users', label: 'User Management' },
+            { id: 'analytics', label: 'Financials & Metrics' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer ${
+                activeTab === tab.id
+                  ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 shadow-xs'
+                  : 'text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+              }`}
+            >
+              <span>{tab.label}</span>
+              {tab.count !== undefined && tab.count > 0 && (
+                <span className="w-4 h-4 rounded-full bg-amber-500 text-zinc-950 text-[10px] flex items-center justify-center font-mono font-bold">
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* TAB 1: APPROVAL DESK (MANGA SERIES & CHAPTER PAGES) */}
+        {activeTab === 'moderation' && (
+          <div className="space-y-8 animate-fade-in">
+            {/* Quick KPI Overview */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+                <span className="text-[10px] font-mono uppercase text-zinc-400">Pending Series Approvals</span>
+                <p className="text-2xl font-black mt-1 text-white">{pendingSeries.length}</p>
+                <p className="text-[10px] text-zinc-500 font-mono mt-0.5">Awaiting editorial review</p>
+              </div>
+
+              <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+                <span className="text-[10px] font-mono uppercase text-zinc-400">Pending Chapter Scans</span>
+                <p className="text-2xl font-black mt-1 text-white">{pendingChapters.length}</p>
+                <p className="text-[10px] text-zinc-500 font-mono mt-0.5">Multi-page submissions</p>
+              </div>
+
+              <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+                <span className="text-[10px] font-mono uppercase text-zinc-400">Total Approved Manga</span>
+                <p className="text-2xl font-black mt-1 text-emerald-400">
+                  {seriesList.filter(s => s.moderationStatus === 'approved').length}
+                </p>
+                <p className="text-[10px] text-zinc-500 font-mono mt-0.5">Live on public website</p>
+              </div>
+            </div>
+
+            {/* SECTION 1: MANGA SERIES APPROVAL QUEUE */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold font-serif flex items-center gap-2">
+                    <span>Manga Series Submissions</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 font-mono">
+                      {pendingSeries.length} pending
+                    </span>
+                  </h2>
+                  <p className="text-xs text-zinc-400">
+                    Verify title, categories, description, and hero cover image before approving to live catalog.
+                  </p>
+                </div>
+              </div>
+
+              {pendingSeries.length === 0 ? (
+                <div className="p-8 text-center rounded-2xl border border-zinc-800 bg-zinc-900/20">
+                  <CheckCircle className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                  <p className="text-xs font-semibold text-zinc-400">
+                    All submitted manga series have been reviewed! No pending series in queue.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {pendingSeries.map(s => {
+                    const creator = creatorsList.find(c => c.id === s.creatorId);
+                    return (
+                      <div
+                        key={s.id}
+                        className="p-5 rounded-2xl border border-amber-900/40 bg-zinc-900/60 flex flex-col md:flex-row gap-5 items-start justify-between"
+                      >
+                        <div className="flex gap-4">
+                          <img
+                            src={s.coverUrl}
+                            alt={s.title}
+                            className="w-20 h-28 object-cover rounded-xl bg-zinc-800 border border-zinc-700 shrink-0 shadow-md"
+                          />
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold uppercase bg-amber-950 text-amber-300 border border-amber-800">
+                                Pending Approval
+                              </span>
+                              {s.isExclusive && (
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-300">
+                                  VIP Exclusive
+                                </span>
+                              )}
+                              <span className="text-[11px] text-zinc-400 font-mono">
+                                Creator: <strong className="text-white">{s.author}</strong> ({creator?.handle || '@creator'})
+                              </span>
+                            </div>
+
+                            <h3 className="text-base font-black text-white">{s.title}</h3>
+                            {s.titleHindi && (
+                              <p className="text-xs text-zinc-400 font-mono">{s.titleHindi}</p>
+                            )}
+                            <p className="text-xs text-zinc-300 max-w-2xl line-clamp-2 leading-relaxed">
+                              {s.synopsis}
+                            </p>
+
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                              {s.genres.map(g => (
+                                <span
+                                  key={g}
+                                  className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700"
+                                >
+                                  {g}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="flex md:flex-col items-center gap-2 shrink-0 w-full md:w-auto justify-end">
+                          <button
+                            onClick={() => setInspectingSeries(s)}
+                            className="px-3.5 py-1.5 rounded-xl border border-zinc-700 text-zinc-200 hover:text-white hover:bg-zinc-800 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Inspect</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleApproveSeries(s.id)}
+                            className="px-4 py-1.5 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-xs flex items-center gap-1.5 shadow-md transition-all active:scale-95 cursor-pointer"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Approve & Publish</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setInspectingSeries(s);
+                              setShowRejectPrompt('series');
+                            }}
+                            className="px-3 py-1.5 rounded-xl border border-red-900/60 text-red-400 hover:bg-red-950/40 text-xs font-semibold cursor-pointer"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* SECTION 2: CHAPTER PAGES APPROVAL QUEUE */}
+            <div className="space-y-4 pt-6 border-t border-zinc-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold font-serif flex items-center gap-2">
+                    <span>Chapter Pages Submissions</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 font-mono">
+                      {pendingChapters.length} pending
+                    </span>
+                  </h2>
+                  <p className="text-xs text-zinc-400">
+                    Review numbered manga panels (Page 1, 2, 3...) for sequencing, artwork, and readability.
+                  </p>
+                </div>
+              </div>
+
+              {pendingChapters.length === 0 ? (
+                <div className="p-8 text-center rounded-2xl border border-zinc-800 bg-zinc-900/20">
+                  <CheckCircle className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                  <p className="text-xs font-semibold text-zinc-400">
+                    All chapter pages have been moderated!
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {pendingChapters.map(ch => {
+                    const s = seriesList.find(item => item.id === ch.seriesId);
+                    return (
+                      <div
+                        key={ch.id}
+                        className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black text-white">
+                              {s?.title || 'Series'} • Chapter {ch.chapterNumber}: {ch.title}
+                            </span>
+                            <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-amber-950 text-amber-300 font-bold uppercase">
+                              Pending Review
+                            </span>
+                            {ch.isExclusiveVIP && (
+                              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300">
+                                VIP
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-zinc-400 font-mono">
+                            {ch.panels?.length || 0} Pages submitted • Creator: {s?.author || 'Mangaka'}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => setInspectingChapter({ chapter: ch, series: s })}
+                            className="px-3 py-1.5 rounded-xl border border-zinc-700 text-zinc-200 hover:text-white hover:bg-zinc-800 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Inspect Pages ({ch.panels?.length || 0})</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleApproveChapter(ch.id)}
+                            className="px-3.5 py-1.5 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-xs flex items-center gap-1 cursor-pointer"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Approve</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setInspectingChapter({ chapter: ch, series: s });
+                              setShowRejectPrompt('chapter');
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl border border-red-900/60 text-red-400 text-xs font-semibold cursor-pointer"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* SECTION 3: ALL TRACKED CHAPTERS DIRECTORY */}
+            <div className="space-y-4 pt-6 border-t border-zinc-800">
+              <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-zinc-400">
+                All Platform Chapters Directory ({chaptersList.length})
+              </h3>
+              <div
+                className={`rounded-2xl border overflow-hidden ${
+                  theme === 'dark' ? 'bg-zinc-900/60 border-zinc-800' : 'bg-white border-zinc-200 shadow-xs'
+                }`}
+              >
+                <table className="w-full text-left text-xs">
+                  <thead
+                    className={`border-b font-mono uppercase ${
+                      theme === 'dark' ? 'border-zinc-800 bg-zinc-950 text-zinc-400' : 'border-zinc-200 bg-zinc-50 text-zinc-600'
+                    }`}
+                  >
+                    <tr>
+                      <th className="py-3 px-4">Series & Chapter</th>
+                      <th className="py-3 px-4">Pages</th>
+                      <th className="py-3 px-4">Access Tier</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800/40">
+                    {chaptersList.map(ch => {
+                      const s = seriesList.find(item => item.id === ch.seriesId);
+                      return (
+                        <tr
+                          key={ch.id}
+                          className={`transition-colors ${
+                            theme === 'dark' ? 'hover:bg-zinc-800/40' : 'hover:bg-zinc-50'
+                          }`}
+                        >
+                          <td className="py-3 px-4">
+                            <p className="font-bold">{s?.title || 'Unknown Series'}</p>
+                            <p className="text-[11px] text-zinc-400 font-mono">
+                              Chapter {ch.chapterNumber}: {ch.title}
+                            </p>
+                          </td>
+                          <td className="py-3 px-4 font-mono">{ch.panels?.length || 0} pages</td>
+                          <td className="py-3 px-4">
+                            {ch.isExclusiveVIP ? (
+                              <span className="font-bold font-mono text-[10px] uppercase text-zinc-200">
+                                VIP Only
+                              </span>
+                            ) : (
+                              <span className="text-zinc-400 font-mono text-[10px] uppercase">Free</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span
+                              className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold uppercase ${
+                                ch.moderationStatus === 'approved'
+                                  ? 'bg-zinc-800 text-zinc-200'
+                                  : 'bg-amber-950 text-amber-300'
+                              }`}
+                            >
+                              {ch.moderationStatus}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right space-x-2">
+                            <button
+                              onClick={() => onPreviewChapter(ch.seriesId, ch.id)}
+                              className="px-2.5 py-1 bg-zinc-800 text-white rounded-lg text-[11px] font-semibold hover:bg-zinc-700 cursor-pointer"
+                            >
+                              Preview
+                            </button>
+                            {ch.moderationStatus !== 'approved' && (
+                              <button
+                                onClick={() => handleApproveChapter(ch.id)}
+                                className="px-2.5 py-1 bg-white text-zinc-950 hover:bg-zinc-200 rounded-lg text-[11px] font-semibold cursor-pointer"
+                              >
+                                Approve
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: REVIEWS & FLAG MODERATION DESK */}
+        {activeTab === 'reviews' && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/60">
+                <span className="text-[10px] font-mono uppercase text-zinc-400">Total Reviews</span>
+                <p className="text-2xl font-black font-mono mt-1">{reviewsList.length}</p>
+              </div>
+
+              <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/60">
+                <span className="text-[10px] font-mono uppercase text-zinc-300 font-bold">
+                  Flagged Queue
+                </span>
+                <p className="text-2xl font-black font-mono mt-1 text-white">{flaggedCount}</p>
+              </div>
+
+              <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/60">
+                <span className="text-[10px] font-mono uppercase text-zinc-400">Approved Reviews</span>
+                <p className="text-2xl font-black font-mono mt-1">
+                  {reviewsList.filter(r => r.status === 'approved').length}
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/60">
+                <span className="text-[10px] font-mono uppercase text-zinc-400">Hidden / Violations</span>
+                <p className="text-2xl font-black font-mono mt-1 text-red-400">
+                  {reviewsList.filter(r => r.status === 'hidden').length}
+                </p>
+              </div>
+            </div>
+
+            {/* Reviews list */}
+            <div className="space-y-3">
+              {filteredReviews.map(review => (
+                <div
+                  key={review.id}
+                  className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 flex flex-col md:flex-row justify-between gap-4"
+                >
+                  <div className="space-y-1.5 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-white">{review.userName}</span>
+                      <span className="text-[10px] font-mono text-zinc-500">on {review.seriesTitle}</span>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-amber-300">
+                        ★ {review.rating}/5
+                      </span>
+                    </div>
+                    <p className="text-xs font-semibold text-zinc-200">{review.reviewTitle}</p>
+                    <p className="text-xs text-zinc-400 leading-relaxed">{review.reviewText}</p>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {review.isFlagged ? (
+                      <button
+                        onClick={() => handleDismissFlag(review.id)}
+                        className="px-3 py-1.5 rounded-xl bg-white text-zinc-950 font-bold text-xs cursor-pointer"
+                      >
+                        Dismiss Flag
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleToggleReviewFlag(review.id)}
+                        className="px-2.5 py-1 rounded-lg border border-zinc-700 text-zinc-400 hover:text-white text-xs"
+                      >
+                        Flag
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDeleteReview(review.id)}
+                      className="p-2 rounded-xl text-red-400 hover:bg-zinc-800"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: CATALOG & RANKS */}
+        {activeTab === 'catalog' && (
+          <div className="space-y-4">
+            <h2 className="text-base font-bold uppercase tracking-wider font-mono">
+              Catalog Management & Leaderboard Ranks
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {seriesList.map(s => (
+                <div key={s.id} className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-3">
+                  <div className="flex gap-3">
+                    <img src={s.coverUrl} alt={s.title} className="w-16 h-24 object-cover rounded-xl" />
+                    <div>
+                      <p className="text-xs font-bold text-white truncate">{s.title}</p>
+                      <p className="text-[11px] text-zinc-400">{s.author}</p>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded uppercase font-bold bg-zinc-800 text-zinc-300 mt-1 inline-block">
+                        {s.moderationStatus}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs pt-2 border-t border-zinc-800">
+                    <span className="text-zinc-400 font-mono">Trending Rank:</span>
+                    <select
+                      value={s.rankNumber || ''}
+                      onChange={e => handleSetTrendingRank(s.id, e.target.value ? parseInt(e.target.value) : undefined)}
+                      className="px-2 py-1 rounded-lg bg-zinc-800 text-white font-mono text-xs"
+                    >
+                      <option value="">None</option>
+                      <option value="1">Rank #1</option>
+                      <option value="2">Rank #2</option>
+                      <option value="3">Rank #3</option>
+                      <option value="4">Rank #4</option>
+                      <option value="5">Rank #5</option>
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: CREATORS & PAYOUTS */}
+        {activeTab === 'creators' && (
+          <div className="space-y-4">
+            <h2 className="text-base font-bold uppercase tracking-wider font-mono">
+              Verified Creators & Royalty Distributions
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {creatorsList.map(creator => (
+                <div key={creator.id} className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/40 flex gap-4">
+                  <img src={creator.avatarUrl} alt={creator.penName} className="w-16 h-16 rounded-2xl object-cover bg-zinc-800" />
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-bold text-white">{creator.penName}</p>
+                      <button
+                        onClick={() => handleToggleCreatorVerified(creator.id, creator.verified)}
+                        className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold uppercase border ${
+                          creator.verified
+                            ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
+                            : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+                        }`}
+                      >
+                        {creator.verified ? 'Verified ✓' : 'Unverified'}
+                      </button>
+                    </div>
+                    <p className="text-xs text-zinc-400 font-mono">{creator.handle}</p>
+                    <p className="text-xs text-zinc-300">
+                      Earnings: ₹{creator.monthlyEarningsInr.toLocaleString('en-IN')} (70% share)
+                    </p>
+                    <p className="text-[11px] text-zinc-500 font-mono">UPI: {creator.upiId || 'Not set'}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: USER MANAGEMENT */}
+        {activeTab === 'users' && (
+          <div className="space-y-4">
+            <h2 className="text-base font-bold uppercase tracking-wider font-mono">
+              User Directory & Role Assignments
+            </h2>
+            <div className="rounded-2xl border border-zinc-800 overflow-hidden bg-zinc-900/40">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-zinc-800 bg-zinc-950 text-zinc-400 font-mono uppercase">
+                  <tr>
+                    <th className="py-3 px-4">User</th>
+                    <th className="py-3 px-4">Username</th>
+                    <th className="py-3 px-4">Email</th>
+                    <th className="py-3 px-4">Role</th>
+                    <th className="py-3 px-4 text-right">Change Role</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-800/40">
+                  {usersList.map(u => (
+                    <tr key={u.id} className="hover:bg-zinc-800/30">
+                      <td className="py-3 px-4 font-bold text-white">{u.name}</td>
+                      <td className="py-3 px-4 font-mono text-zinc-400">@{u.username || 'user'}</td>
+                      <td className="py-3 px-4 text-zinc-400">{u.email}</td>
+                      <td className="py-3 px-4">
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded uppercase font-bold bg-zinc-800 text-zinc-300">
+                          {u.role.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <select
+                          value={u.role}
+                          onChange={e => handleChangeUserRole(u.id, e.target.value as UserRole)}
+                          className="px-2 py-1 rounded-lg bg-zinc-800 text-white font-mono text-xs"
+                        >
+                          <option value="free_user">Free Reader</option>
+                          <option value="subscriber">VIP Subscriber</option>
+                          <option value="creator">Creator</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 6: FINANCIALS & ANALYTICS */}
+        {activeTab === 'analytics' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+                <p className="text-[11px] font-mono text-zinc-400 uppercase">Gross Platform Volume</p>
+                <p className="text-3xl font-black text-white mt-1">₹4,28,000</p>
+                <p className="text-[10px] text-zinc-500 font-mono mt-1">VIP subscriptions + coins</p>
+              </div>
+
+              <div className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+                <p className="text-[11px] font-mono text-zinc-400 uppercase">Creator 70% Royalties</p>
+                <p className="text-3xl font-black text-emerald-400 mt-1">₹2,99,600</p>
+                <p className="text-[10px] text-zinc-500 font-mono mt-1">Paid directly to mangakas</p>
+              </div>
+
+              <div className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+                <p className="text-[11px] font-mono text-zinc-400 uppercase">Platform Net (30%)</p>
+                <p className="text-3xl font-black text-white mt-1">₹1,28,400</p>
+                <p className="text-[10px] text-zinc-500 font-mono mt-1">Infrastructure & servers</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* INSPECTION MODAL: FULL SERIES DETAILS */}
+        {inspectingSeries && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+            <div className="w-full max-w-2xl rounded-3xl border border-zinc-700 bg-[#101014] text-white p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+                <div>
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 font-bold">
+                    Editorial Inspection Desk
+                  </span>
+                  <h3 className="text-xl font-black text-white mt-0.5">{inspectingSeries.title}</h3>
+                </div>
+                <button
+                  onClick={() => setInspectingSeries(null)}
+                  className="p-1.5 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-5">
+                <img
+                  src={inspectingSeries.coverUrl}
+                  alt={inspectingSeries.title}
+                  className="w-36 h-52 object-cover rounded-2xl border border-zinc-700 shrink-0 shadow-lg"
+                />
+                <div className="space-y-2 text-xs">
+                  {inspectingSeries.titleHindi && (
+                    <p className="text-zinc-400 font-mono">Hindi Title: {inspectingSeries.titleHindi}</p>
+                  )}
+                  {inspectingSeries.titleJapanese && (
+                    <p className="text-zinc-400 font-mono">Japanese: {inspectingSeries.titleJapanese}</p>
+                  )}
+                  <p className="text-zinc-400">Author / Mangaka: <strong className="text-white">{inspectingSeries.author}</strong></p>
+                  <p className="text-zinc-300 leading-relaxed text-xs">{inspectingSeries.synopsis}</p>
+                  <div className="flex flex-wrap gap-1.5 pt-2">
+                    {inspectingSeries.genres.map(g => (
+                      <span key={g} className="px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono text-[10px]">
+                        {g}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Rejection Feedback Note Form */}
+              {showRejectPrompt === 'series' && (
+                <div className="p-4 rounded-2xl bg-red-950/40 border border-red-800 space-y-2">
+                  <label className="block text-xs font-bold text-red-200">
+                    Reason for Revision / Rejection Note to Creator:
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={rejectionFeedback}
+                    onChange={e => setRejectionFeedback(e.target.value)}
+                    placeholder="e.g. Please upload higher resolution cover artwork and refine the synopsis."
+                    className="w-full p-2.5 rounded-xl border border-red-800 bg-black text-white text-xs focus:outline-none"
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => setShowRejectPrompt(null)}
+                      className="px-3 py-1.5 text-xs text-zinc-400 hover:text-white"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => handleRejectSeries(inspectingSeries.id)}
+                      className="px-4 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs"
+                    >
+                      Confirm Rejection
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-800">
+                <button
+                  onClick={() => setShowRejectPrompt('series')}
+                  className="px-4 py-2 rounded-xl border border-red-900/60 text-red-400 hover:bg-red-950/40 text-xs font-bold"
+                >
+                  Send Revision Request
+                </button>
+                <button
+                  onClick={() => handleApproveSeries(inspectingSeries.id)}
+                  className="px-5 py-2 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-black text-xs flex items-center gap-1.5 shadow-lg active:scale-95"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Approve & Publish to Catalog</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* INSPECTION MODAL: CHAPTER PAGES VIEWER */}
+        {inspectingChapter && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fade-in">
+            <div className="w-full max-w-3xl rounded-3xl border border-zinc-700 bg-[#101014] text-white p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+                <div>
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 font-bold">
+                    Chapter Scan Inspection Desk
+                  </span>
+                  <h3 className="text-xl font-black text-white mt-0.5">
+                    {inspectingChapter.series?.title} • Chapter {inspectingChapter.chapter.chapterNumber}: {inspectingChapter.chapter.title}
+                  </h3>
+                  <p className="text-xs text-zinc-400 font-mono">
+                    {inspectingChapter.chapter.panels?.length || 0} sequential pages submitted
+                  </p>
+                </div>
+                <button
+                  onClick={() => setInspectingChapter(null)}
+                  className="p-1.5 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Sequential Pages Grid */}
+              <div className="space-y-4">
+                <p className="text-xs font-mono text-zinc-400 uppercase tracking-wider">
+                  Sequential Pages (Page 1 to {inspectingChapter.chapter.panels?.length || 0}):
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {inspectingChapter.chapter.panels?.map(panel => (
+                    <div
+                      key={panel.id}
+                      className="p-2 rounded-2xl border border-zinc-800 bg-zinc-900/60 space-y-2 text-center"
+                    >
+                      <div className="w-full aspect-3/4 rounded-xl overflow-hidden bg-black border border-zinc-700 shadow-inner flex items-center justify-center">
+                        <img
+                          src={panel.imageUrl}
+                          alt={`Page ${panel.panelNumber}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <p className="text-[11px] font-bold text-white font-mono">Page #{panel.panelNumber}</p>
+                      {panel.caption && (
+                        <p className="text-[10px] text-zinc-400 truncate">{panel.caption}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-800">
+                <button
+                  onClick={() => handleRejectChapter(inspectingChapter.chapter.id)}
+                  className="px-4 py-2 rounded-xl border border-red-900/60 text-red-400 hover:bg-red-950/40 text-xs font-bold"
+                >
+                  Reject Chapter
+                </button>
+                <button
+                  onClick={() => handleApproveChapter(inspectingChapter.chapter.id)}
+                  className="px-5 py-2 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-black text-xs flex items-center gap-1.5 shadow-lg active:scale-95"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Approve Chapter</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};

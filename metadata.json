@@ -1,0 +1,8 @@
+{
+  "name": "mangawild",
+  "description": "A premium, editorial-focused manga publishing ecosystem featuring secure subscriptions, professional creator dashboards, and a seamless reading experience.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

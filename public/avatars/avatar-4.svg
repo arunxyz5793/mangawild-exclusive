@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <rect width="120" height="120" rx="60" fill="#141416"/>
+  <circle cx="60" cy="60" r="58" fill="none" stroke="#27272a" stroke-width="2"/>
+  <!-- Head & Neck -->
+  <rect x="55" y="70" width="10" height="15" fill="#3f3f46" rx="2"/>
+  <ellipse cx="60" cy="52" rx="18" ry="20" fill="#e4e4e7"/>
+  <!-- Smooth Dark Anime Hair with Bangs -->
+  <path d="M40 54 C38 32 46 22 60 22 C74 22 82 32 80 54 C82 66 80 76 78 86 C76 72 76 56 74 50 C70 42 66 38 60 40 C54 38 50 42 46 50 C44 56 44 72 42 86 C40 76 38 66 40 54 Z" fill="#27272a"/>
+  <!-- Manga Eyes -->
+  <path d="M49 52 Q53 49 57 52" fill="none" stroke="#18181b" stroke-width="2" stroke-linecap="round"/>
+  <path d="M63 52 Q67 49 71 52" fill="none" stroke="#18181b" stroke-width="2" stroke-linecap="round"/>
+  <ellipse cx="53" cy="54" rx="2" ry="2.5" fill="#18181b"/>
+  <ellipse cx="67" cy="54" rx="2" ry="2.5" fill="#18181b"/>
+  <!-- Minimalist Crewneck -->
+  <path d="M28 108 C32 88 44 82 60 82 C76 82 88 88 92 108 Z" fill="#27272a"/>
+  <path d="M50 82 Q60 90 70 82" fill="none" stroke="#18181b" stroke-width="2"/>
+</svg>

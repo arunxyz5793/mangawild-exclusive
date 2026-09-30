@@ -1,0 +1,192 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    /* Sophisticated Dark Mode - Deep Slate & Monochromatic Blue-Grey */
+    --bg-page: #0b0f17;
+    --bg-card: #111827;
+    --bg-surface: #1e293b;
+    --bg-elevated: #334155;
+    
+    --border-color: rgba(148, 163, 184, 0.14);
+    --border-subtle: rgba(148, 163, 184, 0.08);
+    
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    
+    --accent-primary: #94a3b8;
+    --accent-secondary: #64748b;
+    --accent-highlight: #38bdf8;
+    --accent-contrast: #0b0f17;
+    --accent-contrast-bg: #f8fafc;
+    
+    --badge-bg: rgba(148, 163, 184, 0.12);
+    --badge-border: rgba(148, 163, 184, 0.24);
+    --badge-text: #e2e8f0;
+    
+    --glow-color: rgba(148, 163, 184, 0.15);
+  }
+
+  html.light {
+    /* Sophisticated Light Mode - Crisp Paper Slate */
+    --bg-page: #f8fafc;
+    --bg-card: #ffffff;
+    --bg-surface: #f1f5f9;
+    --bg-elevated: #e2e8f0;
+    
+    --border-color: rgba(51, 65, 85, 0.14);
+    --border-subtle: rgba(51, 65, 85, 0.08);
+    
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    
+    --accent-primary: #1e293b;
+    --accent-secondary: #334155;
+    --accent-highlight: #0284c7;
+    --accent-contrast: #ffffff;
+    --accent-contrast-bg: #0f172a;
+    
+    --badge-bg: rgba(51, 65, 85, 0.08);
+    --badge-border: rgba(51, 65, 85, 0.18);
+    --badge-text: #1e293b;
+    
+    --glow-color: rgba(100, 116, 139, 0.12);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    overflow-x: hidden;
+    transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Anti-Piracy & Image Protection: Disable long-press download, touch callout, and image dragging */
+  img, picture, canvas, [data-protected-img] {
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    -khtml-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+    -webkit-user-drag: none !important;
+  }
+}
+
+/* Micro-interaction & animations */
+@keyframes popClick {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.94); }
+  100% { transform: scale(1); }
+}
+
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-pop {
+  animation: popClick 0.2s ease-out;
+}
+
+.animate-fade-in-up {
+  animation: slideUpFade 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.btn-interactive {
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+.btn-interactive:active {
+  transform: scale(0.95);
+}
+
+.card-interactive {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+}
+.card-interactive:hover {
+  transform: translateY(-3px);
+}
+
+@theme {
+  --color-slate-page: var(--bg-page);
+  --color-slate-card: var(--bg-card);
+  --color-slate-surface: var(--bg-surface);
+  --color-slate-elevated: var(--bg-elevated);
+  --color-slate-border: var(--border-color);
+  --color-slate-border-subtle: var(--border-subtle);
+  --color-slate-text: var(--text-primary);
+  --color-slate-text-secondary: var(--text-secondary);
+  --color-slate-text-muted: var(--text-muted);
+  --color-slate-accent: var(--accent-primary);
+  --color-slate-highlight: var(--accent-highlight);
+  --color-slate-badge-bg: var(--badge-bg);
+  --color-slate-badge-border: var(--badge-border);
+  --color-slate-badge-text: var(--badge-text);
+}
+
+.font-display {
+  font-family: 'Bebas Neue', 'Plus Jakarta Sans', sans-serif;
+  letter-spacing: 0.03em;
+}
+
+.font-serif {
+  font-family: 'Cinzel', Georgia, serif;
+}
+
+/* Custom sleek slate-grey scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Subtle performance-safe animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulseGently {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.65;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-pulse-gently {
+  animation: pulseGently 2.2s infinite ease-in-out;
+}

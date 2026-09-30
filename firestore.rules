@@ -1,0 +1,96 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'huntsmp51@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isCreator() {
+      return isSignedIn() && exists(/databases/$(database)/documents/creators/$(request.auth.uid));
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isValidId(userId) && isOwner(userId) &&
+        request.resource.data.id == userId &&
+        request.resource.data.name is string && request.resource.data.name.size() <= 100 &&
+        request.resource.data.username is string && request.resource.data.username.size() <= 50;
+      allow update: if isValidId(userId) && (
+        isAdmin() ||
+        (isOwner(userId) &&
+          request.resource.data.id == resource.data.id &&
+          request.resource.data.role == resource.data.role)
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Series collection
+    match /series/{seriesId} {
+      // Public can read approved series; creator can read their own; admin can read all
+      allow get, list: if true;
+      allow create: if isSignedIn() && (
+        isAdmin() ||
+        (request.resource.data.creatorId == request.auth.uid && request.resource.data.moderationStatus == 'pending_review')
+      );
+      allow update: if isSignedIn() && (
+        isAdmin() ||
+        (resource.data.creatorId == request.auth.uid && request.resource.data.creatorId == resource.data.creatorId)
+      );
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.creatorId == request.auth.uid);
+    }
+
+    // Chapters collection
+    match /chapters/{chapterId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && (isAdmin() || request.resource.data.moderationStatus == 'pending_review');
+      allow update: if isSignedIn() && isAdmin();
+      allow delete: if isSignedIn() && isAdmin();
+    }
+
+    // Creators collection
+    match /creators/{creatorId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && (isAdmin() || request.auth.uid == request.resource.data.userId);
+      allow update: if isSignedIn() && (isAdmin() || request.auth.uid == resource.data.userId);
+      allow delete: if isAdmin();
+    }
+
+    // Reviews collection
+    match /reviews/{reviewId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow delete: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+    }
+
+    // Admins registry
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

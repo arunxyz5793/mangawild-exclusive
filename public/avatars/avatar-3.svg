@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <rect width="120" height="120" rx="60" fill="#18181b"/>
+  <circle cx="60" cy="60" r="58" fill="none" stroke="#27272a" stroke-width="2"/>
+  <!-- Head & Neck -->
+  <rect x="54" y="69" width="12" height="15" fill="#3f3f46" rx="2"/>
+  <ellipse cx="60" cy="51" rx="19" ry="21" fill="#d4d4d8"/>
+  <!-- Creator Undercut Hair -->
+  <path d="M40 46 C40 28 48 22 60 22 C72 22 80 28 80 46 C76 42 70 34 58 35 C48 35 44 42 40 46 Z" fill="#27272a"/>
+  <!-- Eyeglasses -->
+  <circle cx="51" cy="50" r="6" fill="none" stroke="#18181b" stroke-width="1.8"/>
+  <circle cx="69" cy="50" r="6" fill="none" stroke="#18181b" stroke-width="1.8"/>
+  <line x1="57" y1="50" x2="63" y2="50" stroke="#18181b" stroke-width="1.5"/>
+  <!-- Stylus / Pen Behind Ear -->
+  <line x1="78" y1="36" x2="88" y2="24" stroke="#e4e4e7" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Artist Turtleneck -->
+  <path d="M26 108 C30 84 44 80 60 80 C76 80 90 84 94 108 Z" fill="#27272a"/>
+  <rect x="50" y="74" width="20" height="10" rx="3" fill="#18181b"/>
+</svg>
