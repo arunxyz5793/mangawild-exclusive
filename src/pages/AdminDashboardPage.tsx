@@ -28,6 +28,12 @@ import {
   X,
   FileText,
   AlertCircle,
+  Download,
+  Smartphone,
+  Terminal,
+  Copy,
+  ExternalLink,
+  Package,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -49,7 +55,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   const { theme, toggleTheme } = useTheme();
 
   // Active navigation tab
-  const [activeTab, setActiveTab] = useState<'moderation' | 'reviews' | 'catalog' | 'creators' | 'users' | 'analytics'>('moderation');
+  const [activeTab, setActiveTab] = useState<'moderation' | 'reviews' | 'catalog' | 'creators' | 'users' | 'analytics' | 'export'>('moderation');
 
   // Live data from StorageService
   const [seriesList, setSeriesList] = useState<MangaSeries[]>(() => StorageService.getSeries());
@@ -378,6 +384,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
             { id: 'creators', label: 'Creators & Payouts' },
             { id: 'users', label: 'User Management' },
             { id: 'analytics', label: 'Financials & Metrics' },
+            { id: 'export', label: 'Android App & Source Kit' },
           ].map(tab => (
             <button
               key={tab.id}
@@ -929,6 +936,144 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                 <p className="text-[11px] font-mono text-zinc-400 uppercase">Platform Net (30%)</p>
                 <p className="text-3xl font-black text-white mt-1">₹1,28,400</p>
                 <p className="text-[10px] text-zinc-500 font-mono mt-1">Infrastructure & servers</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 7: ANDROID APP & SOURCE KIT */}
+        {activeTab === 'export' && (
+          <div className="space-y-8 animate-fade-in">
+            {/* Header Card */}
+            <div className="p-6 rounded-3xl border border-purple-800/60 bg-gradient-to-br from-purple-950/40 via-zinc-900 to-black space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-purple-600/20 border border-purple-500/40 flex items-center justify-center text-purple-400">
+                  <Smartphone className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-white tracking-tight">
+                    MangaWild Android App & Complete Source Kit
+                  </h3>
+                  <p className="text-xs text-zinc-400">
+                    Download full project files (.ZIP / .tar.gz) or create an Android app with Google AI Studio & Capacitor.
+                  </p>
+                </div>
+              </div>
+
+              {/* Direct Download Buttons */}
+              <div className="pt-2 flex flex-wrap gap-3">
+                <a
+                  href="/mangawild-project.zip"
+                  download="mangawild-project.zip"
+                  className="px-6 py-3 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-black text-xs flex items-center gap-2 shadow-lg transition-all active:scale-95 cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download Complete Project (.ZIP - 1.1 MB)</span>
+                </a>
+                <a
+                  href="/mangawild-project.tar.gz"
+                  download="mangawild-project.tar.gz"
+                  className="px-5 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-700 font-bold text-xs flex items-center gap-2 transition-all cursor-pointer"
+                >
+                  <Package className="w-4 h-4 text-purple-400" />
+                  <span>Download .tar.gz Archive</span>
+                </a>
+              </div>
+            </div>
+
+            {/* Methods to build Android App */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Method 1: Google AI Studio Android Project */}
+              <div className="p-6 rounded-3xl border border-zinc-800 bg-zinc-900/40 space-y-4">
+                <div className="flex items-center gap-2 text-purple-400 font-mono text-xs font-bold">
+                  <Sparkles className="w-4 h-4" />
+                  <span>METHOD 1: Google AI Studio (Native Android)</span>
+                </div>
+                <h4 className="text-base font-bold text-white">
+                  Create Native Kotlin / Jetpack Compose App
+                </h4>
+                <ol className="text-xs text-zinc-300 space-y-2 list-decimal list-inside leading-relaxed">
+                  <li>Open <strong className="text-white">Google AI Studio</strong> and click <strong>"Create New App"</strong>.</li>
+                  <li>Choose the <strong className="text-purple-400">Android (Kotlin / Jetpack Compose)</strong> target template.</li>
+                  <li>Copy and paste the ready prompt below into Google AI Studio.</li>
+                  <li>Google AI Studio will automatically build the native Android screens, Navigation, and Webtoon viewer.</li>
+                </ol>
+
+                <div className="p-3 rounded-xl bg-black border border-zinc-800 text-[11px] font-mono text-zinc-300 space-y-2">
+                  <div className="flex items-center justify-between text-zinc-500">
+                    <span>AI Studio Prompt:</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`Build a native Android app in Kotlin and Jetpack Compose called MangaWild. It is a high-speed webtoon and manga reader with Hindi and English language support. Features include: 1) Home page with trending, top rated, and genre carousel (Shonen, Seinen, Isekai, Romance). 2) Manga Reader with smooth vertical infinite scroll for webtoon panels and dual-page flip mode. 3) Offline chapter caching using Room database. 4) VIP membership lock for premium chapters. 5) Dark manga aesthetic (OLED black, zinc-900, vivid accents). Connects to Firestore backend.`);
+                        showToast('Prompt copied to clipboard!');
+                      }}
+                      className="text-purple-400 hover:text-purple-300 flex items-center gap-1 cursor-pointer"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>Copy Prompt</span>
+                    </button>
+                  </div>
+                  <p className="text-zinc-400 leading-normal line-clamp-3">
+                    "Build a native Android app in Kotlin and Jetpack Compose called MangaWild..."
+                  </p>
+                </div>
+              </div>
+
+              {/* Method 2: 1-Click Capacitor Android Build */}
+              <div className="p-6 rounded-3xl border border-zinc-800 bg-zinc-900/40 space-y-4">
+                <div className="flex items-center gap-2 text-emerald-400 font-mono text-xs font-bold">
+                  <Terminal className="w-4 h-4" />
+                  <span>METHOD 2: Capacitor Android APK (Fastest)</span>
+                </div>
+                <h4 className="text-base font-bold text-white">
+                  Convert this React Web App directly to APK
+                </h4>
+                <p className="text-xs text-zinc-300 leading-relaxed">
+                  Extract the downloaded <code>mangawild-project.zip</code> and run these terminal commands:
+                </p>
+
+                <div className="p-3 rounded-xl bg-black border border-zinc-800 font-mono text-[11px] text-emerald-400 space-y-1 overflow-x-auto">
+                  <p className="text-zinc-500"># 1. Install dependencies & build</p>
+                  <p>npm install</p>
+                  <p>npm run build</p>
+                  <p className="text-zinc-500 pt-1"># 2. Add Capacitor Android platform</p>
+                  <p>npm install @capacitor/core @capacitor/cli @capacitor/android</p>
+                  <p>npx cap init MangaWild com.mangawild.app --web-dir=dist</p>
+                  <p>npx cap add android</p>
+                  <p className="text-zinc-500 pt-1"># 3. Open in Android Studio & Generate APK</p>
+                  <p>npx cap open android</p>
+                </div>
+
+                <p className="text-[11px] text-zinc-400">
+                  Android Studio will open automatically, click <strong>Build &gt; Build Bundle(s) / APK(s) &gt; Build APK</strong> to generate your <code>app-debug.apk</code>!
+                </p>
+              </div>
+            </div>
+
+            {/* Project Structure Breakdown */}
+            <div className="p-6 rounded-3xl border border-zinc-800 bg-zinc-900/30 space-y-3">
+              <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                <Package className="w-4 h-4 text-purple-400" />
+                <span>What's inside the Project ZIP:</span>
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                <div className="p-3 rounded-xl bg-black/50 border border-zinc-800">
+                  <span className="font-mono text-purple-400 font-bold block">/src/pages</span>
+                  <span className="text-[11px] text-zinc-400">HomePage, ReaderPage, SeriesDetailPage, BrowsePage, AdminDashboard</span>
+                </div>
+                <div className="p-3 rounded-xl bg-black/50 border border-zinc-800">
+                  <span className="font-mono text-purple-400 font-bold block">/src/components</span>
+                  <span className="text-[11px] text-zinc-400">MangaReader, AuthModal, Comments, Reviews, Logo, Header, Footer</span>
+                </div>
+                <div className="p-3 rounded-xl bg-black/50 border border-zinc-800">
+                  <span className="font-mono text-purple-400 font-bold block">/src/services</span>
+                  <span className="text-[11px] text-zinc-400">StorageService (mock & offline cache), Firebase client</span>
+                </div>
+                <div className="p-3 rounded-xl bg-black/50 border border-zinc-800">
+                  <span className="font-mono text-purple-400 font-bold block">Config Files</span>
+                  <span className="text-[11px] text-zinc-400">package.json, vite.config.ts, firestore.rules, firebase-blueprint.json</span>
+                </div>
               </div>
             </div>
           </div>

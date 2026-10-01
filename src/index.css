@@ -76,6 +76,7 @@
     -ms-user-select: none !important;
     user-select: none !important;
     -webkit-user-drag: none !important;
+    -webkit-tap-highlight-color: transparent !important;
   }
 }
 

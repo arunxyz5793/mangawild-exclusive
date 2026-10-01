@@ -34,6 +34,7 @@ export interface User {
   email: string;
   name: string;
   username: string; // e.g. @akira_senshi
+  password?: string;
   role: UserRole;
   avatarUrl?: string;
   isVIP: boolean;

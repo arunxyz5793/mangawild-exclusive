@@ -17,9 +17,11 @@ import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { MembershipPage } from './pages/MembershipPage';
 import { LibraryPage } from './pages/LibraryPage';
 import { CreatorsDirectoryPage } from './pages/CreatorsDirectoryPage';
+import { CreatorProfilePage } from './pages/CreatorProfilePage';
 import { NewsPage } from './pages/NewsPage';
 import { RazorpayCheckoutModal } from './components/RazorpayCheckoutModal';
 import { SearchModal } from './components/SearchModal';
+import { AuthModal } from './components/AuthModal';
 import { StorageService } from './services/storage';
 import { MangaSeries, Chapter } from './types/manga';
 
@@ -116,6 +118,16 @@ function parseUrlToRoute(pathname: string): { view: string; params: Record<strin
     return { view: 'creators', params: {} };
   }
 
+  if (cleanPath.startsWith('/creator/')) {
+    const creatorId = cleanPath.slice('/creator/'.length);
+    return { view: 'creator-profile', params: { id: creatorId } };
+  }
+
+  if (cleanPath.startsWith('/author/')) {
+    const authorName = cleanPath.slice('/author/'.length);
+    return { view: 'creator-profile', params: { author: decodeURIComponent(authorName) } };
+  }
+
   if (cleanPath === '/news') {
     return { view: 'news', params: {} };
   }
@@ -174,6 +186,11 @@ function getRouteUrl(view: string, params?: Record<string, string>): string {
       return '/library';
     case 'creators':
       return '/creators';
+    case 'creator-profile': {
+      if (params?.id) return `/creator/${params.id}`;
+      if (params?.author) return `/author/${encodeURIComponent(params.author)}`;
+      return '/creators';
+    }
     case 'news':
       return '/news';
     case 'series': {
@@ -197,6 +214,7 @@ function getRouteUrl(view: string, params?: Record<string, string>): string {
 }
 
 function AppContent() {
+  const { isAuthenticated, isAuthModalOpen, authModalOptions, openAuthModal, closeAuthModal } = useAuth();
   // Initialize route from current browser URL
   const initialRoute = parseUrlToRoute(window.location.pathname);
   const [currentView, setCurrentView] = useState<string>(initialRoute.view);
@@ -205,6 +223,24 @@ function AppContent() {
   const [isVIPModalOpen, setIsVIPModalOpen] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<'monthly' | 'yearly'>('monthly');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  // VIP Purchase Handler: strictly requires user to be logged in!
+  const handleOpenVIPModal = (planId: 'monthly' | 'yearly' = 'yearly') => {
+    if (!isAuthenticated) {
+      openAuthModal({
+        title: 'Sign In to Purchase VIP',
+        subtitle: `Please sign in with your email and password to purchase the ${planId === 'yearly' ? 'Annual' : 'Monthly'} VIP membership.`,
+        defaultMode: 'signin',
+        onSuccess: () => {
+          setSelectedPlanId(planId);
+          setIsVIPModalOpen(true);
+        },
+      });
+      return;
+    }
+    setSelectedPlanId(planId);
+    setIsVIPModalOpen(true);
+  };
 
   // Navigate handler that synchronizes with the Browser History API
   const handleNavigate = useCallback((view: string, params?: Record<string, string>, replace = false) => {
@@ -247,28 +283,48 @@ function AppContent() {
     }
   }, [currentView, viewParams]);
 
-  // Anti-download & Image Protection: prevent long-press / hold to download / dragging on images
+  // Anti-download & Image Protection: prevent long-press / hold to download / dragging on images & save shortcuts
   useEffect(() => {
     const preventContextMenuOnImages = (e: MouseEvent | TouchEvent) => {
       const target = e.target as HTMLElement;
-      if (target && (target.tagName === 'IMG' || target.closest('img') || target.hasAttribute('data-protected-img'))) {
+      if (
+        target &&
+        (target.tagName === 'IMG' ||
+          target.closest('img') ||
+          target.hasAttribute('data-protected-img') ||
+          target.closest('[data-protected-img]'))
+      ) {
         e.preventDefault();
       }
     };
 
     const preventDragOnImages = (e: DragEvent) => {
       const target = e.target as HTMLElement;
-      if (target && target.tagName === 'IMG') {
+      if (
+        target &&
+        (target.tagName === 'IMG' ||
+          target.closest('img') ||
+          target.hasAttribute('data-protected-img') ||
+          target.closest('[data-protected-img]'))
+      ) {
+        e.preventDefault();
+      }
+    };
+
+    const preventSaveShortcuts = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S' || e.key === 'p' || e.key === 'P')) {
         e.preventDefault();
       }
     };
 
     window.addEventListener('contextmenu', preventContextMenuOnImages, { passive: false });
     window.addEventListener('dragstart', preventDragOnImages, { passive: false });
+    window.addEventListener('keydown', preventSaveShortcuts);
 
     return () => {
       window.removeEventListener('contextmenu', preventContextMenuOnImages);
       window.removeEventListener('dragstart', preventDragOnImages);
+      window.removeEventListener('keydown', preventSaveShortcuts);
     };
   }, []);
 
@@ -339,11 +395,6 @@ function AppContent() {
     }
   }, [currentView, viewParams]);
 
-  const handleOpenVIPModal = (planId: 'monthly' | 'yearly' = 'monthly') => {
-    setSelectedPlanId(planId);
-    setIsVIPModalOpen(true);
-  };
-
   const handleSelectSeries = (seriesId: string) => {
     handleNavigate('series', { id: seriesId });
   };
@@ -379,6 +430,20 @@ function AppContent() {
                 setIsVIPModalOpen(false);
               }}
             />
+            <AuthModal
+              isOpen={isAuthModalOpen}
+              onClose={closeAuthModal}
+              defaultRole={authModalOptions.defaultRole || 'reader'}
+              defaultMode={authModalOptions.defaultMode || 'signin'}
+              customTitle={authModalOptions.title}
+              customSubtitle={authModalOptions.subtitle}
+              onSuccess={() => {
+                if (authModalOptions.onSuccess) {
+                  authModalOptions.onSuccess();
+                }
+                closeAuthModal();
+              }}
+            />
           </div>
         );
       }
@@ -412,6 +477,7 @@ function AppContent() {
           <BrowsePage
             onSelectSeries={handleSelectSeries}
             onOpenVIPModal={() => handleOpenVIPModal('monthly')}
+            onNavigate={handleNavigate}
           />
         )}
 
@@ -459,6 +525,15 @@ function AppContent() {
           />
         )}
 
+        {currentView === 'creator-profile' && (
+          <CreatorProfilePage
+            creatorId={viewParams.id}
+            authorName={viewParams.author}
+            onNavigate={handleNavigate}
+            onSelectSeries={handleSelectSeries}
+          />
+        )}
+
         {currentView === 'news' && (
           <NewsPage />
         )}
@@ -485,6 +560,22 @@ function AppContent() {
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
         onSelectSeries={handleSelectSeries}
+      />
+
+      {/* Global Auth Modal triggered by purchases, login, or actions */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={closeAuthModal}
+        defaultRole={authModalOptions.defaultRole || 'reader'}
+        defaultMode={authModalOptions.defaultMode || 'signin'}
+        customTitle={authModalOptions.title}
+        customSubtitle={authModalOptions.subtitle}
+        onSuccess={() => {
+          if (authModalOptions.onSuccess) {
+            authModalOptions.onSuccess();
+          }
+          closeAuthModal();
+        }}
       />
     </div>
   );

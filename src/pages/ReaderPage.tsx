@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -37,7 +37,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
   onNavigate,
   onOpenVIPModal,
 }) => {
-  const { user } = useAuth();
+  const { user, isVIP, isAuthenticated } = useAuth();
   const { t } = useLanguage();
 
   const [series, setSeries] = useState<MangaSeries | undefined>(() =>
@@ -112,7 +112,9 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
     series.creatorId === `creator_${user.id}` ||
     series.author.toLowerCase() === user.name.toLowerCase()
   );
-  const isLocked = false;
+  // VIP Subscribers, creators, and admins have unrestricted full access to all chapters
+  const hasFullAccess = Boolean(isVIP || user.isVIP || user.subscription?.status === 'active' || user.role === 'admin' || user.role === 'subscriber' || isCreatorOfSeries);
+  const isLocked = Boolean(currentChapter?.isExclusiveVIP && !hasFullAccess);
 
   // Fullscreen Handler
   const toggleFullscreen = () => {
@@ -125,34 +127,136 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
     }
   };
 
-  // Keyboard navigation for page flip mode
+  // Realistic 3D Manga Page Turn State & Touch Swiping
+  const [isFlipping, setIsFlipping] = useState(false);
+  const [flipDirection, setFlipDirection] = useState<'next' | 'prev' | null>(null);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [touchStartY, setTouchStartY] = useState<number | null>(null);
+  const [dragDeltaX, setDragDeltaX] = useState<number>(0);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+
+  const handleFlipNext = useCallback(() => {
+    if (isFlipping) return;
+    if (activePanelIndex >= currentChapter.panels.length) {
+      if (nextChapter) {
+        onNavigate('read', { seriesId, chapterId: nextChapter.id });
+      }
+      return;
+    }
+
+    setIsFlipping(true);
+    setFlipDirection('next');
+
+    setTimeout(() => {
+      setActivePanelIndex(prev => prev + 1);
+      setIsFlipping(false);
+      setFlipDirection(null);
+      setDragDeltaX(0);
+    }, 200);
+  }, [isFlipping, activePanelIndex, currentChapter.panels.length, nextChapter, onNavigate, seriesId]);
+
+  const handleFlipPrev = useCallback(() => {
+    if (isFlipping) return;
+    if (activePanelIndex <= 0) return;
+
+    setIsFlipping(true);
+    setFlipDirection('prev');
+
+    setTimeout(() => {
+      setActivePanelIndex(prev => prev - 1);
+      setIsFlipping(false);
+      setFlipDirection(null);
+      setDragDeltaX(0);
+    }, 200);
+  }, [isFlipping, activePanelIndex]);
+
+  // Preload adjacent panels for instantaneous, shutter-free page turns
+  useEffect(() => {
+    if (!currentChapter?.panels) return;
+    const preloadIndexes = [activePanelIndex + 1, activePanelIndex + 2, activePanelIndex - 1];
+    preloadIndexes.forEach(idx => {
+      if (idx >= 0 && idx < currentChapter.panels.length) {
+        const img = new Image();
+        img.src = currentChapter.panels[idx].imageUrl;
+      }
+    });
+  }, [activePanelIndex, currentChapter?.panels]);
+
+  // Touch & Mouse Drag Handlers
+  const handleTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
+    if (isFlipping) return;
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    setTouchStartX(clientX);
+    setTouchStartY(clientY);
+    setIsDragging(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent | React.MouseEvent) => {
+    if (!isDragging || touchStartX === null || touchStartY === null || isFlipping) return;
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    const deltaX = clientX - touchStartX;
+    const deltaY = clientY - touchStartY;
+
+    // Detect horizontal swipe gesture
+    if (Math.abs(deltaX) > Math.abs(deltaY) * 0.7) {
+      if (activePanelIndex === 0 && deltaX > 0) {
+        setDragDeltaX(deltaX * 0.2);
+      } else {
+        setDragDeltaX(deltaX);
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!isDragging || isFlipping) {
+      setIsDragging(false);
+      return;
+    }
+    setIsDragging(false);
+
+    // Swiped right-to-left: Turn to next page!
+    if (dragDeltaX < -40) {
+      handleFlipNext();
+    }
+    // Swiped left-to-right: Turn to prev page!
+    else if (dragDeltaX > 40 && activePanelIndex > 0) {
+      handleFlipPrev();
+    } else {
+      // Return spring back
+      setDragDeltaX(0);
+    }
+    setTouchStartX(null);
+    setTouchStartY(null);
+  };
+
+  // Keyboard navigation & anti-save shortcut protection
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Block Ctrl+S / Cmd+S save shortcuts
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+      }
+
       if (readingMode === 'page_flip') {
         if (e.key === 'ArrowRight' || e.key === 'Space') {
-          if (activePanelIndex < currentChapter.panels.length) {
-            setActivePanelIndex(prev => prev + 1);
-          } else if (nextChapter) {
-            onNavigate('read', { seriesId, chapterId: nextChapter.id });
-          }
+          handleFlipNext();
         } else if (e.key === 'ArrowLeft') {
-          if (activePanelIndex > 0) {
-            setActivePanelIndex(prev => prev - 1);
-          }
+          handleFlipPrev();
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [readingMode, activePanelIndex, currentChapter, nextChapter, onNavigate, seriesId]);
+  }, [readingMode, handleFlipNext, handleFlipPrev]);
 
   const filteredChapters = chapters.filter(c => {
     if (!chapterSearchQuery.trim()) return true;
     const q = chapterSearchQuery.toLowerCase().trim();
     return (
       c.title.toLowerCase().includes(q) ||
-      c.chapterNumber.toString().includes(q) ||
-      Boolean(c.titleHindi && c.titleHindi.toLowerCase().includes(q))
+      c.chapterNumber.toString().includes(q)
     );
   });
 
@@ -381,7 +485,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                 className="w-full py-3 px-5 bg-white hover:bg-zinc-200 text-zinc-950 font-bold text-sm tracking-wide rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase cursor-pointer"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>Unlock with VIP Pass</span>
+                <span>{isAuthenticated ? 'Unlock with VIP Pass' : 'Login to Purchase VIP Pass'}</span>
               </button>
             </div>
 
@@ -399,19 +503,26 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
             {currentChapter.panels.map((panel, idx) => (
               <div
                 key={panel.id}
-                className="w-full shadow-2xl shadow-black relative group"
+                className="w-full shadow-2xl shadow-black relative group select-none overflow-hidden"
               >
                 <img
                   src={panel.imageUrl}
                   alt={`Chapter ${currentChapter.chapterNumber} Panel ${idx + 1}`}
-                  className="w-full h-auto block select-none pointer-events-auto"
-                  loading="lazy"
+                  className="w-full h-auto block select-none pointer-events-none"
+                  loading={idx < 3 ? 'eager' : 'lazy'}
                   draggable={false}
                   onContextMenu={(e) => e.preventDefault()}
                   data-protected-img="true"
                 />
+                {/* Anti-Download Transparent Security Shield: prevents long-press context menu and dragging on mobile & desktop */}
+                <div
+                  className="absolute inset-0 z-10 bg-transparent select-none"
+                  onContextMenu={(e) => e.preventDefault()}
+                  onDragStart={(e) => e.preventDefault()}
+                  aria-hidden="true"
+                />
                 {panel.hasError && (
-                  <div className="absolute top-2 right-2 bg-amber-500/90 text-black text-[10px] font-bold px-2 py-0.5 rounded shadow">
+                  <div className="absolute top-2 right-2 z-20 bg-amber-500/90 text-black text-[10px] font-bold px-2 py-0.5 rounded shadow">
                     Scan Issue Flagged
                   </div>
                 )}
@@ -591,46 +702,137 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
               </div>
             ) : (
               currentChapter.panels[activePanelIndex] && (
-                <div className="relative shadow-2xl rounded-lg overflow-hidden border border-white/10 max-h-[85vh]">
-                  <img
-                    src={currentChapter.panels[activePanelIndex].imageUrl}
-                    alt={`Panel ${activePanelIndex + 1}`}
-                    className="max-h-[82vh] w-auto object-contain mx-auto block select-none pointer-events-auto"
-                    draggable={false}
-                    onContextMenu={(e) => e.preventDefault()}
-                    data-protected-img="true"
-                  />
+                <div
+                  className="relative select-none max-h-[85vh] flex items-center justify-center cursor-grab active:cursor-grabbing"
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                  onMouseDown={handleTouchStart}
+                  onMouseMove={handleTouchMove}
+                  onMouseUp={handleTouchEnd}
+                  onMouseLeave={handleTouchEnd}
+                >
+                  {/* Underneath Layer (Revealed seamlessly as top page curls & turns) */}
+                  {(() => {
+                    const isGoingPrev = (dragDeltaX > 0 || flipDirection === 'prev') && activePanelIndex > 0;
+                    const underneathPanel = isGoingPrev
+                      ? currentChapter.panels[activePanelIndex - 1]
+                      : currentChapter.panels[activePanelIndex + 1];
 
-                  {/* Left & Right page flip zones */}
+                    if (underneathPanel) {
+                      return (
+                        <div className="absolute inset-0 z-0 overflow-hidden rounded-xl bg-zinc-950 flex items-center justify-center pointer-events-none shadow-xl border border-white/5 select-none">
+                          <img
+                            src={underneathPanel.imageUrl}
+                            alt={isGoingPrev ? `Page ${activePanelIndex}` : `Page ${activePanelIndex + 2}`}
+                            className="max-h-[82vh] w-auto object-contain mx-auto block select-none pointer-events-none"
+                            draggable={false}
+                            onContextMenu={(e) => e.preventDefault()}
+                            data-protected-img="true"
+                          />
+                          {/* Anti-Download Transparent Security Shield */}
+                          <div
+                            className="absolute inset-0 z-10 bg-transparent select-none"
+                            onContextMenu={(e) => e.preventDefault()}
+                            onDragStart={(e) => e.preventDefault()}
+                            aria-hidden="true"
+                          />
+                        </div>
+                      );
+                    }
+
+                    if (activePanelIndex >= currentChapter.panels.length - 1 && !isGoingPrev) {
+                      return (
+                        <div className="absolute inset-0 z-0 overflow-hidden rounded-xl bg-zinc-900 border border-zinc-800 flex flex-col items-center justify-center p-6 text-center pointer-events-none select-none">
+                          <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-2">
+                            <CheckCircle className="w-6 h-6" />
+                          </div>
+                          <p className="text-xs font-bold text-white">Next: Chapter Completion</p>
+                          <p className="text-[10px] text-zinc-400">Slide or click next to finish chapter</p>
+                        </div>
+                      );
+                    }
+
+                    return null;
+                  })()}
+
+                  {/* Active Page with Clean, Stable Horizontal Slide Animation (Zero Wobble, Zero Skew) */}
+                  <div
+                    style={{
+                      transform:
+                        isFlipping && flipDirection === 'next'
+                          ? 'translateX(-105%)'
+                          : isFlipping && flipDirection === 'prev'
+                          ? 'translateX(105%)'
+                          : isDragging && dragDeltaX !== 0
+                          ? `translateX(${dragDeltaX}px)`
+                          : 'translateX(0)',
+                      opacity: isFlipping ? 0.9 : 1,
+                      transition: isDragging
+                        ? 'none'
+                        : 'transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.22s ease-out',
+                      boxShadow:
+                        dragDeltaX < 0 || flipDirection === 'next'
+                          ? '-8px 0 24px rgba(0,0,0,0.6)'
+                          : dragDeltaX > 0 || flipDirection === 'prev'
+                          ? '8px 0 24px rgba(0,0,0,0.6)'
+                          : '0 8px 24px rgba(0,0,0,0.5)',
+                    }}
+                    className="relative z-10 rounded-xl overflow-hidden border border-white/10 max-h-[85vh] bg-[#08090d] flex items-center justify-center select-none"
+                  >
+                    <img
+                      src={currentChapter.panels[activePanelIndex].imageUrl}
+                      alt={`Panel ${activePanelIndex + 1}`}
+                      className="max-h-[82vh] w-auto object-contain mx-auto block select-none pointer-events-none"
+                      draggable={false}
+                      onContextMenu={(e) => e.preventDefault()}
+                      data-protected-img="true"
+                    />
+
+                    {/* Anti-Download Transparent Security Shield: blocks tap-and-hold download menu and drag */}
+                    <div
+                      className="absolute inset-0 z-20 bg-transparent select-none cursor-grab active:cursor-grabbing"
+                      onContextMenu={(e) => e.preventDefault()}
+                      onDragStart={(e) => e.preventDefault()}
+                      aria-hidden="true"
+                    />
+                  </div>
+
+                  {/* Left & Right page flip zones & clickable buttons */}
                   <button
                     type="button"
-                    disabled={activePanelIndex === 0}
+                    disabled={activePanelIndex === 0 || isFlipping}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (activePanelIndex > 0) setActivePanelIndex(prev => prev - 1);
+                      handleFlipPrev();
                     }}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/60 hover:bg-black/90 text-white disabled:opacity-0 transition-opacity cursor-pointer"
-                    title="Previous Page"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-black/70 hover:bg-purple-600 text-white disabled:opacity-0 transition-all cursor-pointer shadow-xl hover:scale-110 active:scale-95 border border-white/10"
+                    title="Previous Page (← Swipe Right)"
                   >
                     <ChevronLeft className="w-6 h-6" />
                   </button>
 
                   <button
                     type="button"
+                    disabled={isFlipping}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (activePanelIndex < currentChapter.panels.length) {
-                        setActivePanelIndex(prev => prev + 1);
-                      }
+                      handleFlipNext();
                     }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/60 hover:bg-black/90 text-white transition-opacity cursor-pointer"
-                    title="Next Page"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-black/70 hover:bg-purple-600 text-white transition-all cursor-pointer shadow-xl hover:scale-110 active:scale-95 border border-white/10"
+                    title="Next Page (Swipe Left →)"
                   >
                     <ChevronRight className="w-6 h-6" />
                   </button>
                 </div>
               )
             )}
+
+            {/* Tactile gesture hint */}
+            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-zinc-500 font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+              <span>Slide finger or use arrow keys to flip realistic pages</span>
+            </div>
 
             {/* Page Index indicator & Quick Chapter Switch */}
             <div className="mt-3 flex items-center gap-2.5 text-xs text-stone-400 font-mono">

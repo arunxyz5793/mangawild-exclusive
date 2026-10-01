@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { StorageService } from '../services/storage';
 import { MangaWildLogo } from './MangaWildLogo';
 import { UserRole } from '../types/auth';
 import { AuthModal } from './AuthModal';
@@ -43,6 +44,7 @@ export const Header: React.FC<HeaderProps> = ({
   const {
     user,
     isAuthenticated,
+    isVIP,
     role,
     signOut,
     unreadNotifsCount,
@@ -50,6 +52,7 @@ export const Header: React.FC<HeaderProps> = ({
     notifications,
     updateUsername,
     updateUser,
+    toggleCreatorMode,
   } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
@@ -57,6 +60,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authDefaultRole, setAuthDefaultRole] = useState<'reader' | 'creator' | 'admin'>('reader');
+  const [authDefaultMode, setAuthDefaultMode] = useState<'signin' | 'signup'>('signin');
 
   // Username inline edit state
   const [isEditingUsername, setIsEditingUsername] = useState(false);
@@ -76,11 +80,14 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'av6', url: '/avatars/avatar-6.svg', name: 'Chibi' },
   ];
 
+  // Only display Creator Studio for creators or admins
+  const isCreatorOrAdmin = user.role === 'creator' || user.role === 'admin';
+
   const navLinks = [
     { id: 'browse', label: 'Browse' },
     { id: 'trending', label: 'Leaderboard' },
     { id: 'membership', label: 'Subscription', highlight: true },
-    { id: 'creator', label: 'Creator Studio' },
+    ...(isCreatorOrAdmin ? [{ id: 'creator', label: 'Creator Studio' }] : []),
     { id: 'news', label: 'Manga News' },
     { id: 'library', label: 'My Library' },
   ];
@@ -96,8 +103,12 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  const handleOpenAuth = (defaultRoleChoice: 'reader' | 'creator' | 'admin' = 'reader') => {
+  const handleOpenAuth = (
+    defaultRoleChoice: 'reader' | 'creator' | 'admin' = 'reader',
+    defaultModeChoice: 'signin' | 'signup' = 'signin'
+  ) => {
     setAuthDefaultRole(defaultRoleChoice);
+    setAuthDefaultMode(defaultModeChoice);
     setIsAuthModalOpen(true);
     setIsMenuDrawerOpen(false);
   };
@@ -259,6 +270,19 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </div>
 
+            {/* Active VIP Member Badge - visible in header bar */}
+            {isAuthenticated && isVIP && (
+              <button
+                type="button"
+                onClick={() => onNavigate('membership')}
+                className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold font-mono transition-all cursor-pointer shadow-xs active:scale-95"
+                title="Active VIP Pass"
+              >
+                <Crown className="w-3.5 h-3.5 text-amber-400" />
+                <span>VIP ACTIVE</span>
+              </button>
+            )}
+
             {/* Log In Button - Only visible when not authenticated */}
             {!isAuthenticated && (
               <button
@@ -368,12 +392,12 @@ export const Header: React.FC<HeaderProps> = ({
                 <div className="flex items-start gap-3.5">
                   <img
                     src={user.avatarUrl || '/avatars/avatar-1.svg'}
-                    alt={user.name}
+                    alt={user.username}
                     className="w-13 h-13 rounded-2xl object-cover bg-zinc-800 border-2 border-zinc-700 shadow-md shrink-0"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
-                      <p className="text-sm font-black truncate">{user.name}</p>
+                      <p className="text-sm font-black truncate">@{user.username}</p>
                       <span
                         className={`text-[9px] font-mono px-2 py-0.5 rounded-full uppercase tracking-wider font-bold border shrink-0 ${
                           user.role === 'admin'
@@ -523,14 +547,123 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                   )}
                 </div>
+
+                {/* Active VIP Subscription Card in Drawer */}
+                {isVIP && (
+                  <div className="mt-3.5 p-3.5 rounded-2xl bg-gradient-to-r from-amber-950/70 via-zinc-900 to-amber-950/40 border border-amber-500/50 shadow-md">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center shrink-0">
+                          <Crown className="w-4 h-4 text-amber-400" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-xs font-black text-amber-300">
+                              {user.subscription?.planId === 'yearly' ? 'Annual VIP Pass' : 'Monthly VIP Pass'}
+                            </p>
+                            <span className="text-[9px] bg-amber-400 text-black px-1.5 py-0.5 font-mono font-bold rounded">
+                              ACTIVE
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-zinc-400 font-mono mt-0.5">
+                            {user.subscription?.expiresAt
+                              ? `Expires: ${new Date(user.subscription.expiresAt).toLocaleDateString()}`
+                              : 'All VIP perks unlocked'}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onNavigate('membership');
+                          setIsMenuDrawerOpen(false);
+                        }}
+                        className="text-[11px] font-bold text-amber-300 hover:text-white underline font-mono cursor-pointer shrink-0"
+                      >
+                        Plan Details
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
             {/* Navigation Links in Drawer */}
             <div className="p-4 space-y-1.5 flex-1">
+              {/* Account Mode Switcher (Reader <-> Creator) */}
+              {isAuthenticated && (
+                isCreatorOrAdmin ? (
+                  <div className="p-3 mb-3 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-between gap-3 shadow-md">
+                    <div>
+                      <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <PenTool className="w-3.5 h-3.5 text-purple-400" />
+                        <span>Creator Mode Active</span>
+                      </p>
+                      <p className="text-[11px] text-zinc-400">Manage series and profile</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        toggleCreatorMode();
+                        setIsMenuDrawerOpen(false);
+                        onNavigate('home');
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold shrink-0 cursor-pointer border border-zinc-700 transition-all active:scale-95"
+                    >
+                      Switch to Reader
+                    </button>
+                  </div>
+                ) : (
+                  <div className="p-3 mb-3 rounded-2xl bg-gradient-to-r from-purple-950/70 to-zinc-900 border border-purple-800/60 flex items-center justify-between gap-3 shadow-md">
+                    <div>
+                      <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <PenTool className="w-3.5 h-3.5 text-purple-400" />
+                        <span>Publish Your Manga</span>
+                      </p>
+                      <p className="text-[11px] text-zinc-400">Switch account to Creator Mode</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        toggleCreatorMode();
+                        setIsMenuDrawerOpen(false);
+                        onNavigate('creator');
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shrink-0 cursor-pointer shadow-md transition-all active:scale-95"
+                    >
+                      Switch to Creator
+                    </button>
+                  </div>
+                )
+              )}
+
               <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider px-3 mb-2">
                 Main Dashboards & Sections
               </p>
+
+              {/* My Creator Profile Button (Only for Creators & Admins) */}
+              {isAuthenticated && isCreatorOrAdmin && (
+                <button
+                  onClick={() => {
+                    const myProfile = StorageService.getOrCreateCreatorProfile(user);
+                    onNavigate('creator-profile', { id: myProfile.id });
+                    setIsMenuDrawerOpen(false);
+                  }}
+                  className={`w-full text-left px-3.5 py-2.5 rounded-xl font-medium text-xs flex items-center justify-between transition-all cursor-pointer ${
+                    currentView === 'creator-profile'
+                      ? 'bg-purple-950/80 text-purple-300 font-bold border border-purple-800'
+                      : theme === 'dark'
+                      ? 'text-zinc-300 hover:bg-zinc-800 hover:text-white'
+                      : 'text-zinc-800 hover:bg-zinc-100 hover:text-zinc-950'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <UserIcon className="w-4 h-4 text-purple-400" />
+                    <span>My Creator Profile & Socials</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-purple-400 font-bold">Edit Profile</span>
+                </button>
+              )}
 
               {/* Reader Library / Dashboard */}
               <button
@@ -551,43 +684,47 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="text-[10px] font-mono text-zinc-500">Reader</span>
               </button>
 
-              {/* Creator Studio Dashboard */}
-              <button
-                onClick={() => {
-                  onNavigate('creator');
-                  setIsMenuDrawerOpen(false);
-                }}
-                className={`w-full text-left px-3.5 py-2.5 rounded-xl font-medium text-xs flex items-center justify-between transition-all cursor-pointer ${
-                  currentView === 'creator'
-                    ? 'bg-zinc-800 text-white font-bold'
-                    : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <PenTool className="w-4 h-4 text-white" />
-                  <span>Creator Studio & Uploads</span>
-                </div>
-                <span className="text-[10px] font-mono text-zinc-500">70% Royalty</span>
-              </button>
+              {/* Creator Studio Dashboard (Only for Creators & Admins) */}
+              {isCreatorOrAdmin && (
+                <button
+                  onClick={() => {
+                    onNavigate('creator');
+                    setIsMenuDrawerOpen(false);
+                  }}
+                  className={`w-full text-left px-3.5 py-2.5 rounded-xl font-medium text-xs flex items-center justify-between transition-all cursor-pointer ${
+                    currentView === 'creator'
+                      ? 'bg-zinc-800 text-white font-bold'
+                      : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <PenTool className="w-4 h-4 text-white" />
+                    <span>Creator Studio & Uploads</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-zinc-500">70% Royalty</span>
+                </button>
+              )}
 
-              {/* Admin Suite Dashboard */}
-              <button
-                onClick={() => {
-                  onNavigate('admin');
-                  setIsMenuDrawerOpen(false);
-                }}
-                className={`w-full text-left px-3.5 py-2.5 rounded-xl font-medium text-xs flex items-center justify-between transition-all cursor-pointer ${
-                  currentView === 'admin'
-                    ? 'bg-zinc-800 text-white font-bold'
-                    : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Shield className="w-4 h-4 text-white" />
-                  <span>Admin Moderation & Approval</span>
-                </div>
-                <span className="text-[10px] font-mono text-zinc-500">Approvals</span>
-              </button>
+              {/* Admin Suite Dashboard (Only for Admins) */}
+              {user.role === 'admin' && (
+                <button
+                  onClick={() => {
+                    onNavigate('admin');
+                    setIsMenuDrawerOpen(false);
+                  }}
+                  className={`w-full text-left px-3.5 py-2.5 rounded-xl font-medium text-xs flex items-center justify-between transition-all cursor-pointer ${
+                    currentView === 'admin'
+                      ? 'bg-zinc-800 text-white font-bold'
+                      : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Shield className="w-4 h-4 text-white" />
+                    <span>Admin Moderation & Approval</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-zinc-500">Approvals</span>
+                </button>
+              )}
 
               {/* Subscription Membership */}
               <button
@@ -683,6 +820,7 @@ export const Header: React.FC<HeaderProps> = ({
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         defaultRole={authDefaultRole}
+        defaultMode={authDefaultMode}
         onSuccess={() => {
           setIsAuthModalOpen(false);
         }}

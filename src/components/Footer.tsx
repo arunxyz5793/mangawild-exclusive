@@ -61,7 +61,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenVIPModal }) =>
               <li>
                 <button
                   onClick={() => onNavigate('browse')}
-                  className="hover:text-white dark:hover:text-white transition-all active:scale-95 cursor-pointer"
+                  className="hover:text-zinc-950 dark:hover:text-white transition-all active:scale-95 cursor-pointer"
                 >
                   All Original Manga
                 </button>
@@ -69,7 +69,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenVIPModal }) =>
               <li>
                 <button
                   onClick={() => onNavigate('trending')}
-                  className="hover:text-white dark:hover:text-white transition-all active:scale-95 cursor-pointer"
+                  className="hover:text-zinc-950 dark:hover:text-white transition-all active:scale-95 cursor-pointer"
                 >
                   Trending Leaderboard
                 </button>
@@ -77,7 +77,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenVIPModal }) =>
               <li>
                 <button
                   onClick={() => onNavigate('news')}
-                  className="hover:text-white dark:hover:text-white transition-all active:scale-95 cursor-pointer"
+                  className="hover:text-zinc-950 dark:hover:text-white transition-all active:scale-95 cursor-pointer"
                 >
                   Studio News & Releases
                 </button>
@@ -85,9 +85,11 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenVIPModal }) =>
               <li>
                 <button
                   onClick={() => onNavigate('membership')}
-                  className="font-bold hover:underline cursor-pointer flex items-center gap-1 text-zinc-200 transition-all active:scale-95"
+                  className={`font-bold hover:underline cursor-pointer flex items-center gap-1 transition-all active:scale-95 ${
+                    theme === 'dark' ? 'text-zinc-200' : 'text-purple-700'
+                  }`}
                 >
-                  <Sparkles className="w-3 h-3" /> Subscription Plans
+                  <Sparkles className="w-3 h-3 text-purple-400" /> Subscription Plans
                 </button>
               </li>
             </ul>
@@ -106,7 +108,9 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenVIPModal }) =>
               <li>
                 <button
                   onClick={() => onNavigate('creator')}
-                  className="hover:text-white dark:hover:text-white transition-all active:scale-95 cursor-pointer font-semibold text-zinc-200"
+                  className={`hover:text-zinc-950 dark:hover:text-white transition-all active:scale-95 cursor-pointer font-semibold ${
+                    theme === 'dark' ? 'text-zinc-200' : 'text-zinc-900'
+                  }`}
                 >
                   Join Creator Program
                 </button>
@@ -114,7 +118,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenVIPModal }) =>
               <li>
                 <button
                   onClick={() => onNavigate('creators')}
-                  className="hover:text-white dark:hover:text-white transition-all active:scale-95 cursor-pointer"
+                  className="hover:text-zinc-950 dark:hover:text-white transition-all active:scale-95 cursor-pointer"
                 >
                   MangaWild Creators
                 </button>
@@ -122,7 +126,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenVIPModal }) =>
               <li>
                 <button
                   onClick={() => onNavigate('creator')}
-                  className="hover:text-white dark:hover:text-white transition-all active:scale-95 cursor-pointer"
+                  className="hover:text-zinc-950 dark:hover:text-white transition-all active:scale-95 cursor-pointer"
                 >
                   Creator Revenue & Payouts
                 </button>
@@ -130,7 +134,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenVIPModal }) =>
               <li>
                 <button
                   onClick={() => onNavigate('creator')}
-                  className="hover:text-white dark:hover:text-white transition-all active:scale-95 cursor-pointer"
+                  className="hover:text-zinc-950 dark:hover:text-white transition-all active:scale-95 cursor-pointer"
                 >
                   Publish New Chapters
                 </button>
@@ -151,7 +155,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenVIPModal }) =>
               <li>
                 <button
                   onClick={() => onNavigate('library')}
-                  className="hover:text-white dark:hover:text-white transition-colors cursor-pointer"
+                  className="hover:text-zinc-950 dark:hover:text-white transition-colors cursor-pointer"
                 >
                   My Reading History
                 </button>
@@ -159,7 +163,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenVIPModal }) =>
               <li>
                 <button
                   onClick={() => onNavigate('library')}
-                  className="hover:text-white dark:hover:text-white transition-colors cursor-pointer"
+                  className="hover:text-zinc-950 dark:hover:text-white transition-colors cursor-pointer"
                 >
                   Bookmarked Series
                 </button>
@@ -167,7 +171,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenVIPModal }) =>
               <li>
                 <button
                   onClick={() => onNavigate('library')}
-                  className="hover:text-white dark:hover:text-white transition-colors cursor-pointer"
+                  className="hover:text-zinc-950 dark:hover:text-white transition-colors cursor-pointer"
                 >
                   Submitted Reviews
                 </button>
@@ -175,7 +179,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenVIPModal }) =>
               <li>
                 <button
                   onClick={() => onNavigate('membership')}
-                  className="hover:text-white dark:hover:text-white transition-colors cursor-pointer"
+                  className="hover:text-zinc-950 dark:hover:text-white transition-colors cursor-pointer"
                 >
                   Coins & Subscriptions
                 </button>

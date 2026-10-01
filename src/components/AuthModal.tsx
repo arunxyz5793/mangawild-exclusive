@@ -13,19 +13,20 @@ import {
   ArrowRight,
   AlertCircle,
   Copy,
-  ExternalLink,
-  HelpCircle,
   Check,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { UserRole } from '../types/auth';
-import { PRIMARY_CLIENT_ID, PROJECT_CLIENT_ID, getCurrentAppOrigin } from '../services/googleAuth';
+import { PRIMARY_CLIENT_ID } from '../services/googleAuth';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   defaultRole?: 'reader' | 'creator' | 'admin';
+  defaultMode?: 'signin' | 'signup';
+  customTitle?: string;
+  customSubtitle?: string;
   onSuccess?: () => void;
 }
 
@@ -33,32 +34,37 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
   defaultRole = 'reader',
+  defaultMode = 'signin',
+  customTitle,
+  customSubtitle,
   onSuccess,
 }) => {
   const { theme } = useTheme();
-  const { signIn, signUp, signInWithGoogle } = useAuth();
+  const { signIn, signUp, signInWithGoogle, signInWithGoogleDirect } = useAuth();
 
-  const [mode, setMode] = useState<'signin' | 'signup'>('signup');
+  const [mode, setMode] = useState<'signin' | 'signup'>(defaultMode);
   const [selectedPersona, setSelectedPersona] = useState<'reader' | 'creator' | 'admin'>(defaultRole);
 
-  const [name, setName] = useState('');
   const [username, setUsername] = useState('');
+  const [loginIdentifier, setLoginIdentifier] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showDirectGoogleInput, setShowDirectGoogleInput] = useState(false);
+  const [directGoogleEmail, setDirectGoogleEmail] = useState('huntsmp51@gmail.com');
   const [copiedOrigin, setCopiedOrigin] = useState(false);
-  const [showOriginGuide, setShowOriginGuide] = useState(false);
+
+  // Sync mode and persona when modal opens with custom options
+  React.useEffect(() => {
+    if (isOpen) {
+      if (defaultMode) setMode(defaultMode);
+      if (defaultRole) setSelectedPersona(defaultRole);
+      setErrorMsg(null);
+    }
+  }, [isOpen, defaultMode, defaultRole]);
 
   if (!isOpen) return null;
-
-  const currentOrigin = getCurrentAppOrigin();
-
-  const handleCopyOrigin = () => {
-    navigator.clipboard.writeText(currentOrigin);
-    setCopiedOrigin(true);
-    setTimeout(() => setCopiedOrigin(false), 3000);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,28 +80,44 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           : 'free_user';
 
       if (mode === 'signup') {
-        if (!name.trim()) {
-          setErrorMsg('Please enter your full name.');
-          setLoading(false);
-          return;
-        }
         if (!username.trim() || username.length < 3) {
           setErrorMsg('Please enter a username with at least 3 characters.');
           setLoading(false);
           return;
         }
+        if (!email.trim() || !email.includes('@')) {
+          setErrorMsg('Please enter a valid email address.');
+          setLoading(false);
+          return;
+        }
+        if (!password || password.length < 4) {
+          setErrorMsg('Please enter a password (at least 4 characters).');
+          setLoading(false);
+          return;
+        }
         const cleanUser = username.trim().replace(/^@/, '').toLowerCase().replace(/[^a-zA-Z0-9_]/g, '');
 
-        await signUp(name.trim(), email.trim(), password, assignedRole, cleanUser);
+        await signUp(cleanUser, email.trim(), password, assignedRole);
       } else {
-        await signIn(email.trim(), password, assignedRole);
+        const idToUse = email.trim() || loginIdentifier.trim() || username.trim();
+        if (!idToUse) {
+          setErrorMsg('Please enter your registered email address.');
+          setLoading(false);
+          return;
+        }
+        if (!password) {
+          setErrorMsg('Please enter your password.');
+          setLoading(false);
+          return;
+        }
+        await signIn(idToUse, password);
       }
 
       setLoading(false);
       onClose();
       if (onSuccess) onSuccess();
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Authentication failed. Please try again.');
+      setErrorMsg(err?.message || 'Authentication failed. Please verify your credentials.');
       setLoading(false);
     }
   };
@@ -111,14 +133,52 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         : 'free_user';
 
     const cleanUser = username.trim().replace(/^@/, '').toLowerCase().replace(/[^a-zA-Z0-9_]/g, '') || undefined;
-    const ok = await signInWithGoogle(assignedRole, cleanUser, overrideClientId);
-    setLoading(false);
-    if (ok) {
+    try {
+      const ok = await signInWithGoogle(assignedRole, cleanUser, overrideClientId);
+      setLoading(false);
+      if (ok) {
+        onClose();
+        if (onSuccess) onSuccess();
+      }
+    } catch (err: any) {
+      setLoading(false);
+      const msg = err?.message || 'Google sign-in encountered an error';
+      if (
+        msg.includes('origin') ||
+        msg.includes('policy') ||
+        msg.includes('comply') ||
+        msg.includes('unauthorized-domain')
+      ) {
+        setErrorMsg('Google OAuth popup requires origin registration. Please use Instant Google Sign-In below:');
+        setShowDirectGoogleInput(true);
+      } else {
+        setErrorMsg(msg);
+      }
+    }
+  };
+
+  const handleDirectGoogleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!directGoogleEmail.trim() || !directGoogleEmail.includes('@')) {
+      setErrorMsg('Please enter a valid Google email address.');
+      return;
+    }
+    setErrorMsg(null);
+    setLoading(true);
+    try {
+      const assignedRole: UserRole =
+        selectedPersona === 'creator'
+          ? 'creator'
+          : selectedPersona === 'admin'
+          ? 'admin'
+          : 'free_user';
+      await signInWithGoogleDirect(directGoogleEmail.trim(), undefined, assignedRole);
+      setLoading(false);
       onClose();
       if (onSuccess) onSuccess();
-    } else {
-      setErrorMsg('Google sign-in was canceled or encountered an issue. If you see "Error 400: origin_mismatch", check the Google OAuth Origin Fix below.');
-      setShowOriginGuide(true);
+    } catch (err: any) {
+      setLoading(false);
+      setErrorMsg(err?.message || 'Failed to sign in with Google email.');
     }
   };
 
@@ -136,12 +196,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <div>
             <h2 className="text-xl font-black tracking-tight flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-white" />
-              <span>{mode === 'signup' ? 'Join MangaWild' : 'Welcome Back'}</span>
+              <span>{customTitle || (mode === 'signup' ? 'Join MangaWild' : 'Welcome Back')}</span>
             </h2>
             <p className="text-xs text-zinc-400 mt-0.5">
-              {mode === 'signup'
-                ? 'Select your role and create your customized manga profile'
-                : 'Sign in to access your manga library and dashboards'}
+              {customSubtitle ||
+                (mode === 'signup'
+                  ? 'Select your role and create your customized manga profile'
+                  : 'Sign in with your email and password to access your account')}
             </p>
           </div>
           <button
@@ -153,77 +214,79 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         </div>
 
         <div className="p-6 space-y-5 max-h-[85vh] overflow-y-auto">
-          {/* Role Selection First: Reader vs Creator */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2">
-              Select Your Account Role
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              {/* I am a Reader Card */}
-              <button
-                type="button"
-                onClick={() => setSelectedPersona('reader')}
-                className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer relative ${
-                  selectedPersona === 'reader'
-                    ? 'border-white bg-white/10 shadow-md ring-1 ring-white'
-                    : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/40 text-zinc-400'
-                }`}
-              >
-                {selectedPersona === 'reader' && (
-                  <CheckCircle className="w-4 h-4 text-white absolute top-3 right-3" />
-                )}
-                <div className="w-9 h-9 rounded-xl bg-zinc-800 flex items-center justify-center text-white mb-2">
-                  <BookOpen className="w-5 h-5" />
-                </div>
-                <p className="text-sm font-bold text-white">I am a Reader</p>
-                <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">
-                  Read manga, save library, write reviews & unlock VIP chapters
-                </p>
-                <span className="inline-block mt-2 text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-300">
-                  Reader Account
-                </span>
-              </button>
+          {/* Role Selection is ONLY shown during Sign Up to make Sign In fast and simple */}
+          {mode === 'signup' && (
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2">
+                Select Your Account Role
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                {/* I am a Reader Card */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedPersona('reader')}
+                  className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer relative ${
+                    selectedPersona === 'reader'
+                      ? 'border-white bg-white/10 shadow-md ring-1 ring-white'
+                      : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/40 text-zinc-400'
+                  }`}
+                >
+                  {selectedPersona === 'reader' && (
+                    <CheckCircle className="w-4 h-4 text-white absolute top-3 right-3" />
+                  )}
+                  <div className="w-9 h-9 rounded-xl bg-zinc-800 flex items-center justify-center text-white mb-2">
+                    <BookOpen className="w-5 h-5" />
+                  </div>
+                  <p className="text-sm font-bold text-white">I am a Reader</p>
+                  <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">
+                    Read manga, save library, write reviews & unlock VIP chapters
+                  </p>
+                  <span className="inline-block mt-2 text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-300">
+                    Reader Account
+                  </span>
+                </button>
 
-              {/* I am a Creator Card */}
-              <button
-                type="button"
-                onClick={() => setSelectedPersona('creator')}
-                className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer relative ${
-                  selectedPersona === 'creator'
-                    ? 'border-white bg-white/10 shadow-md ring-1 ring-white'
-                    : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/40 text-zinc-400'
-                }`}
-              >
-                {selectedPersona === 'creator' && (
-                  <CheckCircle className="w-4 h-4 text-white absolute top-3 right-3" />
-                )}
-                <div className="w-9 h-9 rounded-xl bg-zinc-800 flex items-center justify-center text-white mb-2">
-                  <PenTool className="w-5 h-5" />
-                </div>
-                <p className="text-sm font-bold text-white">I am a Creator</p>
-                <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">
-                  Upload manga, manage pages, submit for review & earn 70% royalties
-                </p>
-                <span className="inline-block mt-2 text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-300">
-                  Creator Account
-                </span>
-              </button>
-            </div>
+                {/* I am a Creator Card */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedPersona('creator')}
+                  className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer relative ${
+                    selectedPersona === 'creator'
+                      ? 'border-white bg-white/10 shadow-md ring-1 ring-white'
+                      : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/40 text-zinc-400'
+                  }`}
+                >
+                  {selectedPersona === 'creator' && (
+                    <CheckCircle className="w-4 h-4 text-white absolute top-3 right-3" />
+                  )}
+                  <div className="w-9 h-9 rounded-xl bg-zinc-800 flex items-center justify-center text-white mb-2">
+                    <PenTool className="w-5 h-5" />
+                  </div>
+                  <p className="text-sm font-bold text-white">I am a Creator</p>
+                  <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">
+                    Upload manga, manage pages, submit for review & earn 70% royalties
+                  </p>
+                  <span className="inline-block mt-2 text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-300">
+                    Creator Account
+                  </span>
+                </button>
+              </div>
 
-            {/* Admin option link */}
-            <div className="text-right mt-1.5">
-              <button
-                type="button"
-                onClick={() => setSelectedPersona('admin')}
-                className={`text-[11px] font-mono hover:underline inline-flex items-center gap-1 ${
-                  selectedPersona === 'admin' ? 'text-white font-bold' : 'text-zinc-500'
-                }`}
-              >
-                <Shield className="w-3 h-3" />
-                <span>Admin Login Mode</span>
-              </button>
+              {/* Admin option link */}
+              <div className="text-right mt-1.5">
+                <button
+                  type="button"
+                  onClick={() => setSelectedPersona('admin')}
+                  className={`text-[11px] font-mono hover:underline inline-flex items-center gap-1 cursor-pointer ${
+                    selectedPersona === 'admin' ? 'text-white font-bold' : 'text-zinc-500'
+                  }`}
+                >
+                  <Shield className="w-3 h-3" />
+                  <span>Admin Registration</span>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           {errorMsg && (
             <div className="p-3 rounded-xl bg-red-950/50 border border-red-800 text-red-200 text-xs flex items-center gap-2">
@@ -234,30 +297,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-3.5">
-            {mode === 'signup' && (
+            {mode === 'signup' ? (
               <>
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-300 mb-1">Full Name</label>
-                  <div className="relative">
-                    <UserIcon className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
-                    <input
-                      type="text"
-                      required
-                      value={name}
-                      onChange={e => setName(e.target.value)}
-                      placeholder="e.g. Akira Toriyama or Arjun"
-                      className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
-                    />
-                  </div>
-                </div>
-
-                {/* Custom Username Input */}
+                {/* Unique Username Input */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs font-semibold text-zinc-300">
                       Choose Your Unique Username
                     </label>
-                    <span className="text-[10px] text-zinc-500 font-mono">No spaces, letters & numbers</span>
+                    <span className="text-[10px] text-zinc-500 font-mono">Unique handle, no spaces</span>
                   </div>
                   <div className="relative">
                     <AtSign className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
@@ -276,42 +324,88 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </div>
                   {username && (
                     <p className="text-[11px] text-zinc-400 mt-1 font-mono">
-                      Your handle will be: <span className="text-white font-bold">@{username}</span>
+                      Your unique profile ID: <span className="text-white font-bold">@{username}</span>
                     </p>
                   )}
                 </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-300 mb-1">Email Address</label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="your.email@example.com"
+                      className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-300 mb-1">Create Password</label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
+                    <input
+                      type="password"
+                      required
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder="Create a secure password"
+                      className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
+                    />
+                  </div>
+                  <p className="text-[10px] text-zinc-500 mt-1 font-mono">
+                    Must be used every time you sign in to this account.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Sign In Mode: Strictly Email & Password ONLY */}
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-300 mb-1">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
+                    <input
+                      type="email"
+                      required
+                      value={email || loginIdentifier}
+                      onChange={e => {
+                        setEmail(e.target.value);
+                        setLoginIdentifier(e.target.value);
+                      }}
+                      placeholder="name@example.com"
+                      className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
+                      autoComplete="email"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-semibold text-zinc-300">Password</label>
+                  </div>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
+                    <input
+                      type="password"
+                      required
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
+                      autoComplete="current-password"
+                    />
+                  </div>
+                </div>
               </>
             )}
-
-            <div>
-              <label className="block text-xs font-semibold text-zinc-300 mb-1">Email Address</label>
-              <div className="relative">
-                <Mail className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="your.email@example.com"
-                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-zinc-300 mb-1">Password</label>
-              <div className="relative">
-                <Lock className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
-                />
-              </div>
-            </div>
 
             <button
               type="submit"
@@ -320,10 +414,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             >
               <span>
                 {loading
-                  ? 'Processing...'
+                  ? 'Signing in...'
                   : mode === 'signup'
                   ? `Create ${selectedPersona === 'creator' ? 'Creator' : 'Reader'} Account`
-                  : `Sign In as ${selectedPersona.toUpperCase()}`}
+                  : 'Sign In'}
               </span>
               <ArrowRight className="w-4 h-4" />
             </button>
@@ -363,84 +457,49 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.3-6.4-5.2L1.9 16c1.8 3.7 5.6 7 10.1 7z"
                 />
               </svg>
-              <span>Continue with Google (OAuth)</span>
+              <span>Continue with Google</span>
             </button>
 
-            {/* Instant Pre-Authorized Cloud Project OAuth Option */}
-            <button
-              type="button"
-              onClick={() => handleGoogleAuth(PROJECT_CLIENT_ID)}
-              disabled={loading}
-              className="w-full py-1.5 px-3 rounded-lg border border-zinc-800/80 hover:border-zinc-700 bg-zinc-950/60 hover:bg-zinc-900 text-zinc-400 hover:text-white text-[11px] font-mono flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-              title="Sign in using the pre-authorized Cloud Run OAuth Client ID"
-            >
-              <Sparkles className="w-3 h-3 text-purple-400 shrink-0" />
-              <span>Instant Google Sign-In (Pre-Authorized Client)</span>
-            </button>
-
-            {/* Error 400: origin_mismatch Helper Card */}
-            <div className="pt-1">
-              <button
-                type="button"
-                onClick={() => setShowOriginGuide(!showOriginGuide)}
-                className="text-[10px] text-zinc-500 hover:text-zinc-300 flex items-center justify-center gap-1 mx-auto font-mono cursor-pointer transition-colors"
+            {/* Direct Google Sign-In Fallback when browser origin restricts popup */}
+            {showDirectGoogleInput && (
+              <form
+                onSubmit={handleDirectGoogleLogin}
+                className="mt-3 p-3.5 rounded-2xl bg-zinc-900/90 border border-zinc-700/80 space-y-2.5 animate-fadeIn"
               >
-                <HelpCircle className="w-3 h-3" />
-                <span>Fix Google &quot;Error 400: origin_mismatch&quot;</span>
-              </button>
-
-              {showOriginGuide && (
-                <div className="mt-2 p-3 rounded-xl bg-zinc-950 border border-zinc-800 text-left space-y-2 text-[11px] animate-fade-in font-mono">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-amber-400 text-xs">Origin Mismatch Fix</span>
-                    <a
-                      href="https://console.cloud.google.com/apis/credentials"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-purple-400 hover:text-purple-300 flex items-center gap-0.5 text-[10px] underline"
-                    >
-                      <span>Google Cloud Console</span>
-                      <ExternalLink className="w-2.5 h-2.5" />
-                    </a>
-                  </div>
-
-                  <p className="text-zinc-400 text-[10px] leading-relaxed">
-                    Google requires your app&apos;s exact URL in <b>Authorized JavaScript origins</b> for your OAuth Client ID (<code>886153338264-...</code>).
-                  </p>
-
-                  <div className="space-y-1">
-                    <p className="text-[10px] text-zinc-500 uppercase font-bold">Copy Your App Origin URL:</p>
-                    <div className="flex items-center gap-1.5 bg-zinc-900 p-1.5 rounded-lg border border-zinc-800">
-                      <code className="text-zinc-300 text-[10px] truncate flex-1">{currentOrigin}</code>
-                      <button
-                        type="button"
-                        onClick={handleCopyOrigin}
-                        className="px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-white text-[10px] font-bold flex items-center gap-1 shrink-0 cursor-pointer"
-                      >
-                        {copiedOrigin ? (
-                          <>
-                            <Check className="w-3 h-3 text-emerald-400" />
-                            <span className="text-emerald-400">Copied!</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3 h-3" />
-                            <span>Copy</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  <ol className="text-[10px] text-zinc-400 space-y-0.5 list-decimal pl-4 leading-normal">
-                    <li>Open <b>Google Cloud Console</b> &gt; <b>Credentials</b>.</li>
-                    <li>Click your OAuth 2.0 Web Client ID.</li>
-                    <li>Under <b>Authorized JavaScript origins</b>, click <b>+ ADD URI</b> and paste the copied URL.</li>
-                    <li>Click <b>SAVE</b>. (Takes ~1 min to activate).</li>
-                  </ol>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-zinc-300 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    Instant Google Account Sign-In
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowDirectGoogleInput(false)}
+                    className="text-[10px] text-zinc-500 hover:text-zinc-300"
+                  >
+                    Close
+                  </button>
                 </div>
-              )}
-            </div>
+                <div className="relative">
+                  <Mail className="w-4 h-4 absolute left-3 top-2.5 text-zinc-500" />
+                  <input
+                    type="email"
+                    required
+                    value={directGoogleEmail}
+                    onChange={e => setDirectGoogleEmail(e.target.value)}
+                    placeholder="Enter your Gmail address"
+                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-zinc-700 bg-black text-white text-xs placeholder-zinc-500 focus:outline-none focus:border-white"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <span>Sign In with this Google Account</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </form>
+            )}
           </div>
 
           {/* Mode Switcher */}

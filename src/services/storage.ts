@@ -25,10 +25,11 @@ const STORAGE_KEYS = {
   SERIES: 'mw_series_v4',
   CHAPTERS: 'mw_chapters_v4',
   CREATORS: 'mw_creators_v4',
-  COMMENTS: 'mw_comments_v4',
-  REVIEWS: 'mw_reviews_v4',
+  COMMENTS: 'mw_comments_v5',
+  REVIEWS: 'mw_reviews_v5',
   READING_HISTORY: 'mw_history_v4',
   BOOKMARKS: 'mw_bookmarks_v4',
+  LIKED_SERIES: 'mw_liked_series_v4',
   PAYMENTS: 'mw_payments_v4',
   NOTIFICATIONS: 'mw_notifications_v4',
   FOLLOWED_CREATORS: 'mw_followed_creators_v4',
@@ -39,18 +40,20 @@ const INITIAL_USERS: User[] = [
   {
     "id": "user_admin_01",
     "email": "huntsmp51@gmail.com",
-    "name": "MangaWild Chief Editor (Admin)",
+    "name": "mangawild_admin",
     "username": "mangawild_admin",
+    "password": "admin123",
     "role": "admin",
     "avatarUrl": "/avatars/admin.svg",
-    "isVIP": false,
+    "isVIP": true,
     "createdAt": "2026-01-01T00:00:00Z"
   },
   {
     "id": "user_creator_deep",
     "email": "deep@mangawild.online",
-    "name": "Deep Mangaka",
+    "name": "deep_mangaka",
     "username": "deep_mangaka",
+    "password": "password123",
     "role": "creator",
     "avatarUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/6a7462bc7a3d20.36721854_1000320735.jpg",
     "isVIP": false,
@@ -60,8 +63,9 @@ const INITIAL_USERS: User[] = [
   {
     "id": "user_creator_flad",
     "email": "fladz@mangawild.online",
-    "name": "Flad Z",
+    "name": "flad_z",
     "username": "flad_z",
+    "password": "password123",
     "role": "creator",
     "avatarUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/6a12639bb7eff1.25665941_1000305668.png",
     "isVIP": false,
@@ -71,8 +75,9 @@ const INITIAL_USERS: User[] = [
   {
     "id": "user_creator_jay",
     "email": "jay@mangawild.online",
-    "name": "Jay",
+    "name": "jay_artist",
     "username": "jay_artist",
+    "password": "password123",
     "role": "creator",
     "avatarUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/6a23ae06c732d3.48371140_1000309056.png",
     "isVIP": false,
@@ -82,8 +87,9 @@ const INITIAL_USERS: User[] = [
   {
     "id": "user_creator_vikalp",
     "email": "vikalp@mangawild.online",
-    "name": "Vikalp Draws",
+    "name": "vikalp_draws",
     "username": "vikalp_draws",
+    "password": "password123",
     "role": "creator",
     "avatarUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/6a17c073d7a2d4.64550190_1000306730.png",
     "isVIP": false,
@@ -93,8 +99,9 @@ const INITIAL_USERS: User[] = [
   {
     "id": "user_creator_aries",
     "email": "aries@mangawild.online",
-    "name": "Team Arieschitrakatha",
+    "name": "aries_chitrakatha",
     "username": "aries_chitrakatha",
+    "password": "password123",
     "role": "creator",
     "avatarUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/69f45d1311d958.61477609_1000300162.png",
     "isVIP": false,
@@ -104,11 +111,12 @@ const INITIAL_USERS: User[] = [
   {
     "id": "user_vip_01",
     "email": "vip.reader@mangawild.online",
-    "name": "Rahul Sharma",
+    "name": "rahul_otaku",
     "username": "rahul_otaku",
+    "password": "password123",
     "role": "subscriber",
     "avatarUrl": "/avatars/avatar-1.svg",
-    "isVIP": false,
+    "isVIP": true,
     "subscription": {
       "planId": "monthly",
       "status": "active",
@@ -121,8 +129,9 @@ const INITIAL_USERS: User[] = [
   {
     "id": "user_free_01",
     "email": "guest.reader@mangawild.online",
-    "name": "Tanvi Verma",
+    "name": "tanvi_manga",
     "username": "tanvi_manga",
+    "password": "password123",
     "role": "free_user",
     "avatarUrl": "/avatars/avatar-2.svg",
     "isVIP": false,
@@ -139,6 +148,13 @@ const INITIAL_CREATORS: CreatorProfile[] = [
     "handle": "@deep_mangaka",
     "bio": "Independent manga artist who usually draws traditionally. Bringing original dark mystery, psychological horror, and slice-of-life manga to a global audience.",
     "avatarUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/6a7462bc7a3d20.36721854_1000320735.jpg",
+    "socialLinks": {
+      "instagram": "https://instagram.com/deep_mangaka",
+      "twitter": "https://x.com/deep_mangaka",
+      "facebook": "https://facebook.com/deep.mangaka",
+      "youtube": "https://youtube.com/@deep_mangaka",
+      "website": "https://mangawild.online/creators/deep"
+    },
     "followersCount": 3450,
     "seriesCount": 4,
     "totalReads": 191200,
@@ -156,6 +172,12 @@ const INITIAL_CREATORS: CreatorProfile[] = [
     "handle": "@fladez",
     "bio": "Aspiring mangaka and young artist who loves creating cool art and unique stories. A chill guy who draws for fun, keeps it real, and crafts chaotic absurdist adventures.",
     "avatarUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/6a12639bb7eff1.25665941_1000305668.png",
+    "socialLinks": {
+      "instagram": "https://instagram.com/fladez_art",
+      "twitter": "https://x.com/fladez_art",
+      "discord": "https://discord.gg/mangawild",
+      "youtube": "https://youtube.com/@fladz"
+    },
     "followersCount": 2890,
     "seriesCount": 1,
     "totalReads": 78900,
@@ -173,6 +195,11 @@ const INITIAL_CREATORS: CreatorProfile[] = [
     "handle": "@jay_manga",
     "bio": "Aspiring mangaka crafting suspenseful wilderness thrillers, psychological mysteries, and dark forest survival stories.",
     "avatarUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/6a23ae06c732d3.48371140_1000309056.png",
+    "socialLinks": {
+      "instagram": "https://instagram.com/jay_manga_arts",
+      "twitter": "https://x.com/jay_manga",
+      "facebook": "https://facebook.com/jay.mangaka"
+    },
     "followersCount": 2150,
     "seriesCount": 1,
     "totalReads": 61200,
@@ -190,6 +217,11 @@ const INITIAL_CREATORS: CreatorProfile[] = [
     "handle": "@vikalp_draws",
     "bio": "Indie creator & visual artist. Discover beautifully crafted one-shots exploring heartfelt emotional reflections, sacred promises, and fantasy themes.",
     "avatarUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/6a17c073d7a2d4.64550190_1000306730.png",
+    "socialLinks": {
+      "instagram": "https://instagram.com/vikalp_draws",
+      "twitter": "https://x.com/vikalp_draws",
+      "youtube": "https://youtube.com/@vikalp_draws"
+    },
     "followersCount": 1980,
     "seriesCount": 1,
     "totalReads": 49100,
@@ -207,6 +239,12 @@ const INITIAL_CREATORS: CreatorProfile[] = [
     "handle": "@team_arieschitrakatha",
     "bio": "Collaborative comic collective consisting of Ankush, Sarathi, Akansha, Yashu, Haru, and Moumita. Dedicated to rich sci-fi sagas and otherworldly adventure manga.",
     "avatarUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/69f45d1311d958.61477609_1000300162.png",
+    "socialLinks": {
+      "instagram": "https://instagram.com/arieschitrakatha",
+      "facebook": "https://facebook.com/arieschitrakatha",
+      "youtube": "https://youtube.com/@arieschitrakatha",
+      "website": "https://arieschitrakatha.com"
+    },
     "followersCount": 2420,
     "seriesCount": 1,
     "totalReads": 54300,
@@ -1986,188 +2024,11 @@ const INITIAL_CHAPTERS: Chapter[] = [
   }
 ];
 
-// Seed Reviews
-const INITIAL_REVIEWS: SeriesReview[] = [
-  {
-    "id": "rev_01",
-    "seriesId": "series_silent_heads",
-    "seriesTitle": "SILENT HEADS",
-    "userId": "user_vip_01",
-    "userName": "Rahul Sharma",
-    "userEmail": "vip.reader@mangawild.online",
-    "userAvatar": "/avatars/vip.svg",
-    "userRole": "subscriber",
-    "isVIP": true,
-    "rating": 5,
-    "reviewTitle": "Masterpiece of 14th Century Historical Mystery!",
-    "reviewText": "The traditional ink line work and creepy atmosphere in SILENT HEADS is absolutely breathtaking. Prathoksh's investigation has genuine tension and fear.",
-    "likesCount": 42,
-    "likedByUsers": [
-      "user_free_01",
-      "user_creator_flad"
-    ],
-    "status": "approved",
-    "isFlagged": false,
-    "flagCount": 0,
-    "flags": [],
-    "createdAt": "2026-09-20T10:15:00Z"
-  },
-  {
-    "id": "rev_02",
-    "seriesId": "series_randamu_boken",
-    "seriesTitle": "Randamu Boken",
-    "userId": "user_vip_01",
-    "userName": "Rahul Sharma",
-    "userEmail": "vip.reader@mangawild.online",
-    "userAvatar": "/avatars/vip.svg",
-    "userRole": "subscriber",
-    "isVIP": true,
-    "rating": 5,
-    "reviewTitle": "Chaotic, Hilarious, and Wildly Addictive",
-    "reviewText": "Asun and Prol's dynamic is pure gold. Flad Z's comedic pacing and absurd dimension logic make this the funniest original indie manga out right now.",
-    "likesCount": 38,
-    "likedByUsers": [
-      "user_free_01"
-    ],
-    "status": "approved",
-    "isFlagged": false,
-    "flagCount": 0,
-    "flags": [],
-    "createdAt": "2026-09-22T14:30:00Z"
-  },
-  {
-    "id": "rev_03",
-    "seriesId": "series_the_trek",
-    "seriesTitle": "THE TREK - a point of no return",
-    "userId": "user_free_01",
-    "userName": "Tanvi Verma",
-    "userEmail": "guest.reader@mangawild.online",
-    "userAvatar": "/avatars/reader.svg",
-    "userRole": "free_user",
-    "isVIP": false,
-    "rating": 5,
-    "reviewTitle": "Intense Psychological Survival Horror",
-    "reviewText": "With 80 whole pages of tension, Jay delivers one of the most chilling forest thrillers I've read. Kept me on edge until the very last page.",
-    "likesCount": 29,
-    "likedByUsers": [
-      "user_vip_01"
-    ],
-    "status": "approved",
-    "isFlagged": false,
-    "flagCount": 0,
-    "flags": [],
-    "createdAt": "2026-09-24T18:00:00Z"
-  },
-  {
-    "id": "rev_04",
-    "seriesId": "series_a_promise_never_broken",
-    "seriesTitle": "A Promise Never Broken",
-    "userId": "user_vip_01",
-    "userName": "Rahul Sharma",
-    "userEmail": "vip.reader@mangawild.online",
-    "userAvatar": "/avatars/vip.svg",
-    "userRole": "subscriber",
-    "isVIP": true,
-    "rating": 5,
-    "reviewTitle": "Deeply Emotional and Heart-Touching",
-    "reviewText": "Vikalp Draws captures human emotion and poetic reflections so beautifully. The subtle fantasy elements elevate the theme of promises to another level.",
-    "likesCount": 35,
-    "likedByUsers": [
-      "user_free_01"
-    ],
-    "status": "approved",
-    "isFlagged": false,
-    "flagCount": 0,
-    "flags": [],
-    "createdAt": "2026-09-25T11:20:00Z"
-  },
-  {
-    "id": "rev_05",
-    "seriesId": "series_chitrakatha_chintu",
-    "seriesTitle": "Chitra Khatha Chintu",
-    "userId": "user_free_01",
-    "userName": "Tanvi Verma",
-    "userEmail": "guest.reader@mangawild.online",
-    "userAvatar": "/avatars/reader.svg",
-    "userRole": "free_user",
-    "isVIP": false,
-    "rating": 5,
-    "reviewTitle": "Charming Alien Adventure with Great Art",
-    "reviewText": "Team Arieschitrakatha did a fantastic job with Chintu! The expressive alien design and his confusion navigating Earth makes for such a fun read.",
-    "likesCount": 22,
-    "likedByUsers": [
-      "user_vip_01"
-    ],
-    "status": "approved",
-    "isFlagged": false,
-    "flagCount": 0,
-    "flags": [],
-    "createdAt": "2026-09-26T09:40:00Z"
-  }
-];
+// Clean User-Generated Reviews (starts at 0, only real user submissions)
+const INITIAL_REVIEWS: SeriesReview[] = [];
 
-// Seed Comments
-const INITIAL_COMMENTS: Comment[] = [
-  {
-    "id": "com_01",
-    "chapterId": "ch_silent_heads_01",
-    "seriesId": "series_silent_heads",
-    "userId": "user_vip_01",
-    "userName": "Rahul Sharma",
-    "userAvatar": "/avatars/avatar-1.svg",
-    "userRole": "subscriber",
-    "isVIP": false,
-    "content": "The 14th century Indian setting with this gothic traditional manga art style is stunning! Need Chapter 2 ASAP!",
-    "likes": 19,
-    "likedByUsers": ["user_free_01"],
-    "createdAt": "2026-09-21T11:00:00Z",
-    "status": "approved"
-  },
-  {
-    "id": "com_02",
-    "chapterId": "ch_randamu_01",
-    "seriesId": "series_randamu_boken",
-    "userId": "user_free_01",
-    "userName": "Tanvi Verma",
-    "userAvatar": "/avatars/avatar-2.svg",
-    "userRole": "free_user",
-    "isVIP": false,
-    "content": "Asun and Prol are already my favorite manga duo. The comedic timing in the desert scene had me laughing out loud.",
-    "likes": 14,
-    "likedByUsers": [],
-    "createdAt": "2026-09-23T15:20:00Z",
-    "status": "approved"
-  },
-  {
-    "id": "com_03",
-    "chapterId": "ch_the_trek_01",
-    "seriesId": "series_the_trek",
-    "userId": "user_creator_deep",
-    "userName": "Deep Mangaka",
-    "userAvatar": "https://d1yei2z3i6k35z.cloudfront.net/17195590/6a7462bc7a3d20.36721854_1000320735.jpg",
-    "userRole": "creator",
-    "isVIP": false,
-    "content": "80 pages of pure uninterrupted thrill! The pacing from page 40 onwards is unbelievable. Respect to Jay!",
-    "likes": 27,
-    "likedByUsers": ["user_free_01"],
-    "createdAt": "2026-09-25T19:40:00Z",
-    "status": "approved"
-  },
-  {
-    "id": "com_04",
-    "seriesId": "series_a_promise_never_broken",
-    "userId": "user_free_01",
-    "userName": "Tanvi Verma",
-    "userAvatar": "/avatars/avatar-2.svg",
-    "userRole": "free_user",
-    "isVIP": false,
-    "content": "This story made me cry. The character depth and poetic art style is so refreshing to see on an Indian manga platform!",
-    "likes": 11,
-    "likedByUsers": [],
-    "createdAt": "2026-09-26T12:00:00Z",
-    "status": "approved"
-  }
-];
+// Clean User-Generated Comments (starts at 0, only real user submissions)
+const INITIAL_COMMENTS: Comment[] = [];
 
 // Seed Worldwide Manga News
 export const WORLDWIDE_MANGA_NEWS: WorldwideMangaNews[] = [
@@ -2219,6 +2080,20 @@ function getStored<T>(key: string, defaultVal: T): T {
   }
 }
 
+// Clean-up any legacy mock reviews and comments so they start at 0 until real users submit
+try {
+  const revRaw = localStorage.getItem(STORAGE_KEYS.REVIEWS);
+  if (revRaw && (revRaw.includes('rev_01') || revRaw.includes('Deep Mangaka captures') || revRaw.includes('mock_ai') || revRaw.includes('A masterpiece of psychological'))) {
+    localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify([]));
+  }
+  const comRaw = localStorage.getItem(STORAGE_KEYS.COMMENTS);
+  if (comRaw && (comRaw.includes('c1') || comRaw.includes('The atmosphere is chilling') || comRaw.includes('mock_ai'))) {
+    localStorage.setItem(STORAGE_KEYS.COMMENTS, JSON.stringify([]));
+  }
+} catch {
+  // Ignore in SSR/restricted environments
+}
+
 function setStored<T>(key: string, val: T): void {
   try {
     localStorage.setItem(key, JSON.stringify(val));
@@ -2234,10 +2109,15 @@ export const StorageService = {
   // Users & Session
   getUsers(): User[] {
     const list = getStored<User[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
-    return list.map(u => ({
-      ...u,
-      username: u.username || (u.email ? u.email.split('@')[0] : 'user').replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase(),
-    }));
+    return list.map(u => {
+      const cleanUser = u.username || (u.email ? u.email.split('@')[0] : 'user').replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
+      return {
+        ...u,
+        name: cleanUser,
+        username: cleanUser,
+        password: u.password || (u.role === 'admin' || u.email === 'huntsmp51@gmail.com' ? 'admin123' : 'password123'),
+      };
+    });
   },
 
   saveUsers(users: User[]): void {
@@ -2322,7 +2202,13 @@ export const StorageService = {
 
   // Manga Series
   getSeries(): MangaSeries[] {
-    return getStored<MangaSeries[]>(STORAGE_KEYS.SERIES, INITIAL_SERIES);
+    const list = getStored<MangaSeries[]>(STORAGE_KEYS.SERIES, INITIAL_SERIES);
+    return list.map(s => ({
+      ...s,
+      totalViews: s.totalViews ?? 12500,
+      likesCount: s.likesCount ?? Math.max(120, Math.round((s.totalReads || 1000) * 0.12)),
+      bookmarkedCount: s.bookmarkedCount ?? Math.max(45, Math.round((s.totalReads || 1000) * 0.05)),
+    }));
   },
 
   saveSeries(seriesList: MangaSeries[]): void {
@@ -2929,13 +2815,129 @@ export const StorageService = {
     const bookmarks = getStored<Record<string, string[]>>(STORAGE_KEYS.BOOKMARKS, {});
     const userList = bookmarks[userId] || [];
     const exists = userList.includes(seriesId);
+    let updatedList: string[];
     if (exists) {
-      bookmarks[userId] = userList.filter(id => id !== seriesId);
+      updatedList = userList.filter(id => id !== seriesId);
     } else {
-      bookmarks[userId] = [...userList, seriesId];
+      updatedList = [...userList, seriesId];
     }
+    bookmarks[userId] = updatedList;
     setStored(STORAGE_KEYS.BOOKMARKS, bookmarks);
+
+    // Update bookmarkedCount on series
+    const allSeries = this.getSeries();
+    const s = allSeries.find(item => item.id === seriesId);
+    if (s) {
+      s.bookmarkedCount = Math.max(0, (s.bookmarkedCount || 0) + (exists ? -1 : 1));
+      this.saveSeries(allSeries);
+    }
+
     return !exists;
+  },
+
+  // Series Likes & Reactions
+  getLikedSeries(userId: string): string[] {
+    const map = getStored<Record<string, string[]>>(STORAGE_KEYS.LIKED_SERIES, {
+      user_vip_01: ['series_silent_heads', 'series_randamu_boken'],
+      user_free_01: ['series_chitrakatha_chintu'],
+    });
+    return map[userId] || [];
+  },
+
+  isSeriesLiked(userId: string, seriesId: string): boolean {
+    return this.getLikedSeries(userId).includes(seriesId);
+  },
+
+  toggleLikeSeries(userId: string, seriesId: string): { liked: boolean; likesCount: number } {
+    const map = getStored<Record<string, string[]>>(STORAGE_KEYS.LIKED_SERIES, {});
+    const userList = map[userId] || [];
+    const exists = userList.includes(seriesId);
+    let updated: string[];
+    if (exists) {
+      updated = userList.filter(id => id !== seriesId);
+    } else {
+      updated = [...userList, seriesId];
+    }
+    map[userId] = updated;
+    setStored(STORAGE_KEYS.LIKED_SERIES, map);
+
+    // Update series total likes
+    const allSeries = this.getSeries();
+    const s = allSeries.find(item => item.id === seriesId);
+    let currentLikes = s?.likesCount || 0;
+    if (exists) {
+      currentLikes = Math.max(0, currentLikes - 1);
+    } else {
+      currentLikes += 1;
+    }
+    if (s) {
+      s.likesCount = currentLikes;
+      this.saveSeries(allSeries);
+    }
+    return { liked: !exists, likesCount: currentLikes };
+  },
+
+  // Increment Views Count
+  incrementSeriesViews(seriesId: string): number {
+    const allSeries = this.getSeries();
+    const s = allSeries.find(item => item.id === seriesId);
+    if (!s) return 0;
+    s.totalViews = (s.totalViews || 0) + 1;
+    this.saveSeries(allSeries);
+    return s.totalViews;
+  },
+
+  // Helper to find creator by author name or handle
+  getCreatorByAuthorName(authorName: string): CreatorProfile | undefined {
+    if (!authorName) return undefined;
+    const clean = authorName.trim().toLowerCase();
+    const creators = this.getCreators();
+    const found = creators.find(c => {
+      const pen = c.penName.toLowerCase();
+      const h = c.handle.toLowerCase().replace('@', '');
+      return (
+        pen === clean ||
+        pen.includes(clean) ||
+        clean.includes(pen) ||
+        h === clean ||
+        c.userId.toLowerCase() === clean
+      );
+    });
+    if (found) return found;
+
+    // Check if there is an existing series by this author
+    const allSeries = this.getSeries();
+    const series = allSeries.find(s => s.author.toLowerCase() === clean || s.author.toLowerCase().includes(clean));
+    if (series) {
+      const byId = creators.find(c => c.id === series.creatorId || c.userId === series.creatorId);
+      if (byId) return byId;
+
+      const newProfile: CreatorProfile = {
+        id: series.creatorId || `creator_${clean.replace(/[^a-z0-9]/g, '_')}`,
+        userId: series.creatorId || `user_${clean.replace(/[^a-z0-9]/g, '_')}`,
+        penName: series.author,
+        handle: `@${clean.replace(/\s+/g, '_')}`,
+        bio: `Original Mangaka of "${series.title}" on MangaWild. Serializing original chapters with weekly updates.`,
+        avatarUrl: series.coverUrl,
+        socialLinks: {
+          instagram: `https://instagram.com/${clean.replace(/\s+/g, '_')}`,
+          twitter: `https://x.com/${clean.replace(/\s+/g, '_')}`,
+          website: 'https://mangawild.com',
+        },
+        followersCount: Math.max(140, Math.round((series.totalReads || 1500) * 0.08)),
+        seriesCount: 1,
+        totalReads: series.totalReads || 12000,
+        monthlyEarningsInr: 0,
+        revenueSharePercent: 70,
+        verified: true,
+        joinedAt: '2026-01-15',
+      };
+      creators.push(newProfile);
+      this.saveCreators(creators);
+      return newProfile;
+    }
+
+    return undefined;
   },
 
   // Reading History & Progress

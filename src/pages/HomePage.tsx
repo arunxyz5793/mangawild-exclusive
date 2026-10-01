@@ -15,6 +15,8 @@ import {
   MessageSquare,
   Clock,
   Compass,
+  Heart,
+  Eye,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -110,9 +112,9 @@ export const HomePage: React.FC<HomePageProps> = ({
                   FLAGSHIP SPOTLIGHT
                 </span>
                 <span className="text-zinc-400 font-mono">Original Series</span>
-                <span className="text-zinc-600">·</span>
-                <span className="text-zinc-300 dark:text-zinc-200 font-mono flex items-center gap-1 font-bold">
-                  <Star className="w-3.5 h-3.5 fill-current" />
+                <span className="text-zinc-500">·</span>
+                <span className={`font-mono flex items-center gap-1 font-bold ${theme === 'dark' ? 'text-zinc-200' : 'text-zinc-800'}`}>
+                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                   {currentSpotlight?.rating.toFixed(1)} / 5.0 Rating
                 </span>
               </div>
@@ -127,15 +129,22 @@ export const HomePage: React.FC<HomePageProps> = ({
                   {currentSpotlight?.title}
                 </h1>
 
-                <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400">
+                <div className={`flex flex-wrap items-center gap-2 text-xs ${theme === 'dark' ? 'text-zinc-400' : 'text-zinc-600'}`}>
                   <span>
                     Written by{' '}
-                    <strong className={theme === 'dark' ? 'text-zinc-200' : 'text-zinc-700'}>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('creator-profile', { id: currentSpotlight?.creatorId, author: currentSpotlight?.author })}
+                      className={`font-black underline decoration-purple-500/50 underline-offset-4 hover:text-purple-400 transition-colors cursor-pointer ${
+                        theme === 'dark' ? 'text-zinc-200' : 'text-zinc-900'
+                      }`}
+                      title={`View ${currentSpotlight?.author}'s Creator Profile`}
+                    >
                       {currentSpotlight?.author}
-                    </strong>
+                    </button>
                   </span>
                   <span>·</span>
-                  <span>{currentSpotlight?.genres.join(' · ')}</span>
+                  <span className={theme === 'dark' ? 'text-zinc-300' : 'text-zinc-700'}>{currentSpotlight?.genres.join(' · ')}</span>
                   <span>·</span>
                   <span className="font-mono">
                     {currentSpotlight?.totalReads.toLocaleString()} readers
@@ -143,7 +152,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                   {currentSpotlight?.isExclusive && (
                     <>
                       <span>·</span>
-                      <span className="text-zinc-200 font-bold uppercase flex items-center gap-1 font-mono">
+                      <span className={`font-bold uppercase flex items-center gap-1 font-mono ${theme === 'dark' ? 'text-amber-400' : 'text-amber-600'}`}>
                         <Crown className="w-3.5 h-3.5" /> VIP Exclusive
                       </span>
                     </>
@@ -315,16 +324,26 @@ export const HomePage: React.FC<HomePageProps> = ({
 
                 <div className="space-y-1">
                   <h3
-                    className={`text-sm font-bold truncate group-hover:text-zinc-300 transition-colors ${
+                    className={`text-sm font-bold truncate group-hover:text-purple-400 transition-colors ${
                       theme === 'dark' ? 'text-white' : 'text-zinc-900'
                     }`}
                   >
                     {series.title}
                   </h3>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate('creator-profile', { id: series.creatorId, author: series.author });
+                    }}
+                    className="text-[11px] text-zinc-400 hover:text-purple-400 hover:underline font-mono truncate text-left block w-full cursor-pointer"
+                  >
+                    by {series.author}
+                  </button>
                   <div className="flex items-center gap-2 text-[11px] text-zinc-400 font-mono">
                     <span>{series.genres[0]}</span>
                     <span>·</span>
-                    <span className="flex items-center gap-0.5 text-zinc-300 font-bold">
+                    <span className="flex items-center gap-0.5 text-amber-400 font-bold">
                       <Star className="w-3 h-3 fill-current" />
                       {series.rating.toFixed(1)}
                     </span>
@@ -332,9 +351,18 @@ export const HomePage: React.FC<HomePageProps> = ({
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-zinc-800/40 flex items-center justify-between text-[11px] text-zinc-400">
-                <span className="font-mono">{series.totalReads.toLocaleString()} reads</span>
-                <span className="text-zinc-300 font-bold group-hover:translate-x-0.5 transition-transform">
+              <div className="pt-2.5 border-t border-zinc-200 dark:border-zinc-800/60 flex items-center justify-between text-[11px] font-mono text-zinc-400">
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-0.5" title="Total Views">
+                    <Eye className="w-3 h-3 text-zinc-400" />
+                    <span>{(series.totalViews || 12000).toLocaleString()}</span>
+                  </span>
+                  <span className="flex items-center gap-0.5 text-rose-400" title="Likes">
+                    <Heart className="w-3 h-3 fill-current" />
+                    <span>{(series.likesCount || 850).toLocaleString()}</span>
+                  </span>
+                </div>
+                <span className="text-purple-400 font-bold group-hover:translate-x-0.5 transition-transform">
                   Read →
                 </span>
               </div>
@@ -409,7 +437,16 @@ export const HomePage: React.FC<HomePageProps> = ({
                 >
                   {series.title}
                 </h3>
-                <p className="text-[10px] text-zinc-400 font-mono truncate">{series.author}</p>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNavigate('creator-profile', { id: series.creatorId, author: series.author });
+                  }}
+                  className="text-[10px] text-zinc-400 hover:text-purple-400 hover:underline font-mono truncate text-left block w-full cursor-pointer"
+                >
+                  {series.author}
+                </button>
               </div>
             </div>
           ))}
@@ -506,15 +543,15 @@ export const HomePage: React.FC<HomePageProps> = ({
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-zinc-300 truncate">
+                    <span className={`text-xs font-bold truncate ${theme === 'dark' ? 'text-zinc-300' : 'text-zinc-700'}`}>
                       {rev.seriesTitle}
                     </span>
-                    <div className="flex items-center gap-0.5 text-zinc-300">
+                    <div className="flex items-center gap-0.5 text-amber-400">
                       {[...Array(5)].map((_, i) => (
                         <Star
                           key={i}
                           className={`w-3.5 h-3.5 ${
-                            i < rev.rating ? 'fill-current' : 'text-zinc-600'
+                            i < rev.rating ? 'fill-amber-400 text-amber-400' : 'text-zinc-600'
                           }`}
                         />
                       ))}
@@ -538,8 +575,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                   </p>
                 </div>
 
-                <div className="pt-3 border-t border-zinc-800/40 flex items-center justify-between text-xs text-zinc-400">
-                  <span className="font-semibold text-zinc-300 truncate">{rev.userName}</span>
+                <div className={`pt-3 border-t flex items-center justify-between text-xs ${
+                  theme === 'dark' ? 'border-zinc-800/40 text-zinc-400' : 'border-zinc-100 text-zinc-600'
+                }`}>
+                  <span className={`font-semibold truncate ${theme === 'dark' ? 'text-zinc-300' : 'text-zinc-900'}`}>{rev.userName}</span>
                   <span className="font-mono text-[11px]">{rev.likesCount} helpful</span>
                 </div>
               </div>

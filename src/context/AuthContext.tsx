@@ -4,6 +4,7 @@ import { StorageService } from '../services/storage';
 import { PlatformNotification } from '../types/manga';
 import { authenticateWithGoogleOAuth } from '../services/googleAuth';
 import { testFirestoreConnection } from '../services/firebase';
+import { processSubscriptionSuccess } from '../services/razorpay';
 
 interface AuthContextType {
   user: User;
@@ -16,19 +17,41 @@ interface AuthContextType {
   canAccessVIP: boolean;
   hasPerm: (perm: Permission) => boolean;
   switchUserRole: (role: UserRole) => void;
-  signIn: (email: string, pass?: string, requestedRole?: UserRole) => Promise<boolean>;
-  signUp: (name: string, email: string, pass?: string, requestedRole?: UserRole, customUsername?: string) => Promise<boolean>;
+  toggleCreatorMode: () => { newRole: UserRole; creatorId?: string };
+  signIn: (identifier: string, pass: string, requestedRole?: UserRole) => Promise<boolean>;
+  signUp: (username: string, email: string, pass: string, requestedRole?: UserRole) => Promise<boolean>;
   signInWithGoogle: (requestedRole?: UserRole, customUsername?: string, overrideClientId?: string) => Promise<boolean>;
+  signInWithGoogleDirect: (email: string, name?: string, requestedRole?: UserRole) => Promise<boolean>;
   signOut: () => void;
   updateUser: (updates: Partial<User>) => void;
   updateUsername: (newUsername: string) => { success: boolean; error?: string };
+  activateSubscription: (
+    planId: 'monthly' | 'yearly',
+    paymentMethod?: 'UPI' | 'Card' | 'Netbanking' | 'Razorpay',
+    customPaymentId?: string
+  ) => { updatedUser: User; paymentRecord: any };
+  refreshUser: () => void;
   notifications: PlatformNotification[];
   unreadNotifsCount: number;
   markNotificationsAsRead: () => void;
   bookmarks: string[];
   toggleBookmark: (seriesId: string) => boolean;
+  likedSeries: string[];
+  toggleLikeSeries: (seriesId: string) => { liked: boolean; likesCount: number };
   followedCreators: string[];
   toggleFollowCreator: (creatorId: string) => boolean;
+  isAuthModalOpen: boolean;
+  authModalOptions: OpenAuthModalOptions;
+  openAuthModal: (options?: OpenAuthModalOptions) => void;
+  closeAuthModal: () => void;
+}
+
+export interface OpenAuthModalOptions {
+  title?: string;
+  subtitle?: string;
+  defaultRole?: 'reader' | 'creator' | 'admin';
+  defaultMode?: 'signin' | 'signup';
+  onSuccess?: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -44,13 +67,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     StorageService.getNotifications(user.id)
   );
   const [bookmarks, setBookmarks] = useState<string[]>(() => StorageService.getBookmarks(user.id));
+  const [likedSeries, setLikedSeries] = useState<string[]>(() => StorageService.getLikedSeries(user.id));
   const [followedCreators, setFollowedCreators] = useState<string[]>(() =>
     StorageService.getFollowedCreators(user.id)
   );
 
+  // Global Auth Modal state
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalOptions, setAuthModalOptions] = useState<OpenAuthModalOptions>({});
+
+  const openAuthModal = (options?: OpenAuthModalOptions) => {
+    setAuthModalOptions(options || {});
+    setIsAuthModalOpen(true);
+  };
+
+  const closeAuthModal = () => {
+    setIsAuthModalOpen(false);
+    setAuthModalOptions({});
+  };
+
   useEffect(() => {
     setNotifications(StorageService.getNotifications(user.id));
     setBookmarks(StorageService.getBookmarks(user.id));
+    setLikedSeries(StorageService.getLikedSeries(user.id));
     setFollowedCreators(StorageService.getFollowedCreators(user.id));
   }, [user.id]);
 
@@ -62,16 +101,138 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return hasPermission(user, perm);
   };
 
+  const toggleCreatorMode = (): { newRole: UserRole; creatorId?: string } => {
+    if (!isAuthenticated || user.id === 'guest_reader') {
+      return { newRole: 'free_user' };
+    }
+
+    const allUsers = StorageService.getUsers();
+    const userIdx = allUsers.findIndex(u => u.id === user.id);
+
+    if (user.role === 'creator') {
+      // Switch back to Reader mode while preserving creatorProfileId
+      const newRole: UserRole = user.isVIP ? 'subscriber' : 'free_user';
+      const updatedUser: User = {
+        ...user,
+        role: newRole,
+      };
+      if (userIdx >= 0) {
+        allUsers[userIdx] = updatedUser;
+        StorageService.saveUsers(allUsers);
+      }
+      StorageService.setCurrentUser(updatedUser);
+      setUser(updatedUser);
+      return { newRole, creatorId: updatedUser.creatorProfileId };
+    } else {
+      // Switch to Creator mode on the SAME account
+      let creatorId = user.creatorProfileId;
+      const creators = StorageService.getCreators();
+      let existingProfile = creatorId
+        ? creators.find(c => c.id === creatorId)
+        : creators.find(c => c.userId === user.id);
+
+      if (!existingProfile) {
+        creatorId = `creator_${user.id}`;
+        existingProfile = {
+          id: creatorId,
+          userId: user.id,
+          penName: user.username || user.name || 'Mangaka',
+          handle: `@${user.username || user.name.toLowerCase().replace(/\s+/g, '_')}`,
+          bio: 'Original Manga Creator publishing on MangaWild.',
+          avatarUrl: user.avatarUrl || '/avatars/creator.svg',
+          followersCount: 0,
+          seriesCount: 0,
+          totalReads: 0,
+          monthlyEarningsInr: 0,
+          revenueSharePercent: 70,
+          upiId: '',
+          bankAccountHolder: user.username || user.name,
+          verified: false,
+          joinedAt: new Date().toISOString().split('T')[0],
+        };
+        creators.push(existingProfile);
+        StorageService.saveCreators(creators);
+      } else {
+        creatorId = existingProfile.id;
+      }
+
+      const updatedUser: User = {
+        ...user,
+        role: 'creator',
+        creatorProfileId: creatorId,
+      };
+
+      if (userIdx >= 0) {
+        allUsers[userIdx] = updatedUser;
+        StorageService.saveUsers(allUsers);
+      }
+      StorageService.setCurrentUser(updatedUser);
+      setUser(updatedUser);
+      return { newRole: 'creator', creatorId };
+    }
+  };
+
   const switchUserRole = (targetRole: UserRole) => {
+    // If user is logged in, change their CURRENT account's role rather than switching accounts!
+    if (isAuthenticated && user.id !== 'guest_reader') {
+      const allUsers = StorageService.getUsers();
+      const userIdx = allUsers.findIndex(u => u.id === user.id);
+
+      let creatorId = user.creatorProfileId;
+      if (targetRole === 'creator' && !creatorId) {
+        creatorId = `creator_${user.id}`;
+        const creators = StorageService.getCreators();
+        const existingProfile = creators.find(c => c.userId === user.id);
+        if (!existingProfile) {
+          creators.push({
+            id: creatorId,
+            userId: user.id,
+            penName: user.username,
+            handle: `@${user.username}`,
+            bio: 'Original Manga Creator publishing on MangaWild.',
+            avatarUrl: user.avatarUrl || '/avatars/creator.svg',
+            followersCount: 0,
+            seriesCount: 0,
+            totalReads: 0,
+            monthlyEarningsInr: 0,
+            revenueSharePercent: 70,
+            upiId: '',
+            bankAccountHolder: user.username,
+            verified: false,
+            joinedAt: new Date().toISOString().split('T')[0],
+          });
+          StorageService.saveCreators(creators);
+        } else {
+          creatorId = existingProfile.id;
+        }
+      }
+
+      const updatedUser: User = {
+        ...user,
+        role: targetRole,
+        creatorProfileId: creatorId,
+      };
+
+      if (userIdx >= 0) {
+        allUsers[userIdx] = updatedUser;
+        StorageService.saveUsers(allUsers);
+      }
+      StorageService.setCurrentUser(updatedUser);
+      setUser(updatedUser);
+      return;
+    }
+
+    // Guest fallback: pick or create a demo user
     const allUsers = StorageService.getUsers();
     let target = allUsers.find(u => u.role === targetRole);
     if (!target) {
       const generatedUsername = `${targetRole}_${Math.floor(Math.random() * 900 + 100)}`;
       target = {
         id: `user_${targetRole}_${Date.now()}`,
-        name: `MangaWild ${targetRole.replace('_', ' ').toUpperCase()}`,
+        name: generatedUsername,
         username: generatedUsername,
         email: `${targetRole}@mangawild.online`,
+        password: 'password123',
         role: targetRole,
         isVIP: targetRole === 'admin' || targetRole === 'subscriber',
         createdAt: new Date().toISOString(),
@@ -84,39 +245,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsAuthenticated(target.id !== 'guest_reader' && Boolean(target.email));
   };
 
-  const signIn = async (email: string, _pass?: string, requestedRole?: UserRole): Promise<boolean> => {
+  const signIn = async (identifier: string, pass: string, requestedRole?: UserRole): Promise<boolean> => {
+    if (!identifier || !identifier.trim()) {
+      throw new Error('Please enter your username or email address.');
+    }
+    if (!pass || !pass.trim()) {
+      throw new Error('Please enter your password.');
+    }
+
+    const cleanId = identifier.trim().toLowerCase().replace(/^@/, '');
     const allUsers = StorageService.getUsers();
-    let found = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-    
-    // Check if admin email
-    const isAdminEmail = email.toLowerCase() === 'huntsmp51@gmail.com' || email.toLowerCase().includes('admin');
-    const assignedRole = requestedRole || (isAdminEmail ? 'admin' : 'free_user');
+
+    // Find account by either username or email
+    const found = allUsers.find(
+      u => (u.email && u.email.toLowerCase() === cleanId) ||
+           (u.username && u.username.toLowerCase() === cleanId)
+    );
 
     if (!found) {
-      const defaultUsername = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
-      found = {
-        id: `user_${Date.now()}`,
-        name: email.split('@')[0],
-        username: defaultUsername,
-        email,
-        role: assignedRole,
-        isVIP: assignedRole === 'admin' || assignedRole === 'subscriber',
-        createdAt: new Date().toISOString(),
-      };
-      allUsers.push(found);
-      StorageService.saveUsers(allUsers);
-    } else if (requestedRole && found.role !== requestedRole && found.role !== 'admin') {
-      // Update role if explicitly requested (e.g. reader chooses creator)
-      found.role = requestedRole;
-      if (requestedRole === 'creator' && !found.creatorProfileId) {
-        // Provision creator profile
+      throw new Error('No account found with this username or email. Please check your credentials or click Sign Up to create an account.');
+    }
+
+    // Strict Password Verification: do not let anyone log into another user's account!
+    const expectedPassword = found.password || (found.role === 'admin' || found.email === 'huntsmp51@gmail.com' ? 'admin123' : 'password123');
+    if (pass !== expectedPassword) {
+      throw new Error('Incorrect password. Please enter the valid password you created during sign up.');
+    }
+
+    // Update role if explicitly requested (e.g. reader chooses creator)
+    if (requestedRole && requestedRole === 'creator' && found.role !== 'creator' && found.role !== 'admin') {
+      found.role = 'creator';
+      if (!found.creatorProfileId) {
         const creatorId = `creator_${Date.now()}`;
         found.creatorProfileId = creatorId;
         const creators = StorageService.getCreators();
         creators.push({
           id: creatorId,
           userId: found.id,
-          penName: found.name,
+          penName: found.username,
           handle: `@${found.username}`,
           bio: 'Original Manga Creator publishing on MangaWild.',
           avatarUrl: found.avatarUrl || '/avatars/creator.svg',
@@ -126,7 +292,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           monthlyEarningsInr: 0,
           revenueSharePercent: 70,
           upiId: '',
-          bankAccountHolder: found.name,
+          bankAccountHolder: found.username,
           verified: false,
           joinedAt: new Date().toISOString().split('T')[0],
         });
@@ -142,26 +308,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUp = async (
-    name: string,
+    username: string,
     email: string,
-    _pass?: string,
-    requestedRole: UserRole = 'free_user',
-    customUsername?: string
+    pass: string,
+    requestedRole: UserRole = 'free_user'
   ): Promise<boolean> => {
+    // Sanitize and validate unique username
+    const cleanUsername = username.trim().replace(/^@/, '').toLowerCase().replace(/[^a-zA-Z0-9_]/g, '');
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanUsername || cleanUsername.length < 3) {
+      throw new Error('Username must be at least 3 characters long and contain only letters, numbers, or underscores.');
+    }
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      throw new Error('Please enter a valid email address.');
+    }
+    if (!pass || pass.length < 4) {
+      throw new Error('Password must be at least 4 characters long.');
+    }
+
     const allUsers = StorageService.getUsers();
-    
-    // Sanitize username
-    let cleanUsername = (customUsername || name.replace(/\s+/g, '_')).toLowerCase().replace(/[^a-zA-Z0-9_]/g, '');
-    if (!cleanUsername) cleanUsername = `reader_${Math.floor(Math.random() * 9000 + 1000)}`;
+
+    // Prevent duplicate username
+    const existingUser = allUsers.find(u => u.username && u.username.toLowerCase() === cleanUsername);
+    if (existingUser) {
+      throw new Error(`Username @${cleanUsername} is already registered. Please choose another username.`);
+    }
+
+    // Prevent duplicate email
+    const existingEmail = allUsers.find(u => u.email && u.email.toLowerCase() === cleanEmail);
+    if (existingEmail) {
+      throw new Error(`An account with email ${cleanEmail} already exists. Please sign in with your password.`);
+    }
 
     const isCreatorRole = requestedRole === 'creator';
     const creatorId = isCreatorRole ? `creator_${Date.now()}` : undefined;
 
     const newUser: User = {
       id: `user_${Date.now()}`,
-      name,
+      name: cleanUsername,
       username: cleanUsername,
-      email,
+      email: cleanEmail,
+      password: pass,
       role: requestedRole,
       isVIP: requestedRole === 'subscriber' || requestedRole === 'admin',
       creatorProfileId: creatorId,
@@ -176,7 +364,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       creators.push({
         id: creatorId,
         userId: newUser.id,
-        penName: name,
+        penName: cleanUsername,
         handle: `@${cleanUsername}`,
         bio: 'Original Manga Creator publishing on MangaWild.',
         avatarUrl: '/avatars/creator.svg',
@@ -186,7 +374,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         monthlyEarningsInr: 0,
         revenueSharePercent: 70,
         upiId: '',
-        bankAccountHolder: name,
+        bankAccountHolder: cleanUsername,
         verified: false,
         joinedAt: new Date().toISOString().split('T')[0],
       });
@@ -259,10 +447,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       StorageService.setCurrentUser(found);
       setIsAuthenticated(true);
       return true;
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Google OAuth sign-in error or cancelled:', err);
-      return false;
+      throw err;
     }
+  };
+
+  const signInWithGoogleDirect = async (
+    email: string,
+    name?: string,
+    requestedRole: UserRole = 'free_user'
+  ): Promise<boolean> => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      throw new Error('Please enter a valid Google email address.');
+    }
+    const allUsers = StorageService.getUsers();
+    let found = allUsers.find(u => u.email.toLowerCase() === cleanEmail);
+
+    const isAdminEmail = cleanEmail === 'huntsmp51@gmail.com';
+    const assignedRole = isAdminEmail ? 'admin' : requestedRole;
+
+    if (!found) {
+      const username = cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') || `user_${Date.now().toString().slice(-4)}`;
+      found = {
+        id: `google_${Date.now()}`,
+        name: name || cleanEmail.split('@')[0],
+        username,
+        email: cleanEmail,
+        avatarUrl: '/avatars/avatar-1.svg',
+        role: assignedRole,
+        isVIP: assignedRole === 'admin' || assignedRole === 'subscriber',
+        createdAt: new Date().toISOString(),
+      };
+      allUsers.push(found);
+      StorageService.saveUsers(allUsers);
+    }
+
+    setUser(found);
+    StorageService.setCurrentUser(found);
+    setIsAuthenticated(true);
+    return true;
   };
 
   const signOut = () => {
@@ -330,6 +555,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return added;
   };
 
+  const toggleLikeSeries = (seriesId: string): { liked: boolean; likesCount: number } => {
+    const res = StorageService.toggleLikeSeries(user.id, seriesId);
+    setLikedSeries(StorageService.getLikedSeries(user.id));
+    return res;
+  };
+
   const toggleFollowCreator = (creatorId: string): boolean => {
     const followed = StorageService.toggleFollowCreator(user.id, creatorId);
     setFollowedCreators(StorageService.getFollowedCreators(user.id));
@@ -338,32 +569,68 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const unreadNotifsCount = notifications.filter(n => !n.read).length;
 
+  const activateSubscription = (
+    planId: 'monthly' | 'yearly',
+    paymentMethod: 'UPI' | 'Card' | 'Netbanking' | 'Razorpay' = 'Razorpay',
+    customPaymentId?: string
+  ) => {
+    const res = processSubscriptionSuccess(user, planId, paymentMethod, customPaymentId);
+    setUser(res.updatedUser);
+    setIsAuthenticated(true);
+    setNotifications(StorageService.getNotifications(res.updatedUser.id));
+    return res;
+  };
+
+  const refreshUser = () => {
+    const cur = StorageService.getCurrentUser();
+    setUser(cur);
+    setIsAuthenticated(Boolean(cur && cur.id !== 'guest_reader' && !cur.id.startsWith('guest_') && cur.email));
+    setNotifications(StorageService.getNotifications(cur.id));
+  };
+
+  const effectiveIsVIP = Boolean(
+    user.isVIP ||
+    user.subscription?.status === 'active' ||
+    user.role === 'subscriber' ||
+    user.role === 'admin'
+  );
+
   return (
     <AuthContext.Provider
       value={{
         user,
         users,
         role: user.role,
-        isVIP: user.isVIP,
+        isVIP: effectiveIsVIP,
         isAuthenticated,
         canAccessAdmin,
         canAccessCreator,
         canAccessVIP,
         hasPerm,
         switchUserRole,
+        toggleCreatorMode,
         signIn,
         signUp,
         signInWithGoogle,
+        signInWithGoogleDirect,
         signOut,
         updateUser,
         updateUsername,
+        activateSubscription,
+        refreshUser,
         notifications,
         unreadNotifsCount,
         markNotificationsAsRead,
         bookmarks,
         toggleBookmark,
+        likedSeries,
+        toggleLikeSeries,
         followedCreators,
         toggleFollowCreator,
+        isAuthModalOpen,
+        authModalOptions,
+        openAuthModal,
+        closeAuthModal,
       }}
     >
       {children}

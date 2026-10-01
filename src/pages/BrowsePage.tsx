@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Star, BookOpen, Crown, ChevronRight } from 'lucide-react';
+import { Search, Star, BookOpen, Crown, ChevronRight, Heart, Eye } from 'lucide-react';
 import { StorageService } from '../services/storage';
 import { MangaSeries, MangaGenre } from '../types/manga';
 import { useTheme } from '../context/ThemeContext';
@@ -7,9 +7,10 @@ import { useTheme } from '../context/ThemeContext';
 interface BrowsePageProps {
   onSelectSeries: (seriesId: string) => void;
   onOpenVIPModal: () => void;
+  onNavigate?: (view: string, params?: Record<string, string>) => void;
 }
 
-export const BrowsePage: React.FC<BrowsePageProps> = ({ onSelectSeries, onOpenVIPModal }) => {
+export const BrowsePage: React.FC<BrowsePageProps> = ({ onSelectSeries, onOpenVIPModal, onNavigate }) => {
   const { theme } = useTheme();
   const allSeries = useMemo(() => StorageService.getSeries().filter(s => s.moderationStatus === 'approved'), []);
 
@@ -123,24 +124,28 @@ export const BrowsePage: React.FC<BrowsePageProps> = ({ onSelectSeries, onOpenVI
                 className={`px-2.5 py-1 rounded-lg uppercase font-mono cursor-pointer transition-all ${
                   selectedStatus === st
                     ? 'bg-zinc-800 text-white font-bold'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                    : theme === 'dark'
+                    ? 'text-zinc-400 hover:text-white'
+                    : 'text-zinc-600 hover:text-zinc-950 font-medium'
                 }`}
               >
                 {st}
               </button>
             ))}
 
-            <span className="text-zinc-600 mx-1">·</span>
+            <span className="text-zinc-400 mx-1">·</span>
 
             <button
               onClick={() => setVipOnly(!vipOnly)}
               className={`px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 transition-all cursor-pointer border ${
                 vipOnly
-                  ? 'bg-white text-zinc-950 border-white font-mono'
-                  : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-purple-600 text-white border-purple-500 font-mono shadow-xs'
+                  : theme === 'dark'
+                  ? 'border-transparent text-zinc-400 hover:text-white'
+                  : 'border-transparent text-zinc-600 hover:text-zinc-950'
               }`}
             >
-              <Crown className="w-3 h-3" />
+              <Crown className="w-3 h-3 text-amber-400" />
               <span>VIP Only</span>
             </button>
           </div>
@@ -163,7 +168,9 @@ export const BrowsePage: React.FC<BrowsePageProps> = ({ onSelectSeries, onOpenVI
                 className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
                   sortBy === s.id
                     ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-bold shadow-xs'
-                    : 'text-zinc-400 hover:text-zinc-200'
+                    : theme === 'dark'
+                    ? 'text-zinc-400 hover:text-white'
+                    : 'text-zinc-600 hover:text-zinc-950'
                 }`}
               >
                 {s.label}
@@ -231,16 +238,30 @@ export const BrowsePage: React.FC<BrowsePageProps> = ({ onSelectSeries, onOpenVI
 
                 <div className="space-y-1">
                   <h3
-                    className={`text-sm font-bold truncate group-hover:text-zinc-300 transition-colors ${
+                    className={`text-sm font-bold truncate group-hover:text-purple-400 transition-colors ${
                       theme === 'dark' ? 'text-white' : 'text-zinc-900'
                     }`}
                   >
                     {series.title}
                   </h3>
+
+                  {/* Clickable Author Button */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate?.('creator-profile', { id: series.creatorId, author: series.author });
+                    }}
+                    className="text-[11px] text-zinc-400 hover:text-purple-400 hover:underline font-mono truncate text-left block w-full cursor-pointer"
+                    title={`View ${series.author}'s Creator Profile`}
+                  >
+                    by {series.author}
+                  </button>
+
                   <div className="flex items-center gap-1.5 text-xs text-zinc-400 font-mono">
                     <span>{series.genres[0]}</span>
                     <span>·</span>
-                    <span className="flex items-center gap-0.5 text-zinc-300 font-bold">
+                    <span className="flex items-center gap-0.5 text-amber-400 font-bold">
                       <Star className="w-3 h-3 fill-current" />
                       {series.rating.toFixed(1)}
                     </span>
@@ -248,9 +269,19 @@ export const BrowsePage: React.FC<BrowsePageProps> = ({ onSelectSeries, onOpenVI
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-zinc-800/40 flex items-center justify-between text-[11px] text-zinc-400">
-                <span className="font-mono">{series.totalReads.toLocaleString()} reads</span>
-                <span className="text-zinc-300 font-bold flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
+              {/* Views and Likes footer */}
+              <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800/60 flex items-center justify-between text-[11px] font-mono text-zinc-400">
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-0.5" title="Total Views">
+                    <Eye className="w-3 h-3 text-zinc-400" />
+                    <span>{(series.totalViews || 12000).toLocaleString()}</span>
+                  </span>
+                  <span className="flex items-center gap-0.5 text-rose-400" title="Likes">
+                    <Heart className="w-3 h-3 fill-current" />
+                    <span>{(series.likesCount || 850).toLocaleString()}</span>
+                  </span>
+                </div>
+                <span className="text-purple-400 font-bold flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
                   <span>View</span>
                   <ChevronRight className="w-3 h-3" />
                 </span>

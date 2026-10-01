@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bookmark, Clock, Star, ArrowRight, UserPlus, MessageSquare, ExternalLink } from 'lucide-react';
+import { Bookmark, Clock, Star, ArrowRight, UserPlus, MessageSquare, ExternalLink, Crown, Sparkles } from 'lucide-react';
 import { StorageService } from '../services/storage';
 import { useAuth } from '../context/AuthContext';
 import { MangaSeries } from '../types/manga';
@@ -15,7 +15,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
   onReadChapter,
   onNavigate,
 }) => {
-  const { user, bookmarks, toggleBookmark, followedCreators, toggleFollowCreator } = useAuth();
+  const { user, isVIP, bookmarks, toggleBookmark, followedCreators, toggleFollowCreator } = useAuth();
   const [activeTab, setActiveTab] = useState<'history' | 'bookmarks' | 'creators' | 'reviews'>('history');
 
   const allSeries = StorageService.getSeries();
@@ -33,35 +33,37 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
         <div className="flex items-center gap-4">
           <img
             src={user.avatarUrl || '/avatars/vip.svg'}
-            alt={user.name}
+            alt={user.username}
             className="w-16 h-16 rounded-2xl object-cover bg-zinc-800 border-2 border-zinc-700 shadow-md"
           />
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-black text-white font-sans tracking-tight">
-                {user.name}
+              <h1 className="text-xl sm:text-2xl font-black text-white font-sans tracking-tight font-mono">
+                @{user.username || 'reader'}
               </h1>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-wider font-bold bg-zinc-800 text-zinc-300 border border-zinc-700">
                 {user.role.replace('_', ' ')}
               </span>
             </div>
             <p className="text-xs text-zinc-400 font-mono mt-0.5">
-              @{user.username || 'reader'} • {readingHistory.length} Series Read • {bookmarks.length} Bookmarks
+              {readingHistory.length} Series Read • {bookmarks.length} Bookmarks
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-          {user.isVIP ? (
-            <div className="px-3.5 py-1.5 rounded-xl bg-white text-zinc-950 font-bold text-xs font-mono flex items-center gap-1.5 shadow-sm">
-              <span>★ VIP Unlimited Access Active</span>
+          {isVIP ? (
+            <div className="px-4 py-2 rounded-xl bg-amber-500/10 text-amber-300 border border-amber-500/30 font-bold text-xs font-mono flex items-center gap-2 shadow-sm">
+              <Crown className="w-4 h-4 text-amber-400" />
+              <span>{user.subscription?.planId === 'yearly' ? '★ Annual VIP Pass Active' : '★ Monthly VIP Pass Active'}</span>
             </div>
           ) : (
             <button
               onClick={() => onNavigate && onNavigate('membership')}
-              className="px-4 py-2 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-xs transition-all shadow-md active:scale-95 cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-xs transition-all shadow-md active:scale-95 cursor-pointer flex items-center gap-1.5"
             >
-              Upgrade to VIP Pass (₹99/mo)
+              <Sparkles className="w-3.5 h-3.5 text-zinc-900" />
+              <span>Upgrade to VIP Pass (From ₹199)</span>
             </button>
           )}
         </div>
@@ -199,7 +201,21 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                     <h4 className="text-sm font-bold text-white group-hover:text-stone-300 truncate">
                       {series.title}
                     </h4>
-                    <p className="text-xs text-stone-400">{series.genres[0]} · {series.author}</p>
+                    <p className="text-xs text-stone-400 flex items-center gap-1 font-mono">
+                      <span>{series.genres[0]}</span>
+                      <span>·</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onNavigate?.('creator-profile', { id: series.creatorId, author: series.author });
+                        }}
+                        className="hover:text-purple-400 hover:underline cursor-pointer truncate"
+                        title={`View ${series.author}'s Creator Profile`}
+                      >
+                        by {series.author}
+                      </button>
+                    </p>
                   </div>
                 </div>
               ))}
@@ -221,10 +237,14 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                 key={cr.id}
                 className="p-4 rounded-xl bg-white/[0.02] border border-white/10 flex items-center justify-between gap-4"
               >
-                <div className="flex items-center gap-3">
-                  <img src={cr.avatarUrl} alt={cr.penName} className="w-12 h-12 rounded-full object-cover border border-white/15" />
+                <div
+                  onClick={() => onNavigate?.('creator-profile', { id: cr.id })}
+                  className="flex items-center gap-3 cursor-pointer group"
+                  title={`View ${cr.penName}'s Creator Profile`}
+                >
+                  <img src={cr.avatarUrl} alt={cr.penName} className="w-12 h-12 rounded-full object-cover border border-white/15 group-hover:scale-105 transition-transform" />
                   <div>
-                    <h4 className="text-sm font-bold text-white">{cr.penName}</h4>
+                    <h4 className="text-sm font-bold text-white group-hover:text-purple-400 transition-colors">{cr.penName}</h4>
                     <p className="text-xs text-stone-400">{cr.handle}</p>
                     <p className="text-[11px] text-stone-500 font-mono">{cr.followersCount} followers</p>
                   </div>

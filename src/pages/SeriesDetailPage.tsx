@@ -1,5 +1,21 @@
-import React, { useState, useMemo } from 'react';
-import { Star, Bookmark, Share2, BookOpen, Sparkles, Check, ChevronRight, Search, ArrowUpDown, Plus, MessageSquare } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import {
+  Star,
+  Bookmark,
+  Share2,
+  BookOpen,
+  Sparkles,
+  Check,
+  ChevronRight,
+  Search,
+  ArrowUpDown,
+  Plus,
+  MessageSquare,
+  Heart,
+  Eye,
+  Lock,
+  Crown,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { StorageService } from '../services/storage';
@@ -20,10 +36,10 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
   onNavigate,
   onOpenVIPModal,
 }) => {
-  const { user, isVIP, bookmarks, toggleBookmark, followedCreators, toggleFollowCreator } = useAuth();
+  const { user, isVIP, bookmarks, toggleBookmark, likedSeries, toggleLikeSeries, followedCreators, toggleFollowCreator } = useAuth();
   const { theme } = useTheme();
 
-  const series = useMemo(() => StorageService.getSeriesById(seriesId), [seriesId]);
+  const [series, setSeries] = useState<MangaSeries | undefined>(() => StorageService.getSeriesById(seriesId));
   const chapters = useMemo(() => StorageService.getChapters(seriesId), [seriesId]);
   const creator = useMemo(() => (series ? StorageService.getCreatorById(series.creatorId) : undefined), [series]);
   const readingHistory = useMemo(() => StorageService.getReadingHistory(user.id), [user.id]);
@@ -31,6 +47,15 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
   const [shareCopied, setShareCopied] = useState(false);
   const [chapterSearchQuery, setChapterSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [likesCount, setLikesCount] = useState<number>(() => series?.likesCount || 120);
+
+  // Increment series views on view mount
+  useEffect(() => {
+    if (seriesId) {
+      const updatedViews = StorageService.incrementSeriesViews(seriesId);
+      setSeries(prev => prev ? { ...prev, totalViews: updatedViews } : prev);
+    }
+  }, [seriesId]);
 
   const isCreatorOfSeries = series && (
     series.creatorId === user.creatorProfileId ||
@@ -107,8 +132,12 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
               className="w-full h-full object-cover"
             />
             {series.isExclusive && (
-              <span className="absolute top-3 right-3 bg-zinc-950 text-white text-xs font-black tracking-widest px-2.5 py-1 rounded shadow-lg uppercase font-mono border border-zinc-700">
-                VIP EXCLUSIVE
+              <span className={`absolute top-3 right-3 text-xs font-black tracking-widest px-2.5 py-1 rounded shadow-lg uppercase font-mono border ${
+                isVIP
+                  ? 'bg-emerald-950 text-emerald-300 border-emerald-600'
+                  : 'bg-zinc-950 text-white border-zinc-700'
+              }`}>
+                {isVIP ? 'VIP UNLOCKED' : 'VIP EXCLUSIVE'}
               </span>
             )}
           </div>
@@ -118,12 +147,12 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
         <div className="md:col-span-8 lg:col-span-9 space-y-5">
           <div className="space-y-2">
             {/* Clean Unboxed Metadata with · Separators */}
-            <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400 font-mono">
-              <span className="text-zinc-200 font-bold">{series.genres.join(' · ')}</span>
+            <div className={`flex flex-wrap items-center gap-2 text-xs font-mono ${theme === 'dark' ? 'text-zinc-400' : 'text-zinc-600'}`}>
+              <span className={`font-bold ${theme === 'dark' ? 'text-zinc-200' : 'text-zinc-900'}`}>{series.genres.join(' · ')}</span>
               <span>·</span>
-              <span>{series.releaseYear}</span>
+              <span className={theme === 'dark' ? 'text-zinc-300' : 'text-zinc-700'}>{series.releaseYear}</span>
               <span>·</span>
-              <span className="capitalize text-zinc-300 font-bold">{series.status}</span>
+              <span className={`capitalize font-bold ${theme === 'dark' ? 'text-zinc-300' : 'text-zinc-800'}`}>{series.status}</span>
             </div>
 
             <h1
@@ -136,19 +165,30 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
 
             {/* Author Attribution */}
             <div className="flex items-center gap-3 pt-1 text-sm">
-              <span className="text-zinc-400">
+              <span className={theme === 'dark' ? 'text-zinc-400' : 'text-zinc-600'}>
                 Created by{' '}
-                <strong className={theme === 'dark' ? 'text-white' : 'text-zinc-900'}>
+                <button
+                  type="button"
+                  onClick={() => onNavigate('creator-profile', { id: series.creatorId, author: series.author })}
+                  className={`font-black underline decoration-purple-500/60 underline-offset-4 hover:text-purple-400 transition-colors cursor-pointer ${
+                    theme === 'dark' ? 'text-white' : 'text-zinc-950'
+                  }`}
+                  title={`View ${series.author}'s Creator Profile`}
+                >
                   {series.author}
-                </strong>
+                </button>
               </span>
               {creator && (
                 <button
                   onClick={() => toggleFollowCreator(creator.id)}
                   className={`text-xs px-2.5 py-1 rounded-lg border font-semibold transition-all cursor-pointer ${
                     isFollowingCreator
-                      ? 'bg-zinc-800 border-zinc-700 text-white'
-                      : 'border-zinc-700 text-zinc-400 hover:text-white'
+                      ? theme === 'dark'
+                        ? 'bg-zinc-800 border-zinc-700 text-white'
+                        : 'bg-zinc-200 border-zinc-300 text-zinc-900'
+                      : theme === 'dark'
+                      ? 'border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800'
+                      : 'border-zinc-300 text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100'
                   }`}
                 >
                   {isFollowingCreator ? '✓ Following' : '+ Follow'}
@@ -157,42 +197,63 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
             </div>
           </div>
 
-          {/* Aggregate Stats */}
+          {/* Aggregate Stats (Views, Likes, Rating, Chapters) */}
           <div
-            className={`flex items-center gap-6 py-3 px-4 rounded-xl border max-w-md ${
-              theme === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-50 border-zinc-200'
+            className={`flex flex-wrap items-center gap-6 py-3 px-5 rounded-2xl border max-w-xl ${
+              theme === 'dark' ? 'bg-zinc-900/80 border-zinc-800 text-white' : 'bg-white border-zinc-300 text-zinc-900 shadow-xs'
             }`}
           >
             <div>
-              <span className="text-[10px] font-mono uppercase text-zinc-400 block">Rating</span>
-              <div className="flex items-center gap-1 text-zinc-200 font-bold font-mono text-sm">
-                <Star className="w-3.5 h-3.5 fill-current" />
+              <span className={`text-[10px] font-mono uppercase block ${theme === 'dark' ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                Rating
+              </span>
+              <div className={`flex items-center gap-1 font-bold font-mono text-sm ${theme === 'dark' ? 'text-white' : 'text-zinc-900'}`}>
+                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                 <span>{series.rating.toFixed(1)}</span>
                 <span className="text-zinc-500 text-xs font-normal">/ 5.0</span>
               </div>
             </div>
 
-            <div className="w-px h-8 bg-zinc-800" />
+            <div className={`w-px h-8 ${theme === 'dark' ? 'bg-zinc-800' : 'bg-zinc-200'}`} />
 
             <div>
-              <span className="text-[10px] font-mono uppercase text-zinc-400 block">Readership</span>
-              <span className="text-sm font-bold font-mono">
-                {series.totalReads.toLocaleString()}
+              <span className={`text-[10px] font-mono uppercase block ${theme === 'dark' ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                Total Views
               </span>
+              <div className={`flex items-center gap-1.5 font-bold font-mono text-sm ${theme === 'dark' ? 'text-white' : 'text-zinc-900'}`}>
+                <Eye className="w-3.5 h-3.5 text-zinc-400" />
+                <span>{(series.totalViews || 14200).toLocaleString()}</span>
+              </div>
             </div>
 
-            <div className="w-px h-8 bg-zinc-800" />
+            <div className={`w-px h-8 ${theme === 'dark' ? 'bg-zinc-800' : 'bg-zinc-200'}`} />
 
             <div>
-              <span className="text-[10px] font-mono uppercase text-zinc-400 block">Chapters</span>
-              <span className="text-sm font-bold font-mono">{chapters.length}</span>
+              <span className={`text-[10px] font-mono uppercase block ${theme === 'dark' ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                Likes
+              </span>
+              <div className={`flex items-center gap-1.5 font-bold font-mono text-sm ${theme === 'dark' ? 'text-rose-400' : 'text-rose-600'}`}>
+                <Heart className="w-3.5 h-3.5 fill-current" />
+                <span>{likesCount.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div className={`w-px h-8 ${theme === 'dark' ? 'bg-zinc-800' : 'bg-zinc-200'}`} />
+
+            <div>
+              <span className={`text-[10px] font-mono uppercase block ${theme === 'dark' ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                Chapters
+              </span>
+              <span className={`text-sm font-bold font-mono ${theme === 'dark' ? 'text-white' : 'text-zinc-900'}`}>
+                {chapters.length}
+              </span>
             </div>
           </div>
 
           {/* Synopsis */}
           <p
             className={`text-sm leading-relaxed max-w-3xl ${
-              theme === 'dark' ? 'text-zinc-300' : 'text-zinc-600'
+              theme === 'dark' ? 'text-zinc-300' : 'text-zinc-700'
             }`}
           >
             {series.synopsis}
@@ -220,17 +281,40 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
               </button>
             ) : null}
 
+            {/* Like Button */}
             <button
-              onClick={() => toggleBookmark(series.id)}
-              className={`px-4 py-3 rounded-xl border text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
-                isBookmarked
-                  ? 'bg-zinc-800 border-zinc-700 text-white'
+              onClick={() => {
+                const res = toggleLikeSeries(series.id);
+                setLikesCount(res.likesCount);
+              }}
+              className={`px-4 py-3 rounded-xl border text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer active:scale-95 ${
+                likedSeries.includes(series.id)
+                  ? 'bg-rose-500/15 border-rose-500/40 text-rose-400 shadow-sm'
                   : theme === 'dark'
-                  ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white'
-                  : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
+                  ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-rose-400'
+                  : 'bg-white border-zinc-300 text-zinc-700 hover:text-rose-600 shadow-xs'
               }`}
             >
-              <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-current' : ''}`} />
+              <Heart
+                className={`w-4 h-4 transition-transform ${
+                  likedSeries.includes(series.id) ? 'fill-current text-rose-500 scale-110' : ''
+                }`}
+              />
+              <span>{likedSeries.includes(series.id) ? 'Liked' : 'Like'}</span>
+            </button>
+
+            {/* Bookmark Button */}
+            <button
+              onClick={() => toggleBookmark(series.id)}
+              className={`px-4 py-3 rounded-xl border text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer active:scale-95 ${
+                isBookmarked
+                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-400 shadow-sm'
+                  : theme === 'dark'
+                  ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-amber-400'
+                  : 'bg-white border-zinc-300 text-zinc-700 hover:text-amber-600 shadow-xs'
+              }`}
+            >
+              <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-current text-amber-500' : ''}`} />
               <span>{isBookmarked ? 'In Library' : 'Save to Library'}</span>
             </button>
 
@@ -239,11 +323,11 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
               className={`p-3 rounded-xl border transition-all cursor-pointer ${
                 theme === 'dark'
                   ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white'
-                  : 'bg-white border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50'
+                  : 'bg-white border-zinc-300 text-zinc-600 hover:text-zinc-950 hover:bg-zinc-50 shadow-xs'
               }`}
               title="Share link"
             >
-              {shareCopied ? <Check className="w-4 h-4 text-white" /> : <Share2 className="w-4 h-4" />}
+              {shareCopied ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
             </button>
           </div>
         </div>
@@ -334,39 +418,86 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {displayedChapters.map(chapter => {
+              const isChapterVIP = chapter.isExclusiveVIP;
+              const isCreatorOfSeries = series && (
+                series.creatorId === user.creatorProfileId ||
+                series.creatorId === `creator_${user.id}` ||
+                series.author.toLowerCase() === user.name?.toLowerCase()
+              );
+              const hasVIPAccess = Boolean(isVIP || user.isVIP || user.subscription?.status === 'active' || user.role === 'admin' || isCreatorOfSeries);
+              const isLocked = isChapterVIP && !hasVIPAccess;
+
               return (
                 <div
                   key={chapter.id}
                   onClick={() => onReadChapter(series.id, chapter.id)}
                   className={`group p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
-                    theme === 'dark'
+                    isLocked
+                      ? 'bg-amber-950/15 border-amber-800/40 hover:border-amber-700/60'
+                      : isChapterVIP && hasVIPAccess
+                      ? 'bg-emerald-950/15 border-emerald-800/40 hover:border-emerald-700/60'
+                      : theme === 'dark'
                       ? 'bg-zinc-900/60 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900'
                       : 'bg-white border-zinc-200 hover:border-zinc-300 shadow-xs hover:bg-zinc-50'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-zinc-800 text-zinc-300 flex items-center justify-center font-mono font-bold text-xs shrink-0">
+                    <div
+                      className={`w-9 h-9 rounded-lg flex items-center justify-center font-mono font-bold text-xs shrink-0 ${
+                        isLocked
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                          : isChapterVIP && hasVIPAccess
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                          : theme === 'dark'
+                          ? 'bg-zinc-800 text-zinc-300'
+                          : 'bg-zinc-100 text-zinc-900 border border-zinc-200'
+                      }`}
+                    >
                       {chapter.chapterNumber}
                     </div>
                     <div>
-                      <h4
-                        className={`text-xs font-bold group-hover:text-zinc-300 transition-colors ${
-                          theme === 'dark' ? 'text-white' : 'text-zinc-900'
-                        }`}
-                      >
-                        {chapter.title}
-                      </h4>
-                      <span className="text-[10px] text-zinc-400 font-mono">
-                        {chapter.panels?.length || 0} pages · Free to read
+                      <div className="flex items-center gap-2">
+                        <h4
+                          className={`text-xs font-bold transition-colors ${
+                            theme === 'dark' ? 'text-white group-hover:text-purple-400' : 'text-zinc-900 group-hover:text-purple-600'
+                          }`}
+                        >
+                          {chapter.title}
+                        </h4>
+                        {isChapterVIP && (
+                          <span
+                            className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-bold uppercase ${
+                              hasVIPAccess
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                            }`}
+                          >
+                            {hasVIPAccess ? 'VIP Unlocked' : 'VIP Locked'}
+                          </span>
+                        )}
+                      </div>
+                      <span className={`text-[10px] font-mono ${theme === 'dark' ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                        {chapter.panels?.length || 0} pages · {isLocked ? 'VIP Subscription Required' : 'Unlocked to read'}
                       </span>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-zinc-300 font-bold flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
-                      <span>Read</span>
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </span>
+                    {isLocked ? (
+                      <span className="text-xs font-bold text-amber-400 flex items-center gap-1 font-mono">
+                        <Lock className="w-3.5 h-3.5" />
+                        <span>Unlock</span>
+                      </span>
+                    ) : (
+                      <span
+                        className={`text-xs font-bold flex items-center gap-0.5 transition-transform group-hover:translate-x-0.5 ${
+                          theme === 'dark' ? 'text-zinc-300 group-hover:text-white' : 'text-purple-700 group-hover:text-purple-900'
+                        }`}
+                      >
+                        <span>Read</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </span>
+                    )}
                   </div>
                 </div>
               );

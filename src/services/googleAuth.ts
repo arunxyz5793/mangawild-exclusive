@@ -3,6 +3,9 @@
  * Uses Google Identity Services (GIS) OAuth 2.0 Token Client with UserInfo API
  */
 
+import firebaseConfig from '../../firebase-applet-config.json';
+import { signInWithGooglePopup } from './firebase';
+
 export interface GoogleUserProfile {
   id: string;
   email: string;
@@ -13,11 +16,13 @@ export interface GoogleUserProfile {
 
 export const PRIMARY_CLIENT_ID =
   (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID ||
-  '886153338264-vjncm4kb9ngu3f41oefljv337lsrfvur.apps.googleusercontent.com';
+  firebaseConfig.oAuthClientId ||
+  '724500297939-1tf5drgb3v2kgh2n1easqdfdb9l255ho.apps.googleusercontent.com';
 
 // Pre-authorized fallback client ID for this AI Studio Cloud project
 export const PROJECT_CLIENT_ID =
-  '682818552453-if2oljiquqtm5c1cen8l7608606sqgin.apps.googleusercontent.com';
+  firebaseConfig.oAuthClientId ||
+  '724500297939-1tf5drgb3v2kgh2n1easqdfdb9l255ho.apps.googleusercontent.com';
 
 export const GOOGLE_CLIENT_ID = PRIMARY_CLIENT_ID;
 
@@ -88,10 +93,31 @@ export function ensureGoogleScriptLoaded(): Promise<void> {
 }
 
 /**
- * Executes Google OAuth 2.0 flow via GIS Token Client popup
- * and fetches the authenticated user profile from Google UserInfo
+ * Executes Google OAuth 2.0 flow.
+ * Tries Firebase Google Auth popup first, then falls back to Google Identity Services Token Client.
  */
 export async function authenticateWithGoogleOAuth(clientIdToUse?: string): Promise<GoogleUserProfile> {
+  // Strategy 1: Firebase Auth Popup (uses app's authorized Firebase project auth domain)
+  try {
+    const cred = await signInWithGooglePopup();
+    if (cred.user && cred.user.email) {
+      return {
+        id: cred.user.uid,
+        email: cred.user.email,
+        name: cred.user.displayName || cred.user.email.split('@')[0],
+        avatarUrl: cred.user.photoURL || undefined,
+        verifiedEmail: Boolean(cred.user.emailVerified),
+      };
+    }
+  } catch (fbErr: any) {
+    console.warn('Firebase signInWithGooglePopup fallback triggered:', fbErr);
+    // If user explicitly closed popup, rethrow
+    if (fbErr?.code === 'auth/popup-closed-by-user') {
+      throw new Error('Google sign-in popup was closed before completing.');
+    }
+  }
+
+  // Strategy 2: Google Identity Services (GIS) Token Client
   await ensureGoogleScriptLoaded();
 
   if (!window.google?.accounts?.oauth2) {
@@ -107,7 +133,8 @@ export async function authenticateWithGoogleOAuth(clientIdToUse?: string): Promi
         scope: 'openid email profile',
         callback: async (tokenResponse) => {
           if (tokenResponse.error) {
-            reject(new Error(tokenResponse.error_description || tokenResponse.error));
+            const desc = tokenResponse.error_description || tokenResponse.error;
+            reject(new Error(desc));
             return;
           }
 
@@ -147,7 +174,16 @@ export async function authenticateWithGoogleOAuth(clientIdToUse?: string): Promi
           }
         },
         error_callback: (err) => {
-          reject(new Error(err?.message || 'Google OAuth authentication failed'));
+          const msg = err?.message || '';
+          if (msg.includes('origin') || msg.includes('policy')) {
+            reject(
+              new Error(
+                `Google OAuth 2.0 origin policy: Please register ${window.location.origin} in Google Cloud Console Authorized JavaScript Origins.`
+              )
+            );
+          } else {
+            reject(new Error(msg || 'Google OAuth authentication failed'));
+          }
         },
       });
 

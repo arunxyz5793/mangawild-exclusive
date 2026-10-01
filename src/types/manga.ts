@@ -68,6 +68,8 @@ export interface MangaSeries {
   reviewerNotes?: string;
   totalViews: number;
   totalReads: number;
+  likesCount?: number;
+  bookmarkedCount?: number;
   rating: number; // e.g. 9.4
   releaseYear: number;
   isExclusive: boolean;
@@ -78,6 +80,15 @@ export interface MangaSeries {
   updatedAt: string;
 }
 
+export interface CreatorSocialLinks {
+  instagram?: string;
+  twitter?: string;
+  facebook?: string;
+  youtube?: string;
+  discord?: string;
+  website?: string;
+}
+
 export interface CreatorProfile {
   id: string;
   userId: string;
@@ -85,6 +96,8 @@ export interface CreatorProfile {
   handle: string;
   bio: string;
   avatarUrl: string;
+  bannerUrl?: string;
+  socialLinks?: CreatorSocialLinks;
   followersCount: number;
   seriesCount: number;
   totalReads: number;
@@ -197,7 +210,7 @@ export interface PaymentRecord {
   amountInr: number;
   currency: string;
   status: 'captured' | 'failed' | 'refunded';
-  paymentMethod: 'UPI' | 'Card' | 'Netbanking';
+  paymentMethod: 'UPI' | 'Card' | 'Netbanking' | 'Razorpay';
   createdAt: string;
   invoiceNumber: string;
 }
