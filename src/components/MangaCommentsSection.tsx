@@ -35,6 +35,7 @@ export const MangaCommentsSection: React.FC<MangaCommentsSectionProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sortBy, setSortBy] = useState<'latest' | 'top'>('latest');
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const isAdmin = hasPerm('APPROVE_CONTENT') || user.role === 'admin';
 
@@ -75,7 +76,7 @@ export const MangaCommentsSection: React.FC<MangaCommentsSectionProps> = ({
 
     setIsSubmitting(true);
     try {
-      StorageService.addComment({
+      const newComment = StorageService.addComment({
         seriesId,
         chapterId,
         userId: user.id,
@@ -84,6 +85,16 @@ export const MangaCommentsSection: React.FC<MangaCommentsSectionProps> = ({
         userRole: user.role,
         content: trimmed,
       });
+
+      // Track locally so user can always delete their own comment in this session/browser
+      try {
+        const stored = localStorage.getItem('mangawild_my_comments');
+        const list = stored ? JSON.parse(stored) : [];
+        list.push(newComment.id);
+        localStorage.setItem('mangawild_my_comments', JSON.stringify(list));
+      } catch (e) {
+        console.warn('Could not save comment to local list', e);
+      }
 
       setNewCommentText('');
       loadComments();
@@ -106,10 +117,19 @@ export const MangaCommentsSection: React.FC<MangaCommentsSectionProps> = ({
   };
 
   const handleDeleteComment = (commentId: string) => {
-    if (window.confirm('Are you sure you want to delete this comment?')) {
-      StorageService.deleteComment(commentId, user.id, isAdmin);
-      loadComments();
-    }
+    StorageService.deleteComment(commentId, user.id, isAdmin);
+    try {
+      const stored = localStorage.getItem('mangawild_my_comments');
+      if (stored) {
+        const list: string[] = JSON.parse(stored);
+        const filtered = list.filter(id => id !== commentId);
+        localStorage.setItem('mangawild_my_comments', JSON.stringify(filtered));
+      }
+    } catch {}
+    setConfirmDeleteId(null);
+    setComments(prev => prev.filter(c => c.id !== commentId));
+    setSuccessToast('Comment deleted successfully!');
+    setTimeout(() => setSuccessToast(null), 3000);
   };
 
   const formatTimeAgo = (dateStr: string) => {
@@ -287,7 +307,17 @@ export const MangaCommentsSection: React.FC<MangaCommentsSectionProps> = ({
           </div>
         ) : (
           sortedComments.map(comment => {
-            const isAuthor = user.id === comment.userId;
+            let myLocalComments: string[] = [];
+            try {
+              const stored = localStorage.getItem('mangawild_my_comments');
+              if (stored) myLocalComments = JSON.parse(stored);
+            } catch {
+              myLocalComments = [];
+            }
+            const isAuthor =
+              (user.id && user.id === comment.userId) ||
+              myLocalComments.includes(comment.id) ||
+              (user.name && user.name === comment.userName);
             const isLiked = (comment.likedByUsers || []).includes(user.id);
 
             return (
@@ -319,13 +349,36 @@ export const MangaCommentsSection: React.FC<MangaCommentsSectionProps> = ({
 
                   {/* Delete option for comment author or admin */}
                   {(isAuthor || isAdmin) && (
-                    <button
-                      onClick={() => handleDeleteComment(comment.id)}
-                      className="p-1 rounded text-zinc-500 hover:text-red-400 hover:bg-zinc-800 transition-colors"
-                      title="Delete comment"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {confirmDeleteId === comment.id ? (
+                        <div className="flex items-center gap-1 bg-red-950/80 border border-red-800 rounded-lg p-1 text-[11px] animate-fade-in">
+                          <span className="text-red-300 font-bold px-1 font-mono text-[10px]">Delete?</span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteComment(comment.id)}
+                            className="px-2 py-0.5 rounded bg-red-600 hover:bg-red-500 text-white font-bold text-[10px] cursor-pointer"
+                          >
+                            Yes
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[10px] cursor-pointer"
+                          >
+                            No
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(comment.id)}
+                          className="p-1 rounded text-zinc-500 hover:text-red-400 hover:bg-zinc-800 transition-colors cursor-pointer"
+                          title="Delete comment"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
 

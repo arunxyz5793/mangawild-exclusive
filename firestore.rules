@@ -2,94 +2,137 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Default-deny catch-all
+    // 1. Global Safety Net: Default-deny all unspecified paths
     match /{document=**} {
       allow read, write: if false;
     }
 
     // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    function isSignedIn() {
-      return request.auth != null;
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email != null && request.auth.token.email == 'callmedevoc@gmail.com') ||
+        (request.auth.token.email != null && request.auth.token.email == 'admin@mangawild.com')
+      );
     }
 
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email == 'huntsmp51@gmail.com' ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-      );
+    // Validation blueprints
+    function isValidUser(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.email is string && data.email.size() <= 150 &&
+             data.role is string && (data.role == 'free_user' || data.role == 'subscriber' || data.role == 'creator' || data.role == 'admin');
     }
 
-    function isCreator() {
-      return isSignedIn() && exists(/databases/$(database)/documents/creators/$(request.auth.uid));
+    function isValidSeries(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.title is string && data.title.size() <= 150 &&
+             data.author is string && data.author.size() <= 100 &&
+             data.creatorId is string && data.creatorId.size() <= 128;
     }
 
-    // Users collection
+    function isValidChapter(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.seriesId is string && data.seriesId.size() <= 128 &&
+             data.title is string && data.title.size() <= 150 &&
+             data.chapterNumber is number;
+    }
+
+    function isValidComment(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.seriesId is string && data.seriesId.size() <= 128 &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.content is string && data.content.size() <= 2000;
+    }
+
+    function isValidProgress(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.seriesId is string && data.seriesId.size() <= 128 &&
+             data.chapterId is string && data.chapterId.size() <= 128;
+    }
+
+    function isValidBookmark(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.seriesId is string && data.seriesId.size() <= 128;
+    }
+
+    // Collections
+
+    // Users
     match /users/{userId} {
-      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
       allow list: if isAdmin();
-      allow create: if isValidId(userId) && isOwner(userId) &&
-        request.resource.data.id == userId &&
-        request.resource.data.name is string && request.resource.data.name.size() <= 100 &&
-        request.resource.data.username is string && request.resource.data.username.size() <= 50;
-      allow update: if isValidId(userId) && (
-        isAdmin() ||
-        (isOwner(userId) &&
-          request.resource.data.id == resource.data.id &&
-          request.resource.data.role == resource.data.role)
-      );
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUser(incoming()) && incoming().id == userId;
+      allow update: if (isOwner(userId) || isAdmin()) && isValidId(userId) && isValidUser(incoming()) &&
+                       incoming().id == existing().id &&
+                       (isAdmin() || incoming().role == existing().role);
+      allow delete: if isAdmin();
+
+      // Subcollection: Reading Progress
+      match /reading_progress/{progressId} {
+        allow read, write: if isOwner(userId) && isValidId(progressId);
+      }
+
+      // Subcollection: Bookmarks
+      match /bookmarks/{bookmarkId} {
+        allow read, write: if isOwner(userId) && isValidId(bookmarkId);
+      }
+    }
+
+    // Series
+    match /series/{seriesId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && isValidId(seriesId) && isValidSeries(incoming()) &&
+                       (isAdmin() || incoming().creatorId == request.auth.uid);
+      allow update: if isSignedIn() && isValidId(seriesId) && isValidSeries(incoming()) &&
+                       (isAdmin() || (existing().creatorId == request.auth.uid && incoming().creatorId == existing().creatorId));
       allow delete: if isAdmin();
     }
 
-    // Series collection
-    match /series/{seriesId} {
-      // Public can read approved series; creator can read their own; admin can read all
-      allow get, list: if true;
-      allow create: if isSignedIn() && (
-        isAdmin() ||
-        (request.resource.data.creatorId == request.auth.uid && request.resource.data.moderationStatus == 'pending_review')
-      );
-      allow update: if isSignedIn() && (
-        isAdmin() ||
-        (resource.data.creatorId == request.auth.uid && request.resource.data.creatorId == resource.data.creatorId)
-      );
-      allow delete: if isAdmin() || (isSignedIn() && resource.data.creatorId == request.auth.uid);
-    }
-
-    // Chapters collection
+    // Chapters
     match /chapters/{chapterId} {
       allow get, list: if true;
-      allow create: if isSignedIn() && (isAdmin() || request.resource.data.moderationStatus == 'pending_review');
-      allow update: if isSignedIn() && isAdmin();
-      allow delete: if isSignedIn() && isAdmin();
-    }
-
-    // Creators collection
-    match /creators/{creatorId} {
-      allow get, list: if true;
-      allow create: if isSignedIn() && (isAdmin() || request.auth.uid == request.resource.data.userId);
-      allow update: if isSignedIn() && (isAdmin() || request.auth.uid == resource.data.userId);
+      allow create: if isSignedIn() && isValidId(chapterId) && isValidChapter(incoming()) &&
+                       (isAdmin() || get(/databases/$(database)/documents/series/$(incoming().seriesId)).data.creatorId == request.auth.uid);
+      allow update: if isSignedIn() && isValidId(chapterId) && isValidChapter(incoming()) &&
+                       (isAdmin() || (incoming().seriesId == existing().seriesId && get(/databases/$(database)/documents/series/$(existing().seriesId)).data.creatorId == request.auth.uid));
       allow delete: if isAdmin();
     }
 
-    // Reviews collection
-    match /reviews/{reviewId} {
+    // Comments
+    match /comments/{commentId} {
       allow get, list: if true;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
-      allow delete: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && isValidId(commentId) && isValidComment(incoming()) &&
+                       incoming().userId == request.auth.uid;
+      allow update: if isSignedIn() && isValidId(commentId) && isValidComment(incoming()) &&
+                       (isAdmin() || existing().userId == request.auth.uid);
+      allow delete: if isSignedIn() && (isAdmin() || existing().userId == request.auth.uid);
     }
 
     // Admins registry
     match /admins/{adminId} {
-      allow read: if isSignedIn();
+      allow get, list: if isSignedIn();
       allow write: if isAdmin();
     }
   }

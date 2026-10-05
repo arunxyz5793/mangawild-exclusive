@@ -38,7 +38,6 @@ export interface Chapter {
   seriesId: string;
   chapterNumber: number;
   title: string;
-  titleHindi?: string;
   slug: string;
   releaseDate: string;
   isExclusiveVIP: boolean;
@@ -52,11 +51,9 @@ export interface Chapter {
 export interface MangaSeries {
   id: string;
   title: string;
-  titleHindi?: string;
   titleJapanese?: string;
   slug: string;
   synopsis: string;
-  synopsisHindi?: string;
   coverUrl: string;
   bannerUrl?: string;
   author: string;
@@ -220,10 +217,30 @@ export interface PlatformNotification {
   userId: string; // or 'all'
   title: string;
   message: string;
-  type: 'chapter' | 'moderation' | 'payment' | 'system' | 'series';
+  type: 'chapter' | 'moderation' | 'payment' | 'system' | 'series' | 'creator';
   read: boolean;
   createdAt: string;
   link?: string;
+  seriesId?: string;
+  chapterId?: string;
+  creatorId?: string;
+}
+
+export interface UserReport {
+  id: string;
+  category: 'panel_issue' | 'broken_page' | 'website_bug' | 'subscription_payment' | 'copyright_concern' | 'other';
+  categoryLabel: string;
+  subject: string;
+  description: string;
+  instagramHandle?: string;
+  contactEmail?: string;
+  seriesId?: string;
+  seriesTitle?: string;
+  chapterNumber?: number;
+  userId?: string;
+  userName?: string;
+  createdAt: string;
+  status: 'pending' | 'reviewed' | 'resolved';
 }
 
 export interface WorldwideMangaNews {

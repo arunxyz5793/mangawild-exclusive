@@ -68,10 +68,10 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenVIPModal }) =>
               </li>
               <li>
                 <button
-                  onClick={() => onNavigate('trending')}
+                  onClick={() => onNavigate('new_series')}
                   className="hover:text-zinc-950 dark:hover:text-white transition-all active:scale-95 cursor-pointer"
                 >
-                  Trending Leaderboard
+                  New Series Releases
                 </button>
               </li>
               <li>

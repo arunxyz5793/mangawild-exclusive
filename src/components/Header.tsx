@@ -20,6 +20,7 @@ import {
   Newspaper,
   Users,
   Compass,
+  Mail,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -33,6 +34,7 @@ interface HeaderProps {
   onNavigate: (view: string, params?: Record<string, string>) => void;
   onOpenVIPModal: () => void;
   onOpenSearch: () => void;
+  onOpenGmail?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -40,6 +42,7 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigate,
   onOpenVIPModal,
   onOpenSearch,
+  onOpenGmail,
 }) => {
   const {
     user,
@@ -85,7 +88,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const navLinks = [
     { id: 'browse', label: 'Browse' },
-    { id: 'trending', label: 'Leaderboard' },
+    { id: 'new_series', label: 'New Series' },
     { id: 'membership', label: 'Subscription', highlight: true },
     ...(isCreatorOrAdmin ? [{ id: 'creator', label: 'Creator Studio' }] : []),
     { id: 'news', label: 'Manga News' },
@@ -174,12 +177,12 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </nav>
 
-          {/* Right: Search, Theme Toggle, Notifications, VIP & 3-Lines Menu */}
-          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 ml-auto">
+          {/* Right: Search, Theme Toggle, Notifications, VIP & Menu */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 ml-auto">
             {/* Search Button */}
             <button
               onClick={onOpenSearch}
-              className={`flex items-center gap-2 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl border transition-all duration-200 active:scale-95 cursor-pointer shadow-xs ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl border transition-all duration-200 active:scale-95 cursor-pointer shadow-xs ${
                 theme === 'dark'
                   ? 'bg-zinc-900/90 hover:bg-zinc-800 border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white'
                   : 'bg-zinc-100 hover:bg-zinc-200 border-zinc-200 hover:border-zinc-300 text-zinc-700 hover:text-zinc-950'
@@ -190,10 +193,26 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="hidden md:inline text-xs font-medium text-zinc-400">Search...</span>
             </button>
 
+            {/* Gmail Workspace Integration Button */}
+            {onOpenGmail && (
+              <button
+                type="button"
+                onClick={onOpenGmail}
+                className={`p-1.5 sm:p-2 rounded-xl transition-all duration-150 active:scale-95 cursor-pointer flex items-center justify-center ${
+                  theme === 'dark'
+                    ? 'text-red-400 hover:text-red-300 hover:bg-red-950/40 border border-red-900/30'
+                    : 'text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200'
+                }`}
+                title="Gmail Workspace Center (Send & Read)"
+              >
+                <Mail className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+            )}
+
             {/* Dark / Light Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className={`p-2 rounded-xl transition-all duration-150 active:scale-95 cursor-pointer flex items-center justify-center ${
+              className={`p-1.5 sm:p-2 rounded-xl transition-all duration-150 active:scale-95 cursor-pointer flex items-center justify-center ${
                 theme === 'dark'
                   ? 'text-zinc-200 hover:text-white hover:bg-zinc-800'
                   : 'text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100'
@@ -214,7 +233,7 @@ export const Header: React.FC<HeaderProps> = ({
                   setIsNotifOpen(!isNotifOpen);
                   if (!isNotifOpen) markNotificationsAsRead();
                 }}
-                className={`relative p-2 rounded-xl transition-all duration-150 active:scale-95 cursor-pointer ${
+                className={`relative p-1.5 sm:p-2 rounded-xl transition-all duration-150 active:scale-95 cursor-pointer ${
                   theme === 'dark'
                     ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
                     : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100'
@@ -223,13 +242,13 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
                 {unreadNotifsCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-white dark:bg-zinc-200 animate-pulse" />
+                  <span className="absolute top-1 sm:top-1.5 right-1 sm:right-1.5 w-2 h-2 rounded-full bg-white dark:bg-zinc-200 animate-pulse" />
                 )}
               </button>
 
               {isNotifOpen && (
                 <div
-                  className={`absolute right-0 mt-2 w-80 rounded-2xl shadow-2xl p-4 z-50 animate-fade-in-up border ${
+                  className={`absolute right-0 mt-2 w-72 sm:w-80 rounded-2xl shadow-2xl p-4 z-50 animate-fade-in-up border ${
                     theme === 'dark'
                       ? 'bg-zinc-900 border-zinc-800 text-white'
                       : 'bg-white border-zinc-200 text-zinc-900'
@@ -270,15 +289,15 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </div>
 
-            {/* Active VIP Member Badge - visible in header bar */}
+            {/* Active VIP Member Badge - visible on md screens */}
             {isAuthenticated && isVIP && (
               <button
                 type="button"
                 onClick={() => onNavigate('membership')}
-                className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold font-mono transition-all cursor-pointer shadow-xs active:scale-95"
+                className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-xs font-bold font-mono transition-all cursor-pointer shadow-xs active:scale-95"
                 title="Active VIP Pass"
               >
-                <Crown className="w-3.5 h-3.5 text-amber-400" />
+                <Crown className="w-3.5 h-3.5 text-zinc-300" />
                 <span>VIP ACTIVE</span>
               </button>
             )}
@@ -287,7 +306,7 @@ export const Header: React.FC<HeaderProps> = ({
             {!isAuthenticated && (
               <button
                 onClick={() => handleOpenAuth('reader')}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 sm:py-2 text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl shadow-xs transition-all uppercase tracking-wide whitespace-nowrap cursor-pointer active:scale-95"
+                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl shadow-xs transition-all uppercase tracking-wide whitespace-nowrap cursor-pointer active:scale-95"
               >
                 <UserIcon className="w-3.5 h-3.5" />
                 <span>Log In</span>
@@ -313,7 +332,7 @@ export const Header: React.FC<HeaderProps> = ({
                 setNewUsernameInput(user.username || '');
                 setIsEditingUsername(false);
               }}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all duration-150 active:scale-95 cursor-pointer font-bold text-xs ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border transition-all duration-150 active:scale-95 cursor-pointer font-bold text-xs ${
                 isMenuDrawerOpen
                   ? 'bg-white text-zinc-950 border-white shadow-md'
                   : theme === 'dark'
@@ -323,7 +342,7 @@ export const Header: React.FC<HeaderProps> = ({
               title="Open Menu & Profile"
               aria-label="Open Menu & Profile"
             >
-              <Menu className="w-5 h-5 text-current" />
+              <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-current" />
               <span className="hidden sm:inline font-mono uppercase tracking-wider">Menu</span>
             </button>
           </div>
@@ -399,15 +418,7 @@ export const Header: React.FC<HeaderProps> = ({
                     <div className="flex items-center justify-between gap-1">
                       <p className="text-sm font-black truncate">@{user.username}</p>
                       <span
-                        className={`text-[9px] font-mono px-2 py-0.5 rounded-full uppercase tracking-wider font-bold border shrink-0 ${
-                          user.role === 'admin'
-                            ? 'bg-purple-950/80 text-purple-300 border-purple-800'
-                            : user.role === 'creator'
-                            ? 'bg-emerald-950/80 text-emerald-300 border-emerald-800'
-                            : user.role === 'subscriber'
-                            ? 'bg-amber-950/80 text-amber-300 border-amber-800'
-                            : 'bg-zinc-800 text-zinc-400 border-zinc-700'
-                        }`}
+                        className="text-[9px] font-mono px-2 py-0.5 rounded uppercase tracking-wider font-bold border shrink-0 bg-zinc-800 text-zinc-300 border-zinc-700"
                       >
                         {user.role === 'creator'
                           ? 'Creator'
@@ -550,18 +561,18 @@ export const Header: React.FC<HeaderProps> = ({
 
                 {/* Active VIP Subscription Card in Drawer */}
                 {isVIP && (
-                  <div className="mt-3.5 p-3.5 rounded-2xl bg-gradient-to-r from-amber-950/70 via-zinc-900 to-amber-950/40 border border-amber-500/50 shadow-md">
+                  <div className="mt-3.5 p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-md">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center shrink-0">
-                          <Crown className="w-4 h-4 text-amber-400" />
+                        <div className="w-8 h-8 rounded-xl bg-zinc-800 text-white border border-zinc-700 flex items-center justify-center shrink-0">
+                          <Crown className="w-4 h-4 text-white" />
                         </div>
                         <div>
                           <div className="flex items-center gap-1.5">
-                            <p className="text-xs font-black text-amber-300">
+                            <p className="text-xs font-bold text-white">
                               {user.subscription?.planId === 'yearly' ? 'Annual VIP Pass' : 'Monthly VIP Pass'}
                             </p>
-                            <span className="text-[9px] bg-amber-400 text-black px-1.5 py-0.5 font-mono font-bold rounded">
+                            <span className="text-[9px] bg-white text-zinc-950 px-1.5 py-0.5 font-mono font-bold rounded">
                               ACTIVE
                             </span>
                           </div>
@@ -578,7 +589,7 @@ export const Header: React.FC<HeaderProps> = ({
                           onNavigate('membership');
                           setIsMenuDrawerOpen(false);
                         }}
-                        className="text-[11px] font-bold text-amber-300 hover:text-white underline font-mono cursor-pointer shrink-0"
+                        className="text-[11px] font-semibold text-zinc-300 hover:text-white underline font-mono cursor-pointer shrink-0"
                       >
                         Plan Details
                       </button>
@@ -596,7 +607,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <div className="p-3 mb-3 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-between gap-3 shadow-md">
                     <div>
                       <p className="text-xs font-bold text-white flex items-center gap-1.5">
-                        <PenTool className="w-3.5 h-3.5 text-purple-400" />
+                        <PenTool className="w-3.5 h-3.5 text-zinc-300" />
                         <span>Creator Mode Active</span>
                       </p>
                       <p className="text-[11px] text-zinc-400">Manage series and profile</p>
@@ -614,10 +625,10 @@ export const Header: React.FC<HeaderProps> = ({
                     </button>
                   </div>
                 ) : (
-                  <div className="p-3 mb-3 rounded-2xl bg-gradient-to-r from-purple-950/70 to-zinc-900 border border-purple-800/60 flex items-center justify-between gap-3 shadow-md">
+                  <div className="p-3 mb-3 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-between gap-3 shadow-md">
                     <div>
                       <p className="text-xs font-bold text-white flex items-center gap-1.5">
-                        <PenTool className="w-3.5 h-3.5 text-purple-400" />
+                        <PenTool className="w-3.5 h-3.5 text-zinc-300" />
                         <span>Publish Your Manga</span>
                       </p>
                       <p className="text-[11px] text-zinc-400">Switch account to Creator Mode</p>
@@ -629,7 +640,7 @@ export const Header: React.FC<HeaderProps> = ({
                         setIsMenuDrawerOpen(false);
                         onNavigate('creator');
                       }}
-                      className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shrink-0 cursor-pointer shadow-md transition-all active:scale-95"
+                      className="px-3 py-1.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-bold shrink-0 cursor-pointer shadow-md transition-all active:scale-98"
                     >
                       Switch to Creator
                     </button>
@@ -651,17 +662,17 @@ export const Header: React.FC<HeaderProps> = ({
                   }}
                   className={`w-full text-left px-3.5 py-2.5 rounded-xl font-medium text-xs flex items-center justify-between transition-all cursor-pointer ${
                     currentView === 'creator-profile'
-                      ? 'bg-purple-950/80 text-purple-300 font-bold border border-purple-800'
+                      ? 'bg-zinc-800 text-white font-bold border border-zinc-700'
                       : theme === 'dark'
                       ? 'text-zinc-300 hover:bg-zinc-800 hover:text-white'
                       : 'text-zinc-800 hover:bg-zinc-100 hover:text-zinc-950'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <UserIcon className="w-4 h-4 text-purple-400" />
+                    <UserIcon className="w-4 h-4 text-zinc-300" />
                     <span>My Creator Profile & Socials</span>
                   </div>
-                  <span className="text-[10px] font-mono text-purple-400 font-bold">Edit Profile</span>
+                  <span className="text-[10px] font-mono text-zinc-400 font-bold">Edit Profile</span>
                 </button>
               )}
 
@@ -745,6 +756,25 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="text-[10px] font-mono text-zinc-500">Plans</span>
               </button>
 
+              {/* Gmail Workspace & Recommendations */}
+              {onOpenGmail && (
+                <button
+                  onClick={() => {
+                    onOpenGmail();
+                    setIsMenuDrawerOpen(false);
+                  }}
+                  className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold text-red-400 hover:text-white hover:bg-red-950/40 flex items-center justify-between transition-colors cursor-pointer border border-red-900/30 my-1"
+                >
+                  <div className="flex items-center gap-3">
+                    <Mail className="w-4 h-4 text-red-400" />
+                    <span>Gmail Workspace & Mail</span>
+                  </div>
+                  <span className="text-[9px] font-mono uppercase bg-red-950 text-red-300 px-1.5 py-0.5 rounded border border-red-800">
+                    Google
+                  </span>
+                </button>
+              )}
+
               <div className="border-t border-zinc-800/80 my-2 pt-2">
                 <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider px-3 mb-2">
                   Browse & Discover
@@ -763,24 +793,13 @@ export const Header: React.FC<HeaderProps> = ({
 
                 <button
                   onClick={() => {
-                    onNavigate('trending');
+                    onNavigate('new_series');
                     setIsMenuDrawerOpen(false);
                   }}
                   className="w-full text-left px-3.5 py-2 rounded-xl text-xs text-zinc-400 hover:text-white hover:bg-zinc-900 flex items-center gap-3 transition-colors cursor-pointer"
                 >
-                  <Flame className="w-4 h-4" />
-                  <span>Trending Leaderboard</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    onNavigate('creators');
-                    setIsMenuDrawerOpen(false);
-                  }}
-                  className="w-full text-left px-3.5 py-2 rounded-xl text-xs text-zinc-400 hover:text-white hover:bg-zinc-900 flex items-center gap-3 transition-colors cursor-pointer"
-                >
-                  <Users className="w-4 h-4" />
-                  <span>Creators Directory</span>
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>New Series Releases</span>
                 </button>
 
                 <button

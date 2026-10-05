@@ -1,19 +1,14 @@
-/**
- * MangaWild - Firebase Integration & Firestore Client
- */
-
-import { initializeApp, getApps, getApp } from 'firebase/app';
+import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as fbSignOut } from 'firebase/auth';
-import { getFirestore, doc, getDoc, setLogLevel } from 'firebase/firestore';
+import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-// Silence offline/timeout console warnings in sandbox environments
-setLogLevel('silent');
+const app = initializeApp(firebaseConfig);
 
-// Initialize Firebase App
-export const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-export const auth = getAuth(app);
+// CRITICAL: The app will break without specifying the firestoreDatabaseId
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
 
 export enum OperationType {
   CREATE = 'create',
@@ -41,7 +36,7 @@ export interface FirestoreErrorInfo {
   };
 }
 
-export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
@@ -62,17 +57,20 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
-// Connection check
-export async function testFirestoreConnection(): Promise<boolean> {
-  return Boolean(db && db.app);
+// Validate Connection to Firestore on startup
+export async function testFirestoreConnection() {
+  try {
+    await getDocFromServer(doc(db, 'test', 'connection'));
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      console.error('Please check your Firebase configuration.');
+    }
+  }
 }
+testFirestoreConnection();
 
-// Google Sign-In helper
 export async function signInWithGooglePopup() {
-  const provider = new GoogleAuthProvider();
-  return await signInWithPopup(auth, provider);
+  return await signInWithPopup(auth, googleProvider);
 }
 
-export async function signOutFirebase() {
-  return await fbSignOut(auth);
-}
+export { signInWithPopup, fbSignOut };

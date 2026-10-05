@@ -52,14 +52,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showDirectGoogleInput, setShowDirectGoogleInput] = useState(false);
-  const [directGoogleEmail, setDirectGoogleEmail] = useState('huntsmp51@gmail.com');
+  const [directGoogleEmail, setDirectGoogleEmail] = useState('callmedevoc@gmail.com');
   const [copiedOrigin, setCopiedOrigin] = useState(false);
+
+  const isDedicatedAdmin = defaultRole === 'admin' || selectedPersona === 'admin';
 
   // Sync mode and persona when modal opens with custom options
   React.useEffect(() => {
     if (isOpen) {
-      if (defaultMode) setMode(defaultMode);
-      if (defaultRole) setSelectedPersona(defaultRole);
+      if (defaultRole === 'admin') {
+        setMode('signin');
+        setSelectedPersona('admin');
+      } else {
+        if (defaultMode) setMode(defaultMode);
+        if (defaultRole) setSelectedPersona(defaultRole);
+      }
       setErrorMsg(null);
     }
   }, [isOpen, defaultMode, defaultRole]);
@@ -195,12 +202,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className="relative px-6 pt-6 pb-4 border-b border-zinc-800/60 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-black tracking-tight flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-white" />
-              <span>{customTitle || (mode === 'signup' ? 'Join MangaWild' : 'Welcome Back')}</span>
+              {isDedicatedAdmin ? (
+                <Shield className="w-5 h-5 text-amber-400" />
+              ) : (
+                <Sparkles className="w-5 h-5 text-white" />
+              )}
+              <span>
+                {customTitle ||
+                  (isDedicatedAdmin
+                    ? 'Admin Portal Sign In'
+                    : mode === 'signup'
+                    ? 'Join MangaWild'
+                    : 'Welcome Back')}
+              </span>
             </h2>
             <p className="text-xs text-zinc-400 mt-0.5">
               {customSubtitle ||
-                (mode === 'signup'
+                (isDedicatedAdmin
+                  ? 'Enter official administrator credentials to access the Editorial Suite'
+                  : mode === 'signup'
                   ? 'Select your role and create your customized manga profile'
                   : 'Sign in with your email and password to access your account')}
             </p>
@@ -269,20 +289,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <span className="inline-block mt-2 text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-300">
                     Creator Account
                   </span>
-                </button>
-              </div>
-
-              {/* Admin option link */}
-              <div className="text-right mt-1.5">
-                <button
-                  type="button"
-                  onClick={() => setSelectedPersona('admin')}
-                  className={`text-[11px] font-mono hover:underline inline-flex items-center gap-1 cursor-pointer ${
-                    selectedPersona === 'admin' ? 'text-white font-bold' : 'text-zinc-500'
-                  }`}
-                >
-                  <Shield className="w-3 h-3" />
-                  <span>Admin Registration</span>
                 </button>
               </div>
             </div>
@@ -364,24 +370,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </>
             ) : (
               <>
-                {/* Sign In Mode: Strictly Email & Password ONLY */}
+                {/* Sign In Mode: Strictly Email/Username & Password ONLY */}
                 <div>
                   <label className="block text-xs font-semibold text-zinc-300 mb-1">
-                    Email Address
+                    {isDedicatedAdmin ? 'Administrator Email or Username' : 'Email Address or Username'}
                   </label>
                   <div className="relative">
-                    <Mail className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
+                    <UserIcon className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
                     <input
-                      type="email"
+                      type="text"
                       required
                       value={email || loginIdentifier}
                       onChange={e => {
                         setEmail(e.target.value);
                         setLoginIdentifier(e.target.value);
                       }}
-                      placeholder="name@example.com"
+                      placeholder={isDedicatedAdmin ? 'admin@mangawild.com or admin' : 'name@example.com or @username'}
                       className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
-                      autoComplete="email"
                       autoFocus
                     />
                   </div>
@@ -398,7 +403,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       required
                       value={password}
                       onChange={e => setPassword(e.target.value)}
-                      placeholder="Enter your password"
+                      placeholder={isDedicatedAdmin ? 'Enter Administrator password' : 'Enter your password'}
                       className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
                       autoComplete="current-password"
                     />
@@ -414,7 +419,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             >
               <span>
                 {loading
-                  ? 'Signing in...'
+                  ? 'Verifying...'
+                  : isDedicatedAdmin
+                  ? 'Sign In to Admin Suite'
                   : mode === 'signup'
                   ? `Create ${selectedPersona === 'creator' ? 'Creator' : 'Reader'} Account`
                   : 'Sign In'}
@@ -423,111 +430,115 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </button>
           </form>
 
-          {/* Social Sign-In (Direct Google OAuth) */}
-          <div className="pt-2 space-y-2">
-            <div className="relative flex items-center justify-center mb-3">
-              <div className="border-t border-zinc-800 w-full" />
-              <span className="bg-[#101014] px-3 text-[11px] font-mono text-zinc-500 uppercase shrink-0">
-                Or Continue With
-              </span>
-              <div className="border-t border-zinc-800 w-full" />
-            </div>
+          {/* Social Sign-In (Disabled for Admin mode: Admin MUST use official email/password) */}
+          {!isDedicatedAdmin && (
+            <div className="pt-2 space-y-2">
+              <div className="relative flex items-center justify-center mb-3">
+                <div className="border-t border-zinc-800 w-full" />
+                <span className="bg-[#101014] px-3 text-[11px] font-mono text-zinc-500 uppercase shrink-0">
+                  Or Continue With
+                </span>
+                <div className="border-t border-zinc-800 w-full" />
+              </div>
 
-            <button
-              type="button"
-              onClick={() => handleGoogleAuth()}
-              disabled={loading}
-              className="w-full py-2.5 px-4 rounded-xl border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer shadow-xs"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24">
-                <path
-                  fill="#EA4335"
-                  d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.3 9 5 12 5z"
-                />
-                <path
-                  fill="#4285F4"
-                  d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3 0-.8.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15.1c0 2.8.7 5.4 1.9 7.8l3.7-2.9z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.3-6.4-5.2L1.9 16c1.8 3.7 5.6 7 10.1 7z"
-                />
-              </svg>
-              <span>Continue with Google</span>
-            </button>
-
-            {/* Direct Google Sign-In Fallback when browser origin restricts popup */}
-            {showDirectGoogleInput && (
-              <form
-                onSubmit={handleDirectGoogleLogin}
-                className="mt-3 p-3.5 rounded-2xl bg-zinc-900/90 border border-zinc-700/80 space-y-2.5 animate-fadeIn"
+              <button
+                type="button"
+                onClick={() => handleGoogleAuth()}
+                disabled={loading}
+                className="w-full py-2.5 px-4 rounded-xl border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer shadow-xs"
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold text-zinc-300 flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    Instant Google Account Sign-In
-                  </span>
+                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                  <path
+                    fill="#EA4335"
+                    d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.3 9 5 12 5z"
+                  />
+                  <path
+                    fill="#4285F4"
+                    d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3 0-.8.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15.1c0 2.8.7 5.4 1.9 7.8l3.7-2.9z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.3-6.4-5.2L1.9 16c1.8 3.7 5.6 7 10.1 7z"
+                  />
+                </svg>
+                <span>Continue with Google</span>
+              </button>
+
+              {/* Direct Google Sign-In Fallback when browser origin restricts popup */}
+              {showDirectGoogleInput && (
+                <form
+                  onSubmit={handleDirectGoogleLogin}
+                  className="mt-3 p-3.5 rounded-2xl bg-zinc-900/90 border border-zinc-700/80 space-y-2.5 animate-fadeIn"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-zinc-300 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      Instant Google Account Sign-In
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowDirectGoogleInput(false)}
+                      className="text-[10px] text-zinc-500 hover:text-zinc-300"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 absolute left-3 top-2.5 text-zinc-500" />
+                    <input
+                      type="email"
+                      required
+                      value={directGoogleEmail}
+                      onChange={e => setDirectGoogleEmail(e.target.value)}
+                      placeholder="Enter your Google account email"
+                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-zinc-700 bg-black text-white text-xs placeholder-zinc-500 focus:outline-none focus:border-white"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <span>Sign In with this Google Account</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+
+          {/* Mode Switcher (Disabled for Admin mode) */}
+          {!isDedicatedAdmin && (
+            <div className="text-center pt-1">
+              {mode === 'signup' ? (
+                <p className="text-xs text-zinc-400">
+                  Already have an account?{' '}
                   <button
                     type="button"
-                    onClick={() => setShowDirectGoogleInput(false)}
-                    className="text-[10px] text-zinc-500 hover:text-zinc-300"
+                    onClick={() => setMode('signin')}
+                    className="text-white font-bold hover:underline ml-1"
                   >
-                    Close
+                    Sign In
                   </button>
-                </div>
-                <div className="relative">
-                  <Mail className="w-4 h-4 absolute left-3 top-2.5 text-zinc-500" />
-                  <input
-                    type="email"
-                    required
-                    value={directGoogleEmail}
-                    onChange={e => setDirectGoogleEmail(e.target.value)}
-                    placeholder="Enter your Gmail address"
-                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-zinc-700 bg-black text-white text-xs placeholder-zinc-500 focus:outline-none focus:border-white"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                >
-                  <span>Sign In with this Google Account</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </form>
-            )}
-          </div>
-
-          {/* Mode Switcher */}
-          <div className="text-center pt-1">
-            {mode === 'signup' ? (
-              <p className="text-xs text-zinc-400">
-                Already have an account?{' '}
-                <button
-                  type="button"
-                  onClick={() => setMode('signin')}
-                  className="text-white font-bold hover:underline ml-1"
-                >
-                  Sign In
-                </button>
-              </p>
-            ) : (
-              <p className="text-xs text-zinc-400">
-                Don't have an account yet?{' '}
-                <button
-                  type="button"
-                  onClick={() => setMode('signup')}
-                  className="text-white font-bold hover:underline ml-1"
-                >
-                  Sign Up
-                </button>
-              </p>
-            )}
-          </div>
+                </p>
+              ) : (
+                <p className="text-xs text-zinc-400">
+                  Don't have an account yet?{' '}
+                  <button
+                    type="button"
+                    onClick={() => setMode('signup')}
+                    className="text-white font-bold hover:underline ml-1"
+                  >
+                    Sign Up
+                  </button>
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

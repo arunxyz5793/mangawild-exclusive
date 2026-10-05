@@ -17,6 +17,7 @@ import {
   Compass,
   Heart,
   Eye,
+  Lock,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -37,7 +38,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   onOpenVIPModal,
 }) => {
   const { theme } = useTheme();
-  const { isVIP, bookmarks, toggleBookmark } = useAuth();
+  const { isVIP, bookmarks, toggleBookmark, canAccessCreator, toggleCreatorMode, isAuthenticated, openAuthModal } = useAuth();
 
   const allSeries = useMemo(() => StorageService.getSeries().filter(s => s.moderationStatus === 'approved'), []);
   const allChapters = useMemo(() => StorageService.getChapters(), []);
@@ -56,10 +57,10 @@ export const HomePage: React.FC<HomePageProps> = ({
     return () => clearInterval(timer);
   }, [featuredSeriesList.length]);
 
-  // 2. Top Ranked Leaderboard (Top 5)
-  const rankedSeries = useMemo(() => {
+  // 2. New Series Releases (Sorted by newest createdAt)
+  const newSeriesList = useMemo(() => {
     return [...allSeries]
-      .sort((a, b) => b.totalReads - a.totalReads)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 5);
   }, [allSeries]);
 
@@ -135,7 +136,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                     <button
                       type="button"
                       onClick={() => onNavigate('creator-profile', { id: currentSpotlight?.creatorId, author: currentSpotlight?.author })}
-                      className={`font-black underline decoration-purple-500/50 underline-offset-4 hover:text-purple-400 transition-colors cursor-pointer ${
+                      className={`font-black underline decoration-zinc-500/50 underline-offset-4 hover:text-white transition-colors cursor-pointer ${
                         theme === 'dark' ? 'text-zinc-200' : 'text-zinc-900'
                       }`}
                       title={`View ${currentSpotlight?.author}'s Creator Profile`}
@@ -147,13 +148,13 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <span className={theme === 'dark' ? 'text-zinc-300' : 'text-zinc-700'}>{currentSpotlight?.genres.join(' · ')}</span>
                   <span>·</span>
                   <span className="font-mono">
-                    {currentSpotlight?.totalReads.toLocaleString()} readers
+                    {(currentSpotlight?.totalReads ?? 0).toLocaleString()} readers
                   </span>
                   {currentSpotlight?.isExclusive && (
                     <>
                       <span>·</span>
-                      <span className={`font-bold uppercase flex items-center gap-1 font-mono ${theme === 'dark' ? 'text-amber-400' : 'text-amber-600'}`}>
-                        <Crown className="w-3.5 h-3.5" /> VIP Exclusive
+                      <span className="font-semibold uppercase flex items-center gap-1 font-mono text-zinc-300 bg-zinc-800/80 px-2 py-0.5 rounded text-[11px] border border-zinc-700">
+                        <Lock className="w-3 h-3" /> VIP Exclusive
                       </span>
                     </>
                   )}
@@ -271,34 +272,34 @@ export const HomePage: React.FC<HomePageProps> = ({
       </section>
 
       {/* ========================================================================= */}
-      {/* 2. TOP RANKED LEADERBOARD (#1-5)                                          */}
+      {/* 2. NEW SERIES RELEASES                                                    */}
       {/* ========================================================================= */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
         <div className="flex items-center justify-between border-b pb-4 border-zinc-200 dark:border-zinc-800">
           <div>
-            <div className="flex items-center gap-2 text-xs text-zinc-400 font-bold uppercase tracking-wider font-mono">
-              <TrendingUp className="w-4 h-4" />
-              <span>Official Leaderboard</span>
+            <div className="flex items-center gap-2 text-xs text-amber-400 font-bold uppercase tracking-wider font-mono">
+              <Sparkles className="w-4 h-4" />
+              <span>Fresh Releases &bull; New Series</span>
             </div>
             <h2
               className={`text-2xl font-bold font-serif tracking-tight mt-0.5 ${
                 theme === 'dark' ? 'text-white' : 'text-zinc-900'
               }`}
             >
-              Top 5 Most Read Series
+              New Series Releases
             </h2>
           </div>
           <button
-            onClick={() => onNavigate('trending')}
+            onClick={() => onNavigate('new_series')}
             className="text-xs font-semibold text-zinc-400 hover:text-white flex items-center gap-1 cursor-pointer"
           >
-            <span>Full Rankings</span>
+            <span>View All New Series</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          {rankedSeries.map((series, idx) => (
+          {newSeriesList.map((series) => (
             <div
               key={series.id}
               onClick={() => onSelectSeries(series.id)}
@@ -308,9 +309,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                   : 'bg-white border-zinc-200 hover:border-zinc-300 shadow-xs'
               }`}
             >
-              {/* Rank Badge */}
-              <div className="absolute top-2 left-2 z-10 w-7 h-7 rounded-lg bg-zinc-950/90 text-white font-mono font-black text-xs flex items-center justify-center border border-zinc-700 shadow-xs">
-                #{idx + 1}
+              {/* New Badge */}
+              <div className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-lg bg-amber-400 text-zinc-950 font-mono font-black text-[10px] flex items-center gap-1 shadow-md uppercase tracking-wider">
+                <Sparkles className="w-3 h-3" />
+                <span>NEW</span>
               </div>
 
               <div className="space-y-3">
@@ -324,7 +326,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
                 <div className="space-y-1">
                   <h3
-                    className={`text-sm font-bold truncate group-hover:text-purple-400 transition-colors ${
+                    className={`text-sm font-bold truncate group-hover:text-zinc-300 transition-colors ${
                       theme === 'dark' ? 'text-white' : 'text-zinc-900'
                     }`}
                   >
@@ -336,7 +338,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                       e.stopPropagation();
                       onNavigate('creator-profile', { id: series.creatorId, author: series.author });
                     }}
-                    className="text-[11px] text-zinc-400 hover:text-purple-400 hover:underline font-mono truncate text-left block w-full cursor-pointer"
+                    className="text-[11px] text-zinc-400 hover:text-white hover:underline font-mono truncate text-left block w-full cursor-pointer"
                   >
                     by {series.author}
                   </button>
@@ -355,14 +357,14 @@ export const HomePage: React.FC<HomePageProps> = ({
                 <div className="flex items-center gap-2">
                   <span className="flex items-center gap-0.5" title="Total Views">
                     <Eye className="w-3 h-3 text-zinc-400" />
-                    <span>{(series.totalViews || 12000).toLocaleString()}</span>
+                    <span>{(series.totalViews ?? 0).toLocaleString()}</span>
                   </span>
-                  <span className="flex items-center gap-0.5 text-rose-400" title="Likes">
-                    <Heart className="w-3 h-3 fill-current" />
-                    <span>{(series.likesCount || 850).toLocaleString()}</span>
+                  <span className="flex items-center gap-0.5 text-zinc-400" title="Likes">
+                    <Heart className="w-3 h-3" />
+                    <span>{(series.likesCount ?? 0).toLocaleString()}</span>
                   </span>
                 </div>
-                <span className="text-purple-400 font-bold group-hover:translate-x-0.5 transition-transform">
+                <span className="text-zinc-300 font-bold group-hover:text-white group-hover:translate-x-0.5 transition-all">
                   Read →
                 </span>
               </div>
@@ -443,7 +445,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                     e.stopPropagation();
                     onNavigate('creator-profile', { id: series.creatorId, author: series.author });
                   }}
-                  className="text-[10px] text-zinc-400 hover:text-purple-400 hover:underline font-mono truncate text-left block w-full cursor-pointer"
+                  className="text-[10px] text-zinc-400 hover:text-white hover:underline font-mono truncate text-left block w-full cursor-pointer"
                 >
                   {series.author}
                 </button>
@@ -496,12 +498,32 @@ export const HomePage: React.FC<HomePageProps> = ({
               </div>
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 flex flex-wrap items-center gap-3">
               <button
-                onClick={() => onNavigate('creator')}
+                type="button"
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    openAuthModal({
+                      title: 'Creator Account Sign In',
+                      subtitle: 'Sign in to access your MangaWild Creator Studio and publish your original stories.',
+                      defaultRole: 'creator',
+                      defaultMode: 'signup',
+                      onSuccess: () => {
+                        toggleCreatorMode();
+                        onNavigate('creator');
+                      },
+                    });
+                  } else {
+                    if (!canAccessCreator) {
+                      toggleCreatorMode();
+                    }
+                    onNavigate('creator');
+                  }
+                }}
                 className="px-6 py-3 bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center gap-2 hover:scale-[1.02] cursor-pointer"
               >
-                <span>Start Publishing Today</span>
+                <PenTool className="w-4 h-4 text-zinc-950" />
+                <span>{canAccessCreator ? 'Go to Creator Studio' : 'Switch to Creator Profile'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

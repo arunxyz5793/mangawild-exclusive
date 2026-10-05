@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole, Permission, hasPermission } from '../types/auth';
-import { StorageService } from '../services/storage';
+import { StorageService, OFFICIAL_ADMIN } from '../services/storage';
 import { PlatformNotification } from '../types/manga';
 import { authenticateWithGoogleOAuth } from '../services/googleAuth';
 import { testFirestoreConnection } from '../services/firebase';
@@ -173,6 +173,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const switchUserRole = (targetRole: UserRole) => {
+    // Strict security: Never allow arbitrary switching to admin
+    if (targetRole === 'admin') {
+      console.warn('Switching to admin role is disabled. Please sign in with administrator credentials.');
+      return;
+    }
+
     // If user is logged in, change their CURRENT account's role rather than switching accounts!
     if (isAuthenticated && user.id !== 'guest_reader') {
       const allUsers = StorageService.getUsers();
@@ -222,7 +228,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    // Guest fallback: pick or create a demo user
+    // Guest fallback: pick or create a demo user (never admin)
     const allUsers = StorageService.getUsers();
     let target = allUsers.find(u => u.role === targetRole);
     if (!target) {
@@ -234,7 +240,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: `${targetRole}@mangawild.online`,
         password: 'password123',
         role: targetRole,
-        isVIP: targetRole === 'admin' || targetRole === 'subscriber',
+        isVIP: targetRole === 'subscriber',
         createdAt: new Date().toISOString(),
       };
       allUsers.push(target);
@@ -256,6 +262,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cleanId = identifier.trim().toLowerCase().replace(/^@/, '');
     const allUsers = StorageService.getUsers();
 
+    // Check if this is an attempt to log in as the official Administrator
+    const isAdminId =
+      cleanId === OFFICIAL_ADMIN.email.toLowerCase() ||
+      cleanId === OFFICIAL_ADMIN.altEmail.toLowerCase() ||
+      cleanId === OFFICIAL_ADMIN.username.toLowerCase() ||
+      cleanId === 'mangawild_admin';
+
+    if (isAdminId) {
+      if (pass !== OFFICIAL_ADMIN.password) {
+        throw new Error('Incorrect password. Administrator login failed.');
+      }
+      let adminAccount = allUsers.find(u => u.id === OFFICIAL_ADMIN.id || u.role === 'admin');
+      if (!adminAccount) {
+        adminAccount = {
+          id: OFFICIAL_ADMIN.id,
+          name: 'Admin',
+          username: OFFICIAL_ADMIN.username,
+          email: OFFICIAL_ADMIN.email,
+          password: OFFICIAL_ADMIN.password,
+          role: 'admin',
+          avatarUrl: '/avatars/admin.svg',
+          isVIP: true,
+          createdAt: '2026-01-01T00:00:00Z',
+        };
+        allUsers.unshift(adminAccount);
+      } else {
+        adminAccount.role = 'admin';
+        adminAccount.isVIP = true;
+        adminAccount.email = OFFICIAL_ADMIN.email;
+        adminAccount.password = OFFICIAL_ADMIN.password;
+      }
+      StorageService.saveUsers(allUsers);
+      setUser(adminAccount);
+      StorageService.setCurrentUser(adminAccount);
+      setIsAuthenticated(true);
+      return true;
+    }
+
     // Find account by either username or email
     const found = allUsers.find(
       u => (u.email && u.email.toLowerCase() === cleanId) ||
@@ -266,14 +310,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw new Error('No account found with this username or email. Please check your credentials or click Sign Up to create an account.');
     }
 
-    // Strict Password Verification: do not let anyone log into another user's account!
-    const expectedPassword = found.password || (found.role === 'admin' || found.email === 'huntsmp51@gmail.com' ? 'admin123' : 'password123');
+    // Strict security: An account can ONLY have admin privileges if it is the verified official admin
+    if (found.role === 'admin') {
+      found.role = 'free_user';
+    }
+
+    const expectedPassword = found.password || 'password123';
     if (pass !== expectedPassword) {
       throw new Error('Incorrect password. Please enter the valid password you created during sign up.');
     }
 
     // Update role if explicitly requested (e.g. reader chooses creator)
-    if (requestedRole && requestedRole === 'creator' && found.role !== 'creator' && found.role !== 'admin') {
+    if (requestedRole && requestedRole === 'creator' && found.role !== 'creator') {
       found.role = 'creator';
       if (!found.creatorProfileId) {
         const creatorId = `creator_${Date.now()}`;
@@ -313,9 +361,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     pass: string,
     requestedRole: UserRole = 'free_user'
   ): Promise<boolean> => {
+    // Strict security: Admin registration is forbidden
+    if (requestedRole === 'admin') {
+      throw new Error('Admin registration is strictly prohibited. Only authorized system administrators may log in.');
+    }
+
     // Sanitize and validate unique username
     const cleanUsername = username.trim().replace(/^@/, '').toLowerCase().replace(/[^a-zA-Z0-9_]/g, '');
     const cleanEmail = email.trim().toLowerCase();
+
+    if (
+      cleanEmail === OFFICIAL_ADMIN.email.toLowerCase() ||
+      cleanEmail === OFFICIAL_ADMIN.altEmail.toLowerCase() ||
+      cleanUsername === OFFICIAL_ADMIN.username.toLowerCase()
+    ) {
+      throw new Error('This identifier is reserved for the system administrator. Please sign in instead.');
+    }
 
     if (!cleanUsername || cleanUsername.length < 3) {
       throw new Error('Username must be at least 3 characters long and contain only letters, numbers, or underscores.');
@@ -351,7 +412,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email: cleanEmail,
       password: pass,
       role: requestedRole,
-      isVIP: requestedRole === 'subscriber' || requestedRole === 'admin',
+      isVIP: requestedRole === 'subscriber',
       creatorProfileId: creatorId,
       createdAt: new Date().toISOString(),
     };
@@ -399,8 +460,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const allUsers = StorageService.getUsers();
       let found = allUsers.find(u => u.email.toLowerCase() === googleProfile.email.toLowerCase());
 
-      const isAdminEmail = googleProfile.email.toLowerCase() === 'huntsmp51@gmail.com';
-      const assignedRole = isAdminEmail ? 'admin' : requestedRole;
+      const isAdminEmail =
+        googleProfile.email.toLowerCase() === OFFICIAL_ADMIN.email.toLowerCase() ||
+        googleProfile.email.toLowerCase() === OFFICIAL_ADMIN.altEmail.toLowerCase();
+      const assignedRole = isAdminEmail ? 'admin' : (requestedRole === 'admin' ? 'free_user' : requestedRole);
 
       if (!found) {
         const username = customUsername || googleProfile.name?.replace(/\s+/g, '_').toLowerCase() || googleProfile.email.split('@')[0];
@@ -465,8 +528,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const allUsers = StorageService.getUsers();
     let found = allUsers.find(u => u.email.toLowerCase() === cleanEmail);
 
-    const isAdminEmail = cleanEmail === 'huntsmp51@gmail.com';
-    const assignedRole = isAdminEmail ? 'admin' : requestedRole;
+    const isAdminEmail =
+      cleanEmail === OFFICIAL_ADMIN.email.toLowerCase() ||
+      cleanEmail === OFFICIAL_ADMIN.altEmail.toLowerCase();
+    const assignedRole = isAdminEmail ? 'admin' : (requestedRole === 'admin' ? 'free_user' : requestedRole);
 
     if (!found) {
       const username = cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') || `user_${Date.now().toString().slice(-4)}`;

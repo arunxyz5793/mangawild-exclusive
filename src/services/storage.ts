@@ -3,7 +3,7 @@
  * Authentically synced with https://www.mangawild.online/
  */
 
-import { User } from '../types/auth';
+import { User, UserRole } from '../types/auth';
 import {
   MangaSeries,
   Chapter,
@@ -16,6 +16,7 @@ import {
   PaymentRecord,
   PlatformNotification,
   WorldwideMangaNews,
+  UserReport,
 } from '../types/manga';
 import { generateMangaCoverSvg, generateChapterPanelSvg } from '../utils/mangaAssets';
 
@@ -33,16 +34,27 @@ const STORAGE_KEYS = {
   PAYMENTS: 'mw_payments_v4',
   NOTIFICATIONS: 'mw_notifications_v4',
   FOLLOWED_CREATORS: 'mw_followed_creators_v4',
+  REPORTS: 'mw_user_reports_v1',
+  PASSWORD_RESETS: 'mw_password_resets_v1',
+};
+
+// Official System Administrator Configuration
+export const OFFICIAL_ADMIN = {
+  id: 'user_admin_01',
+  email: 'admin@mangawild.com',
+  altEmail: 'callmedevoc@gmail.com',
+  username: 'admin',
+  password: 'Admin@Wild2026',
 };
 
 // Seed Users
 const INITIAL_USERS: User[] = [
   {
     "id": "user_admin_01",
-    "email": "huntsmp51@gmail.com",
-    "name": "mangawild_admin",
-    "username": "mangawild_admin",
-    "password": "admin123",
+    "email": "admin@mangawild.com",
+    "name": "Admin",
+    "username": "admin",
+    "password": "Admin@Wild2026",
     "role": "admin",
     "avatarUrl": "/avatars/admin.svg",
     "isVIP": true,
@@ -155,10 +167,10 @@ const INITIAL_CREATORS: CreatorProfile[] = [
       "youtube": "https://youtube.com/@deep_mangaka",
       "website": "https://mangawild.online/creators/deep"
     },
-    "followersCount": 3450,
+    "followersCount": 0,
     "seriesCount": 4,
-    "totalReads": 191200,
-    "monthlyEarningsInr": 48500,
+    "totalReads": 0,
+    "monthlyEarningsInr": 0,
     "revenueSharePercent": 70,
     "upiId": "deep.mangaka@okhdfcbank",
     "bankAccountHolder": "Deep Mangaka",
@@ -178,10 +190,10 @@ const INITIAL_CREATORS: CreatorProfile[] = [
       "discord": "https://discord.gg/mangawild",
       "youtube": "https://youtube.com/@fladz"
     },
-    "followersCount": 2890,
+    "followersCount": 0,
     "seriesCount": 1,
-    "totalReads": 78900,
-    "monthlyEarningsInr": 32400,
+    "totalReads": 0,
+    "monthlyEarningsInr": 0,
     "revenueSharePercent": 70,
     "upiId": "fladz.art@okaxis",
     "bankAccountHolder": "Flad Z",
@@ -200,10 +212,10 @@ const INITIAL_CREATORS: CreatorProfile[] = [
       "twitter": "https://x.com/jay_manga",
       "facebook": "https://facebook.com/jay.mangaka"
     },
-    "followersCount": 2150,
+    "followersCount": 0,
     "seriesCount": 1,
-    "totalReads": 61200,
-    "monthlyEarningsInr": 24800,
+    "totalReads": 0,
+    "monthlyEarningsInr": 0,
     "revenueSharePercent": 70,
     "upiId": "jay.manga@paytm",
     "bankAccountHolder": "Jay",
@@ -222,10 +234,10 @@ const INITIAL_CREATORS: CreatorProfile[] = [
       "twitter": "https://x.com/vikalp_draws",
       "youtube": "https://youtube.com/@vikalp_draws"
     },
-    "followersCount": 1980,
+    "followersCount": 0,
     "seriesCount": 1,
-    "totalReads": 49100,
-    "monthlyEarningsInr": 19500,
+    "totalReads": 0,
+    "monthlyEarningsInr": 0,
     "revenueSharePercent": 70,
     "upiId": "vikalp.draws@ybl",
     "bankAccountHolder": "Vikalp Draws",
@@ -245,10 +257,10 @@ const INITIAL_CREATORS: CreatorProfile[] = [
       "youtube": "https://youtube.com/@arieschitrakatha",
       "website": "https://arieschitrakatha.com"
     },
-    "followersCount": 2420,
+    "followersCount": 0,
     "seriesCount": 1,
-    "totalReads": 54300,
-    "monthlyEarningsInr": 22800,
+    "totalReads": 0,
+    "monthlyEarningsInr": 0,
     "revenueSharePercent": 70,
     "upiId": "team.aries@sbi",
     "bankAccountHolder": "Aries Chitrakatha",
@@ -262,11 +274,9 @@ const INITIAL_SERIES: MangaSeries[] = [
   {
     "id": "series_silent_heads",
     "title": "SILENT HEADS",
-    "titleHindi": "\u0938\u093e\u0907\u0932\u0947\u0902\u091f \u0939\u0947\u0921\u094d\u0938",
     "titleJapanese": "\u30b5\u30a4\u30ec\u30f3\u30c8\u30fb\u30d8\u30c3\u30ba",
     "slug": "silent-heads",
     "synopsis": "Established in 14th century India. A mysterious killer randomly starts killing people. Prathoksh who handles this case discovers more murders. As the story goes, the mystery behind the killer gets more creepy and uncanny.",
-    "synopsisHindi": "14\u0935\u0940\u0902 \u0938\u0926\u0940 \u0915\u0947 \u092d\u093e\u0930\u0924 \u0915\u0940 \u090f\u0915 \u0916\u094c\u092b\u0928\u093e\u0915 \u0926\u093e\u0938\u094d\u0924\u093e\u0928\u0964 \u090f\u0915 \u0930\u0939\u0938\u094d\u092f\u092e\u092f\u0940 \u0915\u093e\u0924\u093f\u0932 \u0932\u094b\u0917\u094b\u0902 \u0915\u094b \u092c\u0947\u0930\u0939\u092e\u0940 \u0938\u0947 \u0936\u093f\u0915\u093e\u0930 \u092c\u0928\u093e \u0930\u0939\u093e \u0939\u0948\u0964 \u091c\u093e\u0902\u091a \u0905\u0927\u093f\u0915\u093e\u0930\u0940 \u092a\u094d\u0930\u0925\u094b\u0915\u0936 \u091c\u092c \u0907\u0938 \u0915\u0947\u0938 \u0915\u0940 \u0924\u0939 \u0924\u0915 \u092a\u0939\u0941\u0902\u091a\u0924\u093e \u0939\u0948, \u0924\u094b \u0916\u094c\u092b \u0914\u0930 \u0905\u0928\u0938\u0941\u0932\u091d\u0947 \u0930\u0939\u0938\u094d\u092f \u0938\u093e\u092e\u0928\u0947 \u0906\u0924\u0947 \u0939\u0948\u0902\u0964",
     "coverUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/6ab7d2da116131.63252921_1000331958.jpg",
     "bannerUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/6ab7d2da116131.63252921_1000331958.jpg",
     "author": "Deep Mangaka",
@@ -279,8 +289,8 @@ const INITIAL_SERIES: MangaSeries[] = [
     ],
     "status": "ongoing",
     "moderationStatus": "approved",
-    "totalViews": 142000,
-    "totalReads": 94500,
+    "totalViews": 0,
+    "totalReads": 0,
     "rating": 4.9,
     "releaseYear": 2026,
     "isExclusive": true,
@@ -299,11 +309,9 @@ const INITIAL_SERIES: MangaSeries[] = [
   {
     "id": "series_randamu_boken",
     "title": "Randamu Boken",
-    "titleHindi": "\u0930\u093e\u0928\u094d\u0926\u093e\u092e\u0941 \u092c\u094b\u0915\u0947\u0928",
     "titleJapanese": "\u30e9\u30f3\u30c0\u30e0\u5192\u967a",
     "slug": "randamu-boken",
     "synopsis": "Two chaotic teens, Asun and Prol, get dragged into a bizarre world where random events turn deadly\u2014like the mysterious Starfall Abyss that pulls them into a dangerous dimension. After barely surviving a madman, they\u2019re thrown into a desert where a stolen gem has caused a giant sandworm to go on a rampage. Now stuck in a world full of nonsense and danger, they must survive the chaos\u2026 while uncovering the truth behind why everything is so broken.",
-    "synopsisHindi": "\u0926\u094b \u092e\u0938\u094d\u0924\u092e\u094c\u0932\u093e \u0926\u094b\u0938\u094d\u0924, \u0905\u0938\u0941\u0928 \u0914\u0930 \u092a\u094d\u0930\u094b\u0932, \u090f\u0915 \u0935\u093f\u091a\u093f\u0924\u094d\u0930 \u0926\u0941\u0928\u093f\u092f\u093e \u092e\u0947\u0902 \u092b\u0902\u0938 \u091c\u093e\u0924\u0947 \u0939\u0948\u0902 \u091c\u0939\u093e\u0902 \u0939\u0930 \u0915\u0926\u092e \u092a\u0930 \u092e\u094c\u0924 \u0914\u0930 \u0905\u091c\u0940\u092c \u0918\u091f\u0928\u093e\u090f\u0902 \u0909\u0928\u0915\u093e \u0907\u0902\u0924\u091c\u093e\u0930 \u0915\u0930\u0924\u0940 \u0939\u0948\u0902\u0964 \u090f\u0915 \u0916\u0924\u0930\u0928\u093e\u0915 \u0930\u0947\u0917\u093f\u0938\u094d\u0924\u093e\u0928 \u092e\u0947\u0902 \u0938\u0948\u0902\u0921\u0935\u0930\u094d\u092e \u0938\u0947 \u092c\u091a\u0915\u0930 \u0909\u0928\u094d\u0939\u0947\u0902 \u0926\u0941\u0928\u093f\u092f\u093e \u0915\u0940 \u091f\u0942\u091f\u0940 \u0939\u0941\u0908 \u0939\u0915\u0940\u0915\u0924 \u0924\u0932\u093e\u0936\u0928\u0940 \u0939\u0948\u0964",
     "coverUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/6a87137777dab3.48759567_1000323788.jpg",
     "bannerUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/6a871274e871c1.28942451_1000324206.png",
     "author": "Flad Z",
@@ -317,11 +325,11 @@ const INITIAL_SERIES: MangaSeries[] = [
     ],
     "status": "ongoing",
     "moderationStatus": "approved",
-    "totalViews": 118000,
-    "totalReads": 78900,
+    "totalViews": 0,
+    "totalReads": 0,
     "rating": 4.8,
     "releaseYear": 2026,
-    "isExclusive": true,
+    "isExclusive": false,
     "isTrending": true,
     "rankNumber": 2,
     "tags": [
@@ -337,11 +345,9 @@ const INITIAL_SERIES: MangaSeries[] = [
   {
     "id": "series_the_trek",
     "title": "THE TREK - a point of no return",
-    "titleHindi": "\u0926 \u091f\u094d\u0930\u0947\u0915 - \u0905 \u092a\u0949\u0907\u0902\u091f \u0911\u092b \u0928\u094b \u0930\u093f\u091f\u0930\u094d\u0928",
-    "titleJapanese": "\u30b6\u30fb\u30c8\u30ec\u30c3\u30af",
+    "titleJapanese": "ザ・トレック",
     "slug": "the-trek-a-point-of-no-return",
     "synopsis": "THE TREK: Point of No Return. Six friends. One trek. A dense forest filled with unanswered questions. What begins as a simple adventure soon takes an unexpected turn as strange, terrifying events begin to unfold deep within the wilderness. Some journeys change you forever.",
-    "synopsisHindi": "\u091b\u0939 \u0926\u094b\u0938\u094d\u0924\u0964 \u090f\u0915 \u091f\u094d\u0930\u0947\u0915\u0964 \u0914\u0930 \u090f\u0915 \u0918\u0928\u093e, \u0930\u0939\u0938\u094d\u092f\u092e\u092f\u0940 \u091c\u0902\u0917\u0932\u0964 \u090f\u0915 \u0938\u093e\u0927\u093e\u0930\u0923 \u0939\u093e\u0907\u0915\u093f\u0902\u0917 \u091f\u094d\u0930\u093f\u092a \u0924\u092c \u092d\u092f\u093e\u0928\u0915 \u092e\u094b\u0921\u093c \u0932\u0947\u0924\u0940 \u0939\u0948 \u091c\u092c \u091c\u0902\u0917\u0932 \u0915\u0947 \u0917\u0939\u0930\u0947 \u0905\u0902\u0927\u0915\u093e\u0930 \u0938\u0947 \u0930\u0939\u0938\u094d\u092f\u092e\u092f\u0940 \u0918\u091f\u0928\u093e\u090f\u0902 \u0938\u093e\u092e\u0928\u0947 \u0906\u0928\u0947 \u0932\u0917\u0924\u0940 \u0939\u0948\u0902\u0964",
     "coverUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/6a29076d89c372.16893369_1000309960.jpg",
     "bannerUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/6a2bd2ef261ae3.40628049_1000310677.jpg",
     "author": "Jay",
@@ -354,11 +360,11 @@ const INITIAL_SERIES: MangaSeries[] = [
     ],
     "status": "completed",
     "moderationStatus": "approved",
-    "totalViews": 92000,
-    "totalReads": 61200,
+    "totalViews": 0,
+    "totalReads": 0,
     "rating": 4.9,
     "releaseYear": 2026,
-    "isExclusive": true,
+    "isExclusive": false,
     "isTrending": true,
     "rankNumber": 3,
     "tags": [
@@ -374,11 +380,9 @@ const INITIAL_SERIES: MangaSeries[] = [
   {
     "id": "series_chitrakatha_chintu",
     "title": "Chitra Khatha Chintu",
-    "titleHindi": "\u091a\u093f\u0924\u094d\u0930 \u0915\u0925\u093e \u091a\u093f\u0902\u091f\u0942",
-    "titleJapanese": "\u30c1\u30f3\u30c8\u30a5\u306e\u5730\u7403\u6f02\u6d41\u8a18",
+    "titleJapanese": "チントゥの地球漂流記",
     "slug": "chitrakatha-chintu",
-    "synopsis": "\u201cCrash-landed on a strange planet... alone.\u201d An alien finds himself stranded on Earth after a sudden cosmic accident separates him from his spaceship. With no knowledge of this unfamiliar world, every step he takes is filled with danger, mystery, and unexpected encounters. Lost and confused, he has only one goal \u2014 find his spaceship and return home. But on a planet he doesn\u2019t understand... can he survive long enough to find it? Or will Earth become his new prison forever? \ud83c\udf0d",
-    "synopsisHindi": "\u090f\u0915 \u0905\u0928\u091c\u093e\u0928 \u0917\u094d\u0930\u0939 \u092a\u0930 \u0905\u091a\u093e\u0928\u0915 \u0915\u094d\u0930\u0948\u0936 \u0932\u0948\u0902\u0921\u093f\u0902\u0917... \u092c\u093f\u0932\u094d\u0915\u0941\u0932 \u0905\u0915\u0947\u0932\u093e! \u090f\u0915 \u090f\u0932\u093f\u092f\u0928 \u0905\u092a\u0928\u0947 \u0938\u094d\u092a\u0947\u0938\u0936\u093f\u092a \u0938\u0947 \u092c\u093f\u091b\u0921\u093c\u0915\u0930 \u0927\u0930\u0924\u0940 \u092a\u0930 \u0906 \u0917\u093f\u0930\u0924\u093e \u0939\u0948\u0964 \u0915\u094d\u092f\u093e \u0935\u0939 \u0905\u092a\u0928\u0947 \u0918\u0930 \u0935\u093e\u092a\u0938 \u0932\u094c\u091f \u092a\u093e\u090f\u0917\u093e?",
+    "synopsis": "“Crash-landed on a strange planet... alone.” An alien finds himself stranded on Earth after a sudden cosmic accident separates him from his spaceship. With no knowledge of this unfamiliar world, every step he takes is filled with danger, mystery, and unexpected encounters. Lost and confused, he has only one goal — find his spaceship and return home. But on a planet he doesn’t understand... can he survive long enough to find it? Or will Earth become his new prison forever? 🌍",
     "coverUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/69fb04706d6c19.15945013_1000301442.png",
     "bannerUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/69da3e114cd0e0.37468586_1000295904.jpg",
     "author": "Team Arieschitrakatha",
@@ -391,11 +395,11 @@ const INITIAL_SERIES: MangaSeries[] = [
     ],
     "status": "ongoing",
     "moderationStatus": "approved",
-    "totalViews": 85000,
-    "totalReads": 54300,
+    "totalViews": 0,
+    "totalReads": 0,
     "rating": 4.8,
     "releaseYear": 2026,
-    "isExclusive": false,
+    "isExclusive": true,
     "isTrending": true,
     "rankNumber": 4,
     "tags": [
@@ -410,11 +414,9 @@ const INITIAL_SERIES: MangaSeries[] = [
   {
     "id": "series_a_promise_never_broken",
     "title": "A Promise Never Broken",
-    "titleHindi": "\u0905 \u092a\u094d\u0930\u0949\u092e\u093f\u0938 \u0928\u0947\u0935\u0930 \u092c\u094d\u0930\u094b\u0915\u0928",
-    "titleJapanese": "\u7834\u3089\u308c\u306a\u3044\u7d04\u675f",
+    "titleJapanese": "破られない約束",
     "slug": "a-promise-never-broken",
     "synopsis": "A beautifully crafted one-shot manga by indie creator OPUSHON. A deeply emotional, heart-touching, and relatable story revolving around personal reflections, sacred promises, and human emotions, blending everyday life with a touch of mystical fantasy.",
-    "synopsisHindi": "\u092a\u094d\u0930\u0924\u093f\u092d\u093e\u0936\u093e\u0932\u0940 \u0907\u0902\u0921\u0940 \u0915\u094d\u0930\u093f\u090f\u091f\u0930 OPUSHON \u0926\u094d\u0935\u093e\u0930\u093e \u0930\u091a\u093f\u0924 \u090f\u0915 \u0926\u093f\u0932 \u0915\u094b \u091b\u0942 \u0932\u0947\u0928\u0947 \u0935\u093e\u0932\u0940 \u0935\u0928-\u0936\u0949\u091f \u092e\u0902\u0917\u093e\u0964 \u092f\u0939 \u0915\u0939\u093e\u0928\u0940 \u092e\u093e\u0928\u0935\u0940\u092f \u0930\u093f\u0936\u094d\u0924\u094b\u0902, \u0905\u0928\u0915\u0939\u0947 \u0935\u093e\u0926\u094b\u0902 \u0914\u0930 \u092d\u093e\u0935\u0928\u093e\u0913\u0902 \u0915\u0940 \u090f\u0915 \u0938\u0941\u0902\u0926\u0930 \u0935 \u092d\u093e\u0935\u0941\u0915 \u0926\u093e\u0938\u094d\u0924\u093e\u0928 \u0939\u0948\u0964",
     "coverUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/6a12b7ebae80b6.31186119_1000305770.png",
     "bannerUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/6a17bff0138eb3.09994118_1000305770.png",
     "author": "Vikalp Draws (OPUSHON)",
@@ -427,8 +429,8 @@ const INITIAL_SERIES: MangaSeries[] = [
     ],
     "status": "completed",
     "moderationStatus": "approved",
-    "totalViews": 76000,
-    "totalReads": 49100,
+    "totalViews": 0,
+    "totalReads": 0,
     "rating": 4.9,
     "releaseYear": 2026,
     "isExclusive": false,
@@ -447,11 +449,9 @@ const INITIAL_SERIES: MangaSeries[] = [
   {
     "id": "series_veynx",
     "title": "Veynx",
-    "titleHindi": "\u0935\u0947\u0928\u093f\u0915\u094d\u0938",
-    "titleJapanese": "\u30f4\u30a7\u30a4\u30f3\u30af\u30b9",
+    "titleJapanese": "ヴェインクス",
     "slug": "veynx",
     "synopsis": "This is a story of a mysterious guy who meets his closest friend and reveals his dark, awakening superpowers. A spine-chilling supernatural encounter where shadows bleed into reality.",
-    "synopsisHindi": "\u090f\u0915 \u0930\u0939\u0938\u094d\u092f\u092e\u092f\u0940 \u0928\u094c\u091c\u0935\u093e\u0928 \u0915\u0940 \u0915\u0939\u093e\u0928\u0940 \u091c\u094b \u0905\u092a\u0928\u0947 \u092a\u0941\u0930\u093e\u0928\u0947 \u0926\u094b\u0938\u094d\u0924 \u0938\u0947 \u092e\u093f\u0932\u0924\u093e \u0939\u0948 \u0914\u0930 \u0905\u092a\u0928\u0940 \u0905\u0932\u094c\u0915\u093f\u0915 \u0936\u0915\u094d\u0924\u093f\u092f\u094b\u0902 \u0915\u093e \u0930\u093e\u091c \u0916\u094b\u0932\u0924\u093e \u0939\u0948\u0964",
     "coverUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/6a93bc5fa1c0e2.59529213_1000325583.png",
     "author": "Deep Mangaka",
     "artist": "Deep Mangaka",
@@ -463,11 +463,11 @@ const INITIAL_SERIES: MangaSeries[] = [
     ],
     "status": "completed",
     "moderationStatus": "approved",
-    "totalViews": 63000,
-    "totalReads": 41500,
+    "totalViews": 0,
+    "totalReads": 0,
     "rating": 4.7,
     "releaseYear": 2026,
-    "isExclusive": true,
+    "isExclusive": false,
     "isTrending": false,
     "tags": [
       "Superpowers",
@@ -481,11 +481,9 @@ const INITIAL_SERIES: MangaSeries[] = [
   {
     "id": "series_kivya",
     "title": "Kivya",
-    "titleHindi": "\u0915\u093f\u0935\u094d\u092f\u093e",
-    "titleJapanese": "\u30ad\u30f4\u30e4",
+    "titleJapanese": "キヴヤ",
     "slug": "kivya",
     "synopsis": "The quiet story of a girl who finds a bird while taking photographs through her vintage camera. Experience Kivya's chance encounter in this high-contrast, deeply meditative one-shot original.",
-    "synopsisHindi": "\u090f\u0915 \u0936\u093e\u0902\u0924 \u0932\u0921\u093c\u0915\u0940 \u0915\u093f\u0935\u094d\u092f\u093e \u0915\u0940 \u0926\u093e\u0938\u094d\u0924\u093e\u0928 \u091c\u094b \u0915\u0948\u092e\u0930\u0947 \u0938\u0947 \u0924\u0938\u094d\u0935\u0940\u0930\u0947\u0902 \u0916\u0940\u0902\u091a\u0924\u0947 \u0938\u092e\u092f \u090f\u0915 \u0918\u093e\u092f\u0932 \u092a\u0930\u093f\u0902\u0926\u0947 \u0938\u0947 \u092e\u093f\u0932\u0924\u0940 \u0939\u0948\u0964 \u091c\u093f\u0902\u0926\u0917\u0940 \u0915\u0940 \u0938\u093e\u0926\u0917\u0940 \u0914\u0930 \u0905\u092a\u094d\u0930\u0924\u094d\u092f\u093e\u0936\u093f\u0924 \u092e\u0941\u0932\u093e\u0915\u093e\u0924\u094b\u0902 \u0915\u0940 \u090f\u0915 \u0926\u093f\u0932\u0915\u0936 \u0915\u0939\u093e\u0928\u0940\u0964",
     "coverUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/6a7452656099c1.42883679_1000320734.png",
     "bannerUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/6a7455f08f3754.03522061_1000320734.png",
     "author": "Deep Mangaka",
@@ -497,8 +495,8 @@ const INITIAL_SERIES: MangaSeries[] = [
     ],
     "status": "completed",
     "moderationStatus": "approved",
-    "totalViews": 52000,
-    "totalReads": 34200,
+    "totalViews": 0,
+    "totalReads": 0,
     "rating": 4.8,
     "releaseYear": 2026,
     "isExclusive": false,
@@ -516,11 +514,9 @@ const INITIAL_SERIES: MangaSeries[] = [
   {
     "id": "series_my_dad_wants_a_daughter",
     "title": "My dad wants a daughter",
-    "titleHindi": "\u092e\u093e\u0908 \u0921\u0948\u0921 \u0935\u0949\u0928\u094d\u091f\u094d\u0938 \u0905 \u0921\u0949\u091f\u0930",
-    "titleJapanese": "\u7236\u306f\u5a18\u3092\u6b32\u3057\u304c\u3063\u3066\u3044\u308b",
+    "titleJapanese": "父は娘を欲しがっている",
     "slug": "my-dad-wants-a-daughter",
     "synopsis": "Explore a raw, unfiltered narrative of a son's radical transformation and the complex, shocking reactions within a traditional household. Mature themes and deep character tension.",
-    "synopsisHindi": "\u090f\u0915 \u0932\u0921\u093c\u0915\u0947 \u0915\u0947 \u091a\u094c\u0902\u0915\u093e\u0928\u0947 \u0935\u093e\u0932\u0947 \u092c\u0926\u0932\u093e\u0935 \u0914\u0930 \u0909\u0938\u0915\u0947 \u092a\u093e\u0930\u0902\u092a\u0930\u093f\u0915 \u092a\u0930\u093f\u0935\u093e\u0930 \u0915\u0940 \u0905\u092a\u094d\u0930\u0924\u094d\u092f\u093e\u0936\u093f\u0924 \u0935 \u092d\u093e\u0935\u0941\u0915 \u092a\u094d\u0930\u0924\u093f\u0915\u094d\u0930\u093f\u092f\u093e \u0915\u0940 \u090f\u0915 \u0917\u0939\u0928 \u0914\u0930 \u092f\u0925\u093e\u0930\u094d\u0925\u0935\u093e\u0926\u0940 \u0915\u0939\u093e\u0928\u0940\u0964",
     "coverUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/6a7c07df350083.34172826_1000321898.png",
     "author": "Deep Mangaka",
     "artist": "Deep Mangaka",
@@ -532,11 +528,11 @@ const INITIAL_SERIES: MangaSeries[] = [
     ],
     "status": "completed",
     "moderationStatus": "approved",
-    "totalViews": 71000,
-    "totalReads": 46800,
+    "totalViews": 0,
+    "totalReads": 0,
     "rating": 4.6,
     "releaseYear": 2026,
-    "isExclusive": true,
+    "isExclusive": false,
     "isTrending": false,
     "tags": [
       "Adult (18+)",
@@ -557,13 +553,12 @@ const INITIAL_CHAPTERS: Chapter[] = [
     "seriesId": "series_silent_heads",
     "chapterNumber": 1,
     "title": "Chapter 1: The First Clue",
-    "titleHindi": "\u0905\u0927\u094d\u092f\u093e\u092f \u0967: \u092a\u0939\u0932\u093e \u0938\u0941\u0930\u093e\u0917",
     "slug": "chapter-1-the-first-clue",
     "releaseDate": "2026-03-01",
     "isExclusiveVIP": false,
     "moderationStatus": "approved",
-    "viewsCount": 45200,
-    "likesCount": 3200,
+    "viewsCount": 0,
+    "likesCount": 0,
     "panels": [
       {
         "id": "panel_sh1_1",
@@ -667,13 +662,12 @@ const INITIAL_CHAPTERS: Chapter[] = [
     "seriesId": "series_randamu_boken",
     "chapterNumber": 1,
     "title": "Chapter 1: Starfall Abyss",
-    "titleHindi": "\u0905\u0927\u094d\u092f\u093e\u092f \u0967: \u0938\u094d\u091f\u093e\u0930\u092b\u0949\u0932 \u0916\u093e\u0908",
     "slug": "chapter-1-chapter-1-starfall-abyss",
     "releaseDate": "2026-03-01",
     "isExclusiveVIP": false,
     "moderationStatus": "approved",
-    "viewsCount": 38000,
-    "likesCount": 2800,
+    "viewsCount": 0,
+    "likesCount": 0,
     "panels": [
       {
         "id": "panel_rb1_1",
@@ -787,13 +781,12 @@ const INITIAL_CHAPTERS: Chapter[] = [
     "seriesId": "series_randamu_boken",
     "chapterNumber": 2,
     "title": "Chapter 2: Sandworm Rampage",
-    "titleHindi": "\u0905\u0927\u094d\u092f\u093e\u092f \u0968: \u0938\u0948\u0902\u0921\u0935\u0930\u094d\u092e \u0915\u093e \u092a\u094d\u0930\u0915\u094b\u092a",
     "slug": "chapter-2-chapter-2-sandworm-rampage",
     "releaseDate": "2026-03-02",
     "isExclusiveVIP": false,
     "moderationStatus": "approved",
-    "viewsCount": 34500,
-    "likesCount": 2550,
+    "viewsCount": 0,
+    "likesCount": 0,
     "panels": [
       {
         "id": "panel_rb2_1",
@@ -882,13 +875,12 @@ const INITIAL_CHAPTERS: Chapter[] = [
     "seriesId": "series_randamu_boken",
     "chapterNumber": 3,
     "title": "Chapter 3: The Broken Dimension",
-    "titleHindi": "\u0905\u0927\u094d\u092f\u093e\u092f \u0969: \u091f\u0942\u091f\u093e \u0939\u0941\u0906 \u0906\u092f\u093e\u092e",
     "slug": "chapter-3-chapter-3-the-broken-dimension",
     "releaseDate": "2026-03-03",
     "isExclusiveVIP": false,
     "moderationStatus": "approved",
-    "viewsCount": 31000,
-    "likesCount": 2300,
+    "viewsCount": 0,
+    "likesCount": 0,
     "panels": [
       {
         "id": "panel_rb3_1",
@@ -982,13 +974,12 @@ const INITIAL_CHAPTERS: Chapter[] = [
     "seriesId": "series_randamu_boken",
     "chapterNumber": 4,
     "title": "Chapter 4: Nonsense & Danger",
-    "titleHindi": "\u0905\u0927\u094d\u092f\u093e\u092f \u096a: \u092c\u0915\u0935\u093e\u0938 \u0914\u0930 \u0916\u0924\u0930\u093e",
     "slug": "chapter-4-chapter-4-nonsense-and-danger",
     "releaseDate": "2026-03-04",
     "isExclusiveVIP": true,
     "moderationStatus": "approved",
-    "viewsCount": 27500,
-    "likesCount": 2050,
+    "viewsCount": 0,
+    "likesCount": 0,
     "panels": [
       {
         "id": "panel_rb4_1",
@@ -1077,13 +1068,12 @@ const INITIAL_CHAPTERS: Chapter[] = [
     "seriesId": "series_randamu_boken",
     "chapterNumber": 5,
     "title": "Chapter 5: Unraveling the Chaos",
-    "titleHindi": "\u0905\u0927\u094d\u092f\u093e\u092f \u096b: \u0905\u0930\u093e\u091c\u0915\u0924\u093e \u0915\u0940 \u0938\u0941\u0932\u091d\u0928",
     "slug": "chapter-5-chapter-5-unraveling-the-chaos",
     "releaseDate": "2026-03-05",
     "isExclusiveVIP": true,
     "moderationStatus": "approved",
-    "viewsCount": 24000,
-    "likesCount": 1800,
+    "viewsCount": 0,
+    "likesCount": 0,
     "panels": [
       {
         "id": "panel_rb5_1",
@@ -1217,13 +1207,12 @@ const INITIAL_CHAPTERS: Chapter[] = [
     "seriesId": "series_the_trek",
     "chapterNumber": 1,
     "title": "Chapter 1: Point of No Return (Complete)",
-    "titleHindi": "\u0905\u0927\u094d\u092f\u093e\u092f \u0967: \u092a\u0949\u0907\u0902\u091f \u0911\u092b \u0928\u094b \u0930\u093f\u091f\u0930\u094d\u0928 (\u092a\u0942\u0930\u094d\u0923)",
     "slug": "chapter-1-point-of-no-return-complete",
     "releaseDate": "2026-03-05",
     "isExclusiveVIP": false,
     "moderationStatus": "approved",
-    "viewsCount": 42100,
-    "likesCount": 3100,
+    "viewsCount": 0,
+    "likesCount": 0,
     "panels": [
       {
         "id": "panel_trek1_1",
@@ -1632,13 +1621,12 @@ const INITIAL_CHAPTERS: Chapter[] = [
     "seriesId": "series_chitrakatha_chintu",
     "chapterNumber": 1,
     "title": "Chapter 1: Crash Landed on Earth",
-    "titleHindi": "\u0905\u0927\u094d\u092f\u093e\u092f \u0967: \u0927\u0930\u0924\u0940 \u092a\u0930 \u0915\u094d\u0930\u0948\u0936 \u0932\u0948\u0902\u0921\u093f\u0902\u0917",
     "slug": "chapter-1-crash-landed-on-earth",
     "releaseDate": "2026-03-08",
     "isExclusiveVIP": false,
     "moderationStatus": "approved",
-    "viewsCount": 36500,
-    "likesCount": 2600,
+    "viewsCount": 0,
+    "likesCount": 0,
     "panels": [
       {
         "id": "panel_chintu1_1",
@@ -1772,13 +1760,12 @@ const INITIAL_CHAPTERS: Chapter[] = [
     "seriesId": "series_a_promise_never_broken",
     "chapterNumber": 1,
     "title": "Chapter 1: Eternal Bond (One-Shot)",
-    "titleHindi": "\u0905\u0927\u094d\u092f\u093e\u092f \u0967: \u0905\u091f\u0942\u091f \u092c\u0902\u0927\u0928 (\u0935\u0928-\u0936\u0949\u091f)",
     "slug": "chapter-1-eternal-bond-one-shot",
     "releaseDate": "2026-03-12",
     "isExclusiveVIP": false,
     "moderationStatus": "approved",
-    "viewsCount": 31200,
-    "likesCount": 2400,
+    "viewsCount": 0,
+    "likesCount": 0,
     "panels": [
       {
         "id": "panel_promise1_1",
@@ -1862,13 +1849,12 @@ const INITIAL_CHAPTERS: Chapter[] = [
     "seriesId": "series_veynx",
     "chapterNumber": 1,
     "title": "Chapter 1: Awoken Power (One-Shot)",
-    "titleHindi": "\u0905\u0927\u094d\u092f\u093e\u092f \u0967: \u091c\u093e\u0917\u0943\u0924 \u0936\u0915\u094d\u0924\u093f (\u0935\u0928-\u0936\u0949\u091f)",
     "slug": "chapter-1-awoken-power-one-shot",
     "releaseDate": "2026-03-15",
     "isExclusiveVIP": false,
     "moderationStatus": "approved",
-    "viewsCount": 28400,
-    "likesCount": 2100,
+    "viewsCount": 0,
+    "likesCount": 0,
     "panels": [
       {
         "id": "panel_veynx1_1",
@@ -1907,13 +1893,12 @@ const INITIAL_CHAPTERS: Chapter[] = [
     "seriesId": "series_kivya",
     "chapterNumber": 1,
     "title": "Chapter 1: The Bird and the Lens (One-Shot)",
-    "titleHindi": "\u0905\u0927\u094d\u092f\u093e\u092f \u0967: \u092a\u0930\u093f\u0902\u0926\u093e \u0914\u0930 \u0932\u0947\u0902\u0938 (\u0935\u0928-\u0936\u0949\u091f)",
     "slug": "chapter-1-the-bird-and-the-lens-one-shot",
     "releaseDate": "2026-03-18",
     "isExclusiveVIP": false,
     "moderationStatus": "approved",
-    "viewsCount": 26700,
-    "likesCount": 1950,
+    "viewsCount": 0,
+    "likesCount": 0,
     "panels": [
       {
         "id": "panel_kivya1_1",
@@ -1972,13 +1957,12 @@ const INITIAL_CHAPTERS: Chapter[] = [
     "seriesId": "series_my_dad_wants_a_daughter",
     "chapterNumber": 1,
     "title": "Chapter 1: Radical Shift (One-Shot)",
-    "titleHindi": "\u0905\u0927\u094d\u092f\u093e\u092f \u0967: \u091a\u094c\u0902\u0915\u093e\u0928\u0947 \u0935\u093e\u0932\u093e \u092c\u0926\u0932\u093e\u0935 (\u0935\u0928-\u0936\u0949\u091f)",
     "slug": "chapter-1-radical-shift-one-shot",
     "releaseDate": "2026-03-22",
     "isExclusiveVIP": true,
     "moderationStatus": "approved",
-    "viewsCount": 34900,
-    "likesCount": 2350,
+    "viewsCount": 0,
+    "likesCount": 0,
     "panels": [
       {
         "id": "panel_dad1_1",
@@ -2080,7 +2064,7 @@ function getStored<T>(key: string, defaultVal: T): T {
   }
 }
 
-// Clean-up any legacy mock reviews and comments so they start at 0 until real users submit
+// Clean-up any legacy mock reviews, comments, and stats so everything starts at 0
 try {
   const revRaw = localStorage.getItem(STORAGE_KEYS.REVIEWS);
   if (revRaw && (revRaw.includes('rev_01') || revRaw.includes('Deep Mangaka captures') || revRaw.includes('mock_ai') || revRaw.includes('A masterpiece of psychological'))) {
@@ -2089,6 +2073,18 @@ try {
   const comRaw = localStorage.getItem(STORAGE_KEYS.COMMENTS);
   if (comRaw && (comRaw.includes('c1') || comRaw.includes('The atmosphere is chilling') || comRaw.includes('mock_ai'))) {
     localStorage.setItem(STORAGE_KEYS.COMMENTS, JSON.stringify([]));
+  }
+  const serRaw = localStorage.getItem(STORAGE_KEYS.SERIES);
+  if (serRaw && (serRaw.includes('142000') || serRaw.includes('118000') || serRaw.includes('92000') || serRaw.includes('85000'))) {
+    localStorage.removeItem(STORAGE_KEYS.SERIES);
+  }
+  const chRaw = localStorage.getItem(STORAGE_KEYS.CHAPTERS);
+  if (chRaw && (chRaw.includes('45200') || chRaw.includes('24000') || chRaw.includes('38000') || chRaw.includes('34500'))) {
+    localStorage.removeItem(STORAGE_KEYS.CHAPTERS);
+  }
+  const crRaw = localStorage.getItem(STORAGE_KEYS.CREATORS);
+  if (crRaw && (crRaw.includes('48500') || crRaw.includes('191200') || crRaw.includes('78900') || crRaw.includes('24800'))) {
+    localStorage.removeItem(STORAGE_KEYS.CREATORS);
   }
 } catch {
   // Ignore in SSR/restricted environments
@@ -2108,16 +2104,61 @@ function setStored<T>(key: string, val: T): void {
 export const StorageService = {
   // Users & Session
   getUsers(): User[] {
-    const list = getStored<User[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
-    return list.map(u => {
+    const rawList = getStored<User[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
+    let hasAdmin = false;
+
+    const list = rawList.map(u => {
+      // Check if this is the system admin account (or any legacy admin entry)
+      const isAdminAccount =
+        u.id === OFFICIAL_ADMIN.id ||
+        u.email?.toLowerCase() === OFFICIAL_ADMIN.email.toLowerCase() ||
+        u.email?.toLowerCase() === OFFICIAL_ADMIN.altEmail.toLowerCase() ||
+        u.email?.toLowerCase() === 'huntsmp51@gmail.com' ||
+        u.username?.toLowerCase() === 'admin' ||
+        u.username?.toLowerCase() === 'mangawild_admin';
+
+      if (isAdminAccount) {
+        hasAdmin = true;
+        return {
+          ...u,
+          id: OFFICIAL_ADMIN.id,
+          name: 'Admin',
+          username: OFFICIAL_ADMIN.username,
+          email: OFFICIAL_ADMIN.email,
+          password: OFFICIAL_ADMIN.password,
+          role: 'admin' as UserRole,
+          isVIP: true,
+          avatarUrl: u.avatarUrl || '/avatars/admin.svg',
+        };
+      }
+
+      // STRICT SECURITY: No other account can EVER hold the 'admin' role!
+      const safeRole: UserRole = u.role === 'admin' ? 'free_user' : u.role;
       const cleanUser = u.username || (u.email ? u.email.split('@')[0] : 'user').replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
       return {
         ...u,
         name: cleanUser,
         username: cleanUser,
-        password: u.password || (u.role === 'admin' || u.email === 'huntsmp51@gmail.com' ? 'admin123' : 'password123'),
+        role: safeRole,
+        password: u.password || 'password123',
       };
     });
+
+    if (!hasAdmin) {
+      list.unshift({
+        id: OFFICIAL_ADMIN.id,
+        email: OFFICIAL_ADMIN.email,
+        name: 'Admin',
+        username: OFFICIAL_ADMIN.username,
+        password: OFFICIAL_ADMIN.password,
+        role: 'admin',
+        avatarUrl: '/avatars/admin.svg',
+        isVIP: true,
+        createdAt: '2026-01-01T00:00:00Z',
+      });
+    }
+
+    return list;
   },
 
   saveUsers(users: User[]): void {
@@ -2203,12 +2244,23 @@ export const StorageService = {
   // Manga Series
   getSeries(): MangaSeries[] {
     const list = getStored<MangaSeries[]>(STORAGE_KEYS.SERIES, INITIAL_SERIES);
-    return list.map(s => ({
-      ...s,
-      totalViews: s.totalViews ?? 12500,
-      likesCount: s.likesCount ?? Math.max(120, Math.round((s.totalReads || 1000) * 0.12)),
-      bookmarkedCount: s.bookmarkedCount ?? Math.max(45, Math.round((s.totalReads || 1000) * 0.05)),
-    }));
+    return list.map(s => {
+      // ONLY Silent Heads and Chintu are Exclusive
+      const isTargetExclusive =
+        s.id === 'series_silent_heads' ||
+        s.id === 'series_chitrakatha_chintu' ||
+        s.slug === 'silent-heads' ||
+        s.slug === 'chitrakatha-chintu' ||
+        s.slug === 'chintu';
+      return {
+        ...s,
+        isExclusive: isTargetExclusive,
+        totalViews: s.totalViews ?? 0,
+        totalReads: s.totalReads ?? 0,
+        likesCount: s.likesCount ?? 0,
+        bookmarkedCount: s.bookmarkedCount ?? 0,
+      };
+    });
   },
 
   saveSeries(seriesList: MangaSeries[]): void {
@@ -2226,11 +2278,9 @@ export const StorageService = {
     const newSeries: MangaSeries = {
       id,
       title: seriesData.title,
-      titleHindi: seriesData.titleHindi || '',
       titleJapanese: seriesData.titleJapanese || '',
       slug,
       synopsis: seriesData.synopsis || 'An exciting new manga series on MangaWild.',
-      synopsisHindi: seriesData.synopsisHindi || '',
       coverUrl: seriesData.coverUrl || 'https://d1yei2z3i6k35z.cloudfront.net/17195590/6ab7d2da116131.63252921_1000331958.jpg',
       author: seriesData.author,
       artist: seriesData.artist || seriesData.author,
@@ -2283,10 +2333,19 @@ export const StorageService = {
   // Chapters & Panels
   getChapters(seriesId?: string): Chapter[] {
     const all = getStored<Chapter[]>(STORAGE_KEYS.CHAPTERS, INITIAL_CHAPTERS);
+    const mapped = all.map(c => {
+      const isExclusiveSeries =
+        c.seriesId === 'series_silent_heads' ||
+        c.seriesId === 'series_chitrakatha_chintu';
+      return {
+        ...c,
+        isExclusiveVIP: isExclusiveSeries,
+      };
+    });
     if (seriesId) {
-      return all.filter(c => c.seriesId === seriesId).sort((a, b) => a.chapterNumber - b.chapterNumber);
+      return mapped.filter(c => c.seriesId === seriesId).sort((a, b) => a.chapterNumber - b.chapterNumber);
     }
-    return all;
+    return mapped;
   },
 
   saveChapters(chapters: Chapter[]): void {
@@ -2301,7 +2360,6 @@ export const StorageService = {
     seriesId: string;
     chapterNumber: number;
     title: string;
-    titleHindi?: string;
     isExclusiveVIP: boolean;
     panels: ChapterPanel[];
   }): Chapter {
@@ -2311,7 +2369,6 @@ export const StorageService = {
       seriesId: chapterData.seriesId,
       chapterNumber: chapterData.chapterNumber,
       title: chapterData.title,
-      titleHindi: chapterData.titleHindi,
       slug: `chapter-${chapterData.chapterNumber}-${chapterData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
       releaseDate: new Date().toISOString().split('T')[0],
       isExclusiveVIP: chapterData.isExclusiveVIP,
@@ -2796,7 +2853,27 @@ export const StorageService = {
     const all = getStored<Comment[]>(STORAGE_KEYS.COMMENTS, INITIAL_COMMENTS);
     const targetIdx = all.findIndex(c => c.id === commentId);
     if (targetIdx === -1) return false;
-    if (!isAdmin && all[targetIdx].userId !== userId) return false;
+
+    // Retrieve locally tracked user-created comment IDs as fallback
+    let myLocalComments: string[] = [];
+    try {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('mangawild_my_comments');
+        if (stored) myLocalComments = JSON.parse(stored);
+      }
+    } catch {
+      myLocalComments = [];
+    }
+
+    const comment = all[targetIdx];
+    const isOwner =
+      isAdmin ||
+      comment.userId === userId ||
+      myLocalComments.includes(commentId) ||
+      (userId && comment.userId && comment.userId === userId);
+
+    if (!isOwner && !isAdmin) return false;
+
     all.splice(targetIdx, 1);
     setStored(STORAGE_KEYS.COMMENTS, all);
     return true;
@@ -2887,6 +2964,63 @@ export const StorageService = {
     return s.totalViews;
   },
 
+  // Real-time Dynamic View Tracking
+  incrementChapterViews(chapterId: string, seriesId: string): void {
+    try {
+      // 1. Increment chapter views
+      const chapters = this.getChapters();
+      const ch = chapters.find(c => c.id === chapterId);
+      if (ch) {
+        ch.viewsCount = (ch.viewsCount || 0) + 1;
+        this.saveChapters(chapters);
+      }
+
+      // 2. Increment series views and total reads
+      const seriesList = this.getSeries();
+      const s = seriesList.find(item => item.id === seriesId);
+      if (s) {
+        s.totalViews = (s.totalViews || 0) + 1;
+        s.totalReads = (s.totalReads || 0) + 1;
+        this.saveSeries(seriesList);
+
+        // 3. Increment creator reads
+        if (s.creatorId) {
+          const creators = this.getCreators();
+          const creator = creators.find(c => c.id === s.creatorId || c.userId === s.creatorId);
+          if (creator) {
+            creator.totalReads = (creator.totalReads || 0) + 1;
+            this.saveCreators(creators);
+          }
+        }
+      }
+
+      // 4. Record daily view log for creator analytics
+      const today = new Date().toISOString().split('T')[0];
+      const dailyViewsMap = getStored<Record<string, number>>('mw_daily_views_log', {});
+      dailyViewsMap[today] = (dailyViewsMap[today] || 0) + 1;
+      setStored('mw_daily_views_log', dailyViewsMap);
+    } catch (e) {
+      console.error('Failed to increment chapter views:', e);
+    }
+  },
+
+  getDailyViewsHistory(days: number = 30): { date: string; day: string; views: number }[] {
+    const dailyViewsMap = getStored<Record<string, number>>('mw_daily_views_log', {});
+    const result: { date: string; day: string; views: number }[] = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const iso = d.toISOString().split('T')[0];
+      const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      result.push({
+        date: iso,
+        day: label,
+        views: dailyViewsMap[iso] || 0,
+      });
+    }
+    return result;
+  },
+
   // Helper to find creator by author name or handle
   getCreatorByAuthorName(authorName: string): CreatorProfile | undefined {
     if (!authorName) return undefined;
@@ -2924,9 +3058,9 @@ export const StorageService = {
           twitter: `https://x.com/${clean.replace(/\s+/g, '_')}`,
           website: 'https://mangawild.com',
         },
-        followersCount: Math.max(140, Math.round((series.totalReads || 1500) * 0.08)),
+        followersCount: 0,
         seriesCount: 1,
-        totalReads: series.totalReads || 12000,
+        totalReads: series.totalReads ?? 0,
         monthlyEarningsInr: 0,
         revenueSharePercent: 70,
         verified: true,
@@ -2988,6 +3122,19 @@ export const StorageService = {
       map[userId] = [...list, creatorId];
     }
     setStored(STORAGE_KEYS.FOLLOWED_CREATORS, map);
+
+    // Dynamically update followersCount on CreatorProfile
+    const creators = this.getCreators();
+    const target = creators.find(c => c.id === creatorId || c.userId === creatorId);
+    if (target) {
+      if (isFollowing) {
+        target.followersCount = Math.max(0, (target.followersCount || 1) - 1);
+      } else {
+        target.followersCount = (target.followersCount || 0) + 1;
+      }
+      this.saveCreators(creators);
+    }
+
     return !isFollowing;
   },
 
@@ -3055,6 +3202,103 @@ export const StorageService = {
       }
     });
     setStored(STORAGE_KEYS.NOTIFICATIONS, all);
+  },
+
+  // User Issue Reports
+  getReports(): UserReport[] {
+    return getStored<UserReport[]>(STORAGE_KEYS.REPORTS, []);
+  },
+
+  addReport(reportData: Omit<UserReport, 'id' | 'createdAt' | 'status'>): UserReport {
+    const all = this.getReports();
+    const newReport: UserReport = {
+      ...reportData,
+      id: `rep_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      createdAt: new Date().toISOString(),
+      status: 'pending',
+    };
+    all.unshift(newReport);
+    setStored(STORAGE_KEYS.REPORTS, all);
+
+    // Also add system notification to admin
+    this.addNotification({
+      id: `notif_rep_${Date.now()}`,
+      userId: 'user_admin_01',
+      title: `New Issue Reported: ${newReport.categoryLabel}`,
+      message: `"${newReport.subject}" - ${newReport.description.slice(0, 80)}...`,
+      type: 'system',
+      read: false,
+      createdAt: new Date().toISOString(),
+      link: '/admin',
+    });
+
+    return newReport;
+  },
+
+  deleteReport(id: string): void {
+    const all = this.getReports().filter(r => r.id !== id);
+    setStored(STORAGE_KEYS.REPORTS, all);
+  },
+
+  updateReportStatus(id: string, status: 'pending' | 'reviewed' | 'resolved'): void {
+    const all = this.getReports();
+    const item = all.find(r => r.id === id);
+    if (item) {
+      item.status = status;
+      setStored(STORAGE_KEYS.REPORTS, all);
+    }
+  },
+
+  // Password Reset with OTP
+  savePasswordResetOTP(email: string, otp: string): void {
+    const allResets = getStored<Record<string, { otp: string; expiresAt: number }>>(
+      STORAGE_KEYS.PASSWORD_RESETS,
+      {}
+    );
+    allResets[email.trim().toLowerCase()] = {
+      otp: otp.trim(),
+      expiresAt: Date.now() + 15 * 60 * 1000, // 15 mins validity
+    };
+    setStored(STORAGE_KEYS.PASSWORD_RESETS, allResets);
+  },
+
+  verifyPasswordResetOTP(email: string, enteredOtp: string): boolean {
+    const allResets = getStored<Record<string, { otp: string; expiresAt: number }>>(
+      STORAGE_KEYS.PASSWORD_RESETS,
+      {}
+    );
+    const record = allResets[email.trim().toLowerCase()];
+    if (!record) return false;
+    if (Date.now() > record.expiresAt) return false;
+    return record.otp === enteredOtp.trim();
+  },
+
+  resetPassword(email: string, newPassword: string): boolean {
+    const allUsers = this.getUsers();
+    const target = allUsers.find(
+      u => u.email.toLowerCase() === email.trim().toLowerCase()
+    );
+    if (!target) return false;
+
+    target.password = newPassword;
+    this.saveUsers(allUsers);
+
+    // If current user is logged in as this user, update them
+    const current = this.getCurrentUser();
+    if (current && current.email.toLowerCase() === email.trim().toLowerCase()) {
+      current.password = newPassword;
+      this.setCurrentUser(current);
+    }
+
+    // Clean up reset OTP record
+    const allResets = getStored<Record<string, { otp: string; expiresAt: number }>>(
+      STORAGE_KEYS.PASSWORD_RESETS,
+      {}
+    );
+    delete allResets[email.trim().toLowerCase()];
+    setStored(STORAGE_KEYS.PASSWORD_RESETS, allResets);
+
+    return true;
   },
 
   // Reset to Factory Seed

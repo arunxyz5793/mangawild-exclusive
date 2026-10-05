@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Star, BookOpen, Crown, ChevronRight, Heart, Eye } from 'lucide-react';
+import { Search, Star, BookOpen, Crown, ChevronRight, Heart, Eye, Lock } from 'lucide-react';
 import { StorageService } from '../services/storage';
 import { MangaSeries, MangaGenre } from '../types/manga';
 import { useTheme } from '../context/ThemeContext';
@@ -8,9 +8,17 @@ interface BrowsePageProps {
   onSelectSeries: (seriesId: string) => void;
   onOpenVIPModal: () => void;
   onNavigate?: (view: string, params?: Record<string, string>) => void;
+  initialSortBy?: 'popularity' | 'rating' | 'latest';
+  isNewSeriesView?: boolean;
 }
 
-export const BrowsePage: React.FC<BrowsePageProps> = ({ onSelectSeries, onOpenVIPModal, onNavigate }) => {
+export const BrowsePage: React.FC<BrowsePageProps> = ({
+  onSelectSeries,
+  onOpenVIPModal,
+  onNavigate,
+  initialSortBy,
+  isNewSeriesView,
+}) => {
   const { theme } = useTheme();
   const allSeries = useMemo(() => StorageService.getSeries().filter(s => s.moderationStatus === 'approved'), []);
 
@@ -18,7 +26,7 @@ export const BrowsePage: React.FC<BrowsePageProps> = ({ onSelectSeries, onOpenVI
   const [selectedGenre, setSelectedGenre] = useState<string>('All');
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'ongoing' | 'completed'>('all');
   const [vipOnly, setVipOnly] = useState(false);
-  const [sortBy, setSortBy] = useState<'popularity' | 'rating' | 'latest'>('popularity');
+  const [sortBy, setSortBy] = useState<'popularity' | 'rating' | 'latest'>(initialSortBy || (isNewSeriesView ? 'latest' : 'popularity'));
 
   const genres = [
     'All',
@@ -66,10 +74,12 @@ export const BrowsePage: React.FC<BrowsePageProps> = ({ onSelectSeries, onOpenVI
               theme === 'dark' ? 'text-white' : 'text-zinc-900'
             }`}
           >
-            Explore Manga Catalog
+            {isNewSeriesView ? 'New Series & Fresh Releases' : 'Explore Manga Catalog'}
           </h1>
           <p className="text-sm text-zinc-400 mt-1">
-            Discover original serialized graphic novels, webtoons, and manga series
+            {isNewSeriesView
+              ? 'Discover newly serialized indie manga, fresh weekly drops, and original comic releases'
+              : 'Discover original serialized graphic novels, webtoons, and manga series'}
           </p>
         </div>
 
@@ -139,13 +149,13 @@ export const BrowsePage: React.FC<BrowsePageProps> = ({ onSelectSeries, onOpenVI
               onClick={() => setVipOnly(!vipOnly)}
               className={`px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 transition-all cursor-pointer border ${
                 vipOnly
-                  ? 'bg-purple-600 text-white border-purple-500 font-mono shadow-xs'
+                  ? 'bg-white text-zinc-950 border-white font-mono shadow-xs'
                   : theme === 'dark'
-                  ? 'border-transparent text-zinc-400 hover:text-white'
-                  : 'border-transparent text-zinc-600 hover:text-zinc-950'
+                  ? 'border-zinc-800 text-zinc-400 hover:text-white bg-zinc-900/60'
+                  : 'border-zinc-300 text-zinc-600 hover:text-zinc-950 bg-zinc-100'
               }`}
             >
-              <Crown className="w-3 h-3 text-amber-400" />
+              <Lock className="w-3 h-3 text-current" />
               <span>VIP Only</span>
             </button>
           </div>
@@ -238,7 +248,7 @@ export const BrowsePage: React.FC<BrowsePageProps> = ({ onSelectSeries, onOpenVI
 
                 <div className="space-y-1">
                   <h3
-                    className={`text-sm font-bold truncate group-hover:text-purple-400 transition-colors ${
+                    className={`text-sm font-bold truncate group-hover:text-zinc-300 transition-colors ${
                       theme === 'dark' ? 'text-white' : 'text-zinc-900'
                     }`}
                   >
@@ -252,7 +262,7 @@ export const BrowsePage: React.FC<BrowsePageProps> = ({ onSelectSeries, onOpenVI
                       e.stopPropagation();
                       onNavigate?.('creator-profile', { id: series.creatorId, author: series.author });
                     }}
-                    className="text-[11px] text-zinc-400 hover:text-purple-400 hover:underline font-mono truncate text-left block w-full cursor-pointer"
+                    className="text-[11px] text-zinc-400 hover:text-white hover:underline font-mono truncate text-left block w-full cursor-pointer"
                     title={`View ${series.author}'s Creator Profile`}
                   >
                     by {series.author}
@@ -274,14 +284,14 @@ export const BrowsePage: React.FC<BrowsePageProps> = ({ onSelectSeries, onOpenVI
                 <div className="flex items-center gap-2">
                   <span className="flex items-center gap-0.5" title="Total Views">
                     <Eye className="w-3 h-3 text-zinc-400" />
-                    <span>{(series.totalViews || 12000).toLocaleString()}</span>
+                    <span>{(series.totalViews ?? 0).toLocaleString()}</span>
                   </span>
-                  <span className="flex items-center gap-0.5 text-rose-400" title="Likes">
-                    <Heart className="w-3 h-3 fill-current" />
-                    <span>{(series.likesCount || 850).toLocaleString()}</span>
+                  <span className="flex items-center gap-0.5 text-zinc-400" title="Likes">
+                    <Heart className="w-3 h-3" />
+                    <span>{(series.likesCount ?? 0).toLocaleString()}</span>
                   </span>
                 </div>
-                <span className="text-purple-400 font-bold flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
+                <span className="text-zinc-300 font-bold flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
                   <span>View</span>
                   <ChevronRight className="w-3 h-3" />
                 </span>

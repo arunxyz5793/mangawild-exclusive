@@ -15,6 +15,7 @@ import {
   Eye,
   Lock,
   Crown,
+  UserPlus,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -27,7 +28,7 @@ interface SeriesDetailPageProps {
   seriesId: string;
   onReadChapter: (seriesId: string, chapterId: string) => void;
   onNavigate: (view: string, params?: Record<string, string>) => void;
-  onOpenVIPModal?: () => void;
+  onOpenVIPModal?: (planId?: 'monthly' | 'yearly') => void;
 }
 
 export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
@@ -41,7 +42,38 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
 
   const [series, setSeries] = useState<MangaSeries | undefined>(() => StorageService.getSeriesById(seriesId));
   const chapters = useMemo(() => StorageService.getChapters(seriesId), [seriesId]);
-  const creator = useMemo(() => (series ? StorageService.getCreatorById(series.creatorId) : undefined), [series]);
+  const [creatorProfile, setCreatorProfile] = useState(() => {
+    if (!series) return undefined;
+    let found = StorageService.getCreatorById(series.creatorId);
+    if (!found && series.author) {
+      found = StorageService.getCreatorByAuthorName(series.author);
+    }
+    if (!found && series.author) {
+      const all = StorageService.getCreators();
+      const newProf = {
+        id: series.creatorId || `creator_${encodeURIComponent(series.author.toLowerCase())}`,
+        userId: `user_${encodeURIComponent(series.author.toLowerCase())}`,
+        penName: series.author,
+        handle: `@${series.author.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
+        bio: `Original mangaka and graphic novel creator of "${series.title}".`,
+        avatarUrl: series.coverUrl || '/avatars/avatar-3.svg',
+        verified: true,
+        followersCount: 142,
+        totalReads: series.totalViews || 1200,
+        seriesCount: 1,
+        joinedDate: '2026-01-15',
+        joinedAt: '2026-01-15',
+        monthlyEarningsInr: 0,
+        revenueSharePercent: 70,
+        socialLinks: {},
+      };
+      all.push(newProf);
+      StorageService.saveCreators(all);
+      return newProf;
+    }
+    return found;
+  });
+  const creator = creatorProfile;
   const readingHistory = useMemo(() => StorageService.getReadingHistory(user.id), [user.id]);
 
   const [shareCopied, setShareCopied] = useState(false);
@@ -69,8 +101,7 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
       const q = chapterSearchQuery.toLowerCase().trim();
       list = list.filter(
         c => c.title.toLowerCase().includes(q) ||
-             c.chapterNumber.toString().includes(q) ||
-             Boolean(c.titleHindi && c.titleHindi.toLowerCase().includes(q))
+             c.chapterNumber.toString().includes(q)
       );
     }
     if (sortOrder === 'desc') {
@@ -132,11 +163,12 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
               className="w-full h-full object-cover"
             />
             {series.isExclusive && (
-              <span className={`absolute top-3 right-3 text-xs font-black tracking-widest px-2.5 py-1 rounded shadow-lg uppercase font-mono border ${
+              <span className={`absolute top-3 right-3 text-[10px] font-bold tracking-widest px-2.5 py-1 rounded uppercase font-mono border shadow-md flex items-center gap-1 ${
                 isVIP
-                  ? 'bg-emerald-950 text-emerald-300 border-emerald-600'
-                  : 'bg-zinc-950 text-white border-zinc-700'
+                  ? 'bg-zinc-900 text-zinc-200 border-zinc-700'
+                  : 'bg-black text-white border-zinc-700'
               }`}>
+                <Lock className="w-3 h-3" />
                 {isVIP ? 'VIP UNLOCKED' : 'VIP EXCLUSIVE'}
               </span>
             )}
@@ -180,18 +212,29 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
               </span>
               {creator && (
                 <button
-                  onClick={() => toggleFollowCreator(creator.id)}
-                  className={`text-xs px-2.5 py-1 rounded-lg border font-semibold transition-all cursor-pointer ${
+                  type="button"
+                  onClick={() => {
+                    toggleFollowCreator(creator.id);
+                    setCreatorProfile(prev => {
+                      if (!prev) return prev;
+                      const wasFollowing = followedCreators.includes(creator.id);
+                      return {
+                        ...prev,
+                        followersCount: wasFollowing ? Math.max(0, prev.followersCount - 1) : prev.followersCount + 1,
+                      };
+                    });
+                  }}
+                  className={`text-xs px-3 py-1 rounded-xl border font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95 ${
                     isFollowingCreator
                       ? theme === 'dark'
                         ? 'bg-zinc-800 border-zinc-700 text-white'
                         : 'bg-zinc-200 border-zinc-300 text-zinc-900'
-                      : theme === 'dark'
-                      ? 'border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800'
-                      : 'border-zinc-300 text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100'
+                      : 'bg-white hover:bg-zinc-200 text-zinc-950 border-white'
                   }`}
                 >
-                  {isFollowingCreator ? '✓ Following' : '+ Follow'}
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>{isFollowingCreator ? '✓ Following' : '+ Follow'}</span>
+                  <span className="text-[10px] font-mono opacity-80">({creator.followersCount})</span>
                 </button>
               )}
             </div>
@@ -222,7 +265,7 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
               </span>
               <div className={`flex items-center gap-1.5 font-bold font-mono text-sm ${theme === 'dark' ? 'text-white' : 'text-zinc-900'}`}>
                 <Eye className="w-3.5 h-3.5 text-zinc-400" />
-                <span>{(series.totalViews || 14200).toLocaleString()}</span>
+                <span>{(series.totalViews ?? 0).toLocaleString()}</span>
               </div>
             </div>
 
@@ -263,13 +306,30 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
           <div className="flex flex-wrap items-center gap-3 pt-2">
             {resumeChapter ? (
               <button
-                onClick={() => onReadChapter(series.id, resumeChapter.id)}
+                onClick={() => {
+                  const isSeriesExclusive = Boolean(series.isExclusive);
+                  const isLockedToUser = (isSeriesExclusive || resumeChapter.isExclusiveVIP) && !isVIP && user.role !== 'admin' && !isCreatorOfSeries;
+                  if (isLockedToUser) {
+                    onOpenVIPModal?.('monthly');
+                  } else {
+                    onReadChapter(series.id, resumeChapter.id);
+                  }
+                }}
                 className="px-6 py-3 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center gap-2 hover:scale-[1.02] cursor-pointer"
               >
-                <BookOpen className="w-4 h-4" />
-                <span>
-                  {seriesProgress ? `Resume Ch. ${resumeChapter.chapterNumber}` : 'Read First Chapter'}
-                </span>
+                {Boolean(series.isExclusive && !isVIP && user.role !== 'admin' && !isCreatorOfSeries) ? (
+                  <>
+                    <Lock className="w-4 h-4" />
+                    <span>Unlock VIP to Read</span>
+                  </>
+                ) : (
+                  <>
+                    <BookOpen className="w-4 h-4" />
+                    <span>
+                      {seriesProgress ? `Resume Ch. ${resumeChapter.chapterNumber}` : 'Read First Chapter'}
+                    </span>
+                  </>
+                )}
               </button>
             ) : (user.role === 'admin' || isCreatorOfSeries) ? (
               <button
@@ -418,7 +478,7 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {displayedChapters.map(chapter => {
-              const isChapterVIP = chapter.isExclusiveVIP;
+              const isChapterVIP = Boolean(series.isExclusive || chapter.isExclusiveVIP);
               const isCreatorOfSeries = series && (
                 series.creatorId === user.creatorProfileId ||
                 series.creatorId === `creator_${user.id}` ||
@@ -430,12 +490,18 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
               return (
                 <div
                   key={chapter.id}
-                  onClick={() => onReadChapter(series.id, chapter.id)}
+                  onClick={() => {
+                    if (isLocked) {
+                      onOpenVIPModal?.('monthly');
+                    } else {
+                      onReadChapter(series.id, chapter.id);
+                    }
+                  }}
                   className={`group p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
                     isLocked
-                      ? 'bg-amber-950/15 border-amber-800/40 hover:border-amber-700/60'
+                      ? 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-600'
                       : isChapterVIP && hasVIPAccess
-                      ? 'bg-emerald-950/15 border-emerald-800/40 hover:border-emerald-700/60'
+                      ? 'bg-zinc-900/80 border-zinc-700 hover:border-zinc-500'
                       : theme === 'dark'
                       ? 'bg-zinc-900/60 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900'
                       : 'bg-white border-zinc-200 hover:border-zinc-300 shadow-xs hover:bg-zinc-50'
@@ -445,9 +511,9 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
                     <div
                       className={`w-9 h-9 rounded-lg flex items-center justify-center font-mono font-bold text-xs shrink-0 ${
                         isLocked
-                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                          ? 'bg-zinc-800 text-zinc-300 border border-zinc-700'
                           : isChapterVIP && hasVIPAccess
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                          ? 'bg-zinc-800 text-white border border-zinc-600'
                           : theme === 'dark'
                           ? 'bg-zinc-800 text-zinc-300'
                           : 'bg-zinc-100 text-zinc-900 border border-zinc-200'
@@ -459,19 +525,16 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
                       <div className="flex items-center gap-2">
                         <h4
                           className={`text-xs font-bold transition-colors ${
-                            theme === 'dark' ? 'text-white group-hover:text-purple-400' : 'text-zinc-900 group-hover:text-purple-600'
+                            theme === 'dark' ? 'text-white group-hover:text-zinc-200' : 'text-zinc-900 group-hover:text-zinc-700'
                           }`}
                         >
                           {chapter.title}
                         </h4>
                         {isChapterVIP && (
                           <span
-                            className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-bold uppercase ${
-                              hasVIPAccess
-                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                                : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                            }`}
+                            className="text-[9px] font-mono px-1.5 py-0.5 rounded font-bold uppercase flex items-center gap-1 bg-zinc-800 text-zinc-300 border border-zinc-700"
                           >
+                            <Lock className="w-2.5 h-2.5" />
                             {hasVIPAccess ? 'VIP Unlocked' : 'VIP Locked'}
                           </span>
                         )}
@@ -484,14 +547,14 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
 
                   <div className="flex items-center gap-2">
                     {isLocked ? (
-                      <span className="text-xs font-bold text-amber-400 flex items-center gap-1 font-mono">
+                      <span className="text-xs font-semibold text-zinc-300 hover:text-white flex items-center gap-1 font-mono">
                         <Lock className="w-3.5 h-3.5" />
                         <span>Unlock</span>
                       </span>
                     ) : (
                       <span
                         className={`text-xs font-bold flex items-center gap-0.5 transition-transform group-hover:translate-x-0.5 ${
-                          theme === 'dark' ? 'text-zinc-300 group-hover:text-white' : 'text-purple-700 group-hover:text-purple-900'
+                          theme === 'dark' ? 'text-zinc-300 group-hover:text-white' : 'text-zinc-700 group-hover:text-zinc-900'
                         }`}
                       >
                         <span>Read</span>

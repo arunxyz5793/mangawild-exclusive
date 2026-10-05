@@ -16,6 +16,11 @@ import {
   Search,
   MessageSquare,
   Lock,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  Volume2,
+  Mail,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -23,12 +28,14 @@ import { StorageService } from '../services/storage';
 import { Chapter, MangaSeries } from '../types/manga';
 import { MangaWildLogo } from '../components/MangaWildLogo';
 import { MangaCommentsSection } from '../components/MangaCommentsSection';
+import { BlurUpMangaImage } from '../components/BlurUpMangaImage';
 
 interface ReaderPageProps {
   seriesId: string;
   chapterId: string;
   onNavigate: (view: string, params?: Record<string, string>) => void;
   onOpenVIPModal?: () => void;
+  onOpenGmail?: (options?: { recipient?: string; subject?: string; body?: string }) => void;
 }
 
 export const ReaderPage: React.FC<ReaderPageProps> = ({
@@ -36,6 +43,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
   chapterId,
   onNavigate,
   onOpenVIPModal,
+  onOpenGmail,
 }) => {
   const { user, isVIP, isAuthenticated } = useAuth();
   const { t } = useLanguage();
@@ -54,12 +62,25 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
   const [readingMode, setReadingMode] = useState<'webtoon' | 'page_flip'>('webtoon');
   const [fitMode, setFitMode] = useState<'width' | 'screen'>('width');
   const [brightness, setBrightness] = useState<number>(100);
+  const [zoomLevel, setZoomLevel] = useState<number>(100);
   const [activePanelIndex, setActivePanelIndex] = useState<number>(0);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [showControls, setShowControls] = useState<boolean>(true);
   const [showSettingsMenu, setShowSettingsMenu] = useState<boolean>(false);
   const [showChaptersDrawer, setShowChaptersDrawer] = useState<boolean>(false);
   const [chapterSearchQuery, setChapterSearchQuery] = useState<string>('');
+
+  const handleZoomIn = () => {
+    setZoomLevel(prev => Math.min(prev + 25, 250));
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel(prev => Math.max(prev - 25, 50));
+  };
+
+  const handleZoomReset = () => {
+    setZoomLevel(100);
+  };
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -74,8 +95,9 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
     setCurrentChapter(curCh);
     setActivePanelIndex(0);
 
-    // Save reading progress
+    // Save reading progress & increment dynamic real views
     if (curCh && s) {
+      StorageService.incrementChapterViews(curCh.id, s.id);
       StorageService.saveReadingProgress(user.id, {
         seriesId: s.id,
         chapterId: curCh.id,
@@ -114,61 +136,108 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
   );
   // VIP Subscribers, creators, and admins have unrestricted full access to all chapters
   const hasFullAccess = Boolean(isVIP || user.isVIP || user.subscription?.status === 'active' || user.role === 'admin' || user.role === 'subscriber' || isCreatorOfSeries);
-  const isLocked = Boolean(currentChapter?.isExclusiveVIP && !hasFullAccess);
+  const isSeriesExclusive = Boolean(series?.isExclusive);
+  const isChapterVIP = Boolean(isSeriesExclusive || currentChapter?.isExclusiveVIP);
+  const isLocked = Boolean(isChapterVIP && !hasFullAccess);
 
-  // Fullscreen Handler
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      containerRef.current?.requestFullscreen?.();
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen?.();
-      setIsFullscreen(false);
+  // Fullscreen Handler & Event Listener
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement && !(document as any).webkitFullscreenElement) {
+        if (containerRef.current?.requestFullscreen) {
+          await containerRef.current.requestFullscreen();
+        } else if ((containerRef.current as any)?.webkitRequestFullscreen) {
+          await (containerRef.current as any).webkitRequestFullscreen();
+        } else if (document.documentElement.requestFullscreen) {
+          await document.documentElement.requestFullscreen();
+        }
+        setIsFullscreen(true);
+        setTimeout(() => {
+          containerRef.current?.focus();
+        }, 50);
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any)?.webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        }
+        setIsFullscreen(false);
+      }
+    } catch (err) {
+      console.warn('Fullscreen toggle failed, falling back:', err);
+      setIsFullscreen(prev => !prev);
     }
   };
 
-  // Realistic 3D Manga Page Turn State & Touch Swiping
-  const [isFlipping, setIsFlipping] = useState(false);
-  const [flipDirection, setFlipDirection] = useState<'next' | 'prev' | null>(null);
-  const [touchStartX, setTouchStartX] = useState<number | null>(null);
-  const [touchStartY, setTouchStartY] = useState<number | null>(null);
-  const [dragDeltaX, setDragDeltaX] = useState<number>(0);
-  const [isDragging, setIsDragging] = useState<boolean>(false);
+  useEffect(() => {
+    const handleFsChange = () => {
+      const isFs = Boolean(document.fullscreenElement || (document as any).webkitFullscreenElement);
+      setIsFullscreen(isFs);
+      if (isFs) {
+        setTimeout(() => containerRef.current?.focus(), 50);
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    document.addEventListener('webkitfullscreenchange', handleFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFsChange);
+      document.removeEventListener('webkitfullscreenchange', handleFsChange);
+    };
+  }, []);
+
+  // Global anti-download security: blocks right-clicks, drag-and-drop, and save keyboard shortcuts
+  useEffect(() => {
+    const handleGlobalContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      return false;
+    };
+    const handleGlobalDragStart = (e: DragEvent) => {
+      e.preventDefault();
+      return false;
+    };
+
+    window.addEventListener('contextmenu', handleGlobalContextMenu);
+    window.addEventListener('dragstart', handleGlobalDragStart);
+
+    return () => {
+      window.removeEventListener('contextmenu', handleGlobalContextMenu);
+      window.removeEventListener('dragstart', handleGlobalDragStart);
+    };
+  }, []);
+
+  // Instant Single-Swipe Engine (Zero Animation Lag & Anti-Double-Swipe Guard)
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const touchCurrentRef = useRef<{ x: number; y: number } | null>(null);
+  const isMouseDownRef = useRef(false);
+  const lastSwipeTimestampRef = useRef<number>(0);
+  const lastTouchTimestampRef = useRef<number>(0);
 
   const handleFlipNext = useCallback(() => {
-    if (isFlipping) return;
+    const now = Date.now();
+    // Anti-double-swipe throttle: prevent multiple flips from firing within 280ms
+    if (now - lastSwipeTimestampRef.current < 280) return;
+    lastSwipeTimestampRef.current = now;
+
     if (activePanelIndex >= currentChapter.panels.length) {
       if (nextChapter) {
         onNavigate('read', { seriesId, chapterId: nextChapter.id });
       }
       return;
     }
-
-    setIsFlipping(true);
-    setFlipDirection('next');
-
-    setTimeout(() => {
-      setActivePanelIndex(prev => prev + 1);
-      setIsFlipping(false);
-      setFlipDirection(null);
-      setDragDeltaX(0);
-    }, 200);
-  }, [isFlipping, activePanelIndex, currentChapter.panels.length, nextChapter, onNavigate, seriesId]);
+    // Instant switch to next page without animation delay
+    setActivePanelIndex(prev => prev + 1);
+  }, [activePanelIndex, currentChapter.panels.length, nextChapter, onNavigate, seriesId]);
 
   const handleFlipPrev = useCallback(() => {
-    if (isFlipping) return;
+    const now = Date.now();
+    // Anti-double-swipe throttle: prevent multiple flips from firing within 280ms
+    if (now - lastSwipeTimestampRef.current < 280) return;
+    lastSwipeTimestampRef.current = now;
+
     if (activePanelIndex <= 0) return;
-
-    setIsFlipping(true);
-    setFlipDirection('prev');
-
-    setTimeout(() => {
-      setActivePanelIndex(prev => prev - 1);
-      setIsFlipping(false);
-      setFlipDirection(null);
-      setDragDeltaX(0);
-    }, 200);
-  }, [isFlipping, activePanelIndex]);
+    // Instant switch to previous page without animation delay
+    setActivePanelIndex(prev => prev - 1);
+  }, [activePanelIndex]);
 
   // Preload adjacent panels for instantaneous, shutter-free page turns
   useEffect(() => {
@@ -182,56 +251,77 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
     });
   }, [activePanelIndex, currentChapter?.panels]);
 
-  // Touch & Mouse Drag Handlers
-  const handleTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
-    if (isFlipping) return;
-    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-    setTouchStartX(clientX);
-    setTouchStartY(clientY);
-    setIsDragging(true);
+  // High-precision Single-Swipe Detection (Triggers once per gesture, immune to double swipe)
+  const handleTouchStart = (e: React.TouchEvent) => {
+    lastTouchTimestampRef.current = Date.now();
+    const touch = e.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
+    touchCurrentRef.current = { x: touch.clientX, y: touch.clientY };
   };
 
-  const handleTouchMove = (e: React.TouchEvent | React.MouseEvent) => {
-    if (!isDragging || touchStartX === null || touchStartY === null || isFlipping) return;
-    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-    const deltaX = clientX - touchStartX;
-    const deltaY = clientY - touchStartY;
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    const touch = e.touches[0];
+    touchCurrentRef.current = { x: touch.clientX, y: touch.clientY };
+  };
 
-    // Detect horizontal swipe gesture
-    if (Math.abs(deltaX) > Math.abs(deltaY) * 0.7) {
-      if (activePanelIndex === 0 && deltaX > 0) {
-        setDragDeltaX(deltaX * 0.2);
+  const handleTouchEnd = () => {
+    if (!touchStartRef.current || !touchCurrentRef.current) {
+      touchStartRef.current = null;
+      touchCurrentRef.current = null;
+      return;
+    }
+
+    const deltaX = touchCurrentRef.current.x - touchStartRef.current.x;
+    const deltaY = touchCurrentRef.current.y - touchStartRef.current.y;
+
+    // Immediately clear coordinates so duplicate events cannot re-trigger
+    touchStartRef.current = null;
+    touchCurrentRef.current = null;
+
+    // Direct single-swipe evaluation:
+    // 1. Dominant horizontal intent: horizontal travel must clearly exceed vertical travel (deltaX > 1.2 * deltaY)
+    // 2. Minimum 30px distance to prevent accidental micro-touches
+    const isHorizontal = Math.abs(deltaX) > Math.abs(deltaY) * 1.2;
+    const isSwipe = Math.abs(deltaX) >= 30;
+
+    if (isHorizontal && isSwipe) {
+      if (deltaX < 0) {
+        // Swiped Left -> Next Page
+        handleFlipNext();
       } else {
-        setDragDeltaX(deltaX);
+        // Swiped Right -> Previous Page
+        handleFlipPrev();
       }
     }
   };
 
-  const handleTouchEnd = () => {
-    if (!isDragging || isFlipping) {
-      setIsDragging(false);
-      return;
-    }
-    setIsDragging(false);
-
-    // Swiped right-to-left: Turn to next page!
-    if (dragDeltaX < -40) {
-      handleFlipNext();
-    }
-    // Swiped left-to-right: Turn to prev page!
-    else if (dragDeltaX > 40 && activePanelIndex > 0) {
-      handleFlipPrev();
-    } else {
-      // Return spring back
-      setDragDeltaX(0);
-    }
-    setTouchStartX(null);
-    setTouchStartY(null);
+  const handleTouchCancel = () => {
+    touchStartRef.current = null;
+    touchCurrentRef.current = null;
   };
 
-  // Keyboard navigation & anti-save shortcut protection
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // If touch was recently active (mobile touch emulating mouse), completely ignore mouse
+    if (Date.now() - lastTouchTimestampRef.current < 1000) return;
+    isMouseDownRef.current = true;
+    touchStartRef.current = { x: e.clientX, y: e.clientY, time: Date.now() };
+    touchCurrentRef.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isMouseDownRef.current || !touchStartRef.current) return;
+    touchCurrentRef.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const handleMouseUp = () => {
+    if (!isMouseDownRef.current) return;
+    isMouseDownRef.current = false;
+    if (Date.now() - lastTouchTimestampRef.current < 1000) return;
+    handleTouchEnd();
+  };
+
+  // Keyboard navigation for both page_flip and webtoon continuous vertical scrolling in fullscreen
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Block Ctrl+S / Cmd+S save shortcuts
@@ -239,6 +329,46 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
         e.preventDefault();
       }
 
+      // Vertical continuous scroll mode navigation
+      if (readingMode === 'webtoon') {
+        const scrollAmount = 380;
+        if (e.key === 'ArrowDown' || e.key === 'j') {
+          e.preventDefault();
+          if (containerRef.current) {
+            containerRef.current.scrollBy({ top: scrollAmount, behavior: 'smooth' });
+          }
+          window.scrollBy({ top: scrollAmount, behavior: 'smooth' });
+        } else if (e.key === 'ArrowUp' || e.key === 'k') {
+          e.preventDefault();
+          if (containerRef.current) {
+            containerRef.current.scrollBy({ top: -scrollAmount, behavior: 'smooth' });
+          }
+          window.scrollBy({ top: -scrollAmount, behavior: 'smooth' });
+        } else if (e.key === 'Space') {
+          e.preventDefault();
+          const paged = window.innerHeight * 0.8;
+          if (containerRef.current) {
+            containerRef.current.scrollBy({ top: paged, behavior: 'smooth' });
+          }
+          window.scrollBy({ top: paged, behavior: 'smooth' });
+        } else if (e.key === 'PageDown') {
+          e.preventDefault();
+          const paged = window.innerHeight * 0.85;
+          if (containerRef.current) {
+            containerRef.current.scrollBy({ top: paged, behavior: 'smooth' });
+          }
+          window.scrollBy({ top: paged, behavior: 'smooth' });
+        } else if (e.key === 'PageUp') {
+          e.preventDefault();
+          const paged = window.innerHeight * 0.85;
+          if (containerRef.current) {
+            containerRef.current.scrollBy({ top: -paged, behavior: 'smooth' });
+          }
+          window.scrollBy({ top: -paged, behavior: 'smooth' });
+        }
+      }
+
+      // Horizontal Page Flip navigation
       if (readingMode === 'page_flip') {
         if (e.key === 'ArrowRight' || e.key === 'Space') {
           handleFlipNext();
@@ -263,9 +393,89 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
   return (
     <div
       ref={containerRef}
-      className="min-h-screen bg-[#050608] text-white flex flex-col relative select-none"
-      style={{ filter: `brightness(${brightness}%)` }}
+      tabIndex={0}
+      data-reader-fullscreen="true"
+      onContextMenu={(e) => {
+        e.preventDefault();
+        return false;
+      }}
+      onDragStart={(e) => {
+        e.preventDefault();
+        return false;
+      }}
+      className={`bg-[#050608] text-white flex flex-col relative select-none w-full outline-none ${
+        isFullscreen
+          ? 'fixed inset-0 z-50 h-screen w-screen overflow-y-auto overflow-x-hidden'
+          : 'min-h-screen overflow-y-auto overflow-x-hidden'
+      }`}
+      style={{
+        filter: `brightness(${brightness}%)`,
+        height: isFullscreen ? '100vh' : 'auto',
+        minHeight: '100vh',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch',
+        touchAction: readingMode === 'webtoon' ? 'pan-y' : 'pan-x',
+      }}
     >
+      {/* Fullscreen Floating Controls Bar with Interactive Zoom, Mode Switch & Exit */}
+      {isFullscreen && (
+        <div className="fixed top-4 right-4 z-50 flex items-center gap-1.5 sm:gap-2 bg-black/90 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/20 shadow-2xl text-white select-none animate-fade-in">
+          <button
+            type="button"
+            onClick={handleZoomOut}
+            className="p-1.5 text-zinc-300 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+            title="Zoom Out (-)"
+          >
+            <ZoomOut className="w-4 h-4" />
+          </button>
+          <span className="text-xs font-mono font-bold min-w-[42px] text-center text-zinc-100">
+            {zoomLevel}%
+          </span>
+          <button
+            type="button"
+            onClick={handleZoomIn}
+            className="p-1.5 text-zinc-300 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+            title="Zoom In (+)"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </button>
+          {zoomLevel !== 100 && (
+            <button
+              type="button"
+              onClick={handleZoomReset}
+              className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+              title="Reset Zoom (100%)"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          <div className="w-[1px] h-4 bg-white/20 mx-1" />
+
+          {/* Reading Mode Switcher in Fullscreen */}
+          <button
+            type="button"
+            onClick={() => setReadingMode(prev => prev === 'webtoon' ? 'page_flip' : 'webtoon')}
+            className="px-2 py-1 text-[11px] font-mono font-semibold rounded-lg bg-white/10 hover:bg-white/20 text-zinc-200 transition-colors cursor-pointer"
+            title="Toggle Mode"
+          >
+            {readingMode === 'webtoon' ? 'Vertical' : 'Flip'}
+          </button>
+
+          <div className="w-[1px] h-4 bg-white/20 mx-0.5" />
+
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="p-1.5 text-zinc-300 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+            title="Exit Fullscreen"
+          >
+            <Minimize2 className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* 1. Floating Top Reader Bar */}
       <header
         className={`sticky top-0 z-40 bg-[#090b12]/95 backdrop-blur-md border-b border-white/10 px-3 sm:px-4 py-2.5 flex items-center justify-between transition-transform duration-300 ${
@@ -313,7 +523,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
             className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700/80 hover:border-zinc-500 text-white font-mono text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 hover:bg-zinc-800"
             title="Open Chapters Directory"
           >
-            <List className="w-3.5 h-3.5 text-purple-400" />
+            <List className="w-3.5 h-3.5 text-zinc-300" />
             <span className="hidden sm:inline">Chapters</span>
             <span className="text-[11px] text-zinc-300">
               Ch. {currentChapter.chapterNumber}
@@ -336,8 +546,59 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
           </button>
         </div>
 
-        {/* Reader Display Mode & Brightness Controls */}
-        <div className="flex items-center gap-2">
+        {/* Reader Display Mode, Zoom & Controls */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Zoom controls (Header desktop pill) */}
+          <div className="hidden lg:flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-0.5 text-xs font-mono">
+            <button
+              type="button"
+              onClick={handleZoomOut}
+              className="p-1 text-zinc-400 hover:text-white rounded hover:bg-zinc-800 transition-colors cursor-pointer"
+              title="Zoom Out"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+            <span className="px-1 text-[11px] font-bold text-zinc-300 min-w-[36px] text-center">
+              {zoomLevel}%
+            </span>
+            <button
+              type="button"
+              onClick={handleZoomIn}
+              className="p-1 text-zinc-400 hover:text-white rounded hover:bg-zinc-800 transition-colors cursor-pointer"
+              title="Zoom In"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+            {zoomLevel !== 100 && (
+              <button
+                type="button"
+                onClick={handleZoomReset}
+                className="p-1 text-zinc-400 hover:text-white rounded hover:bg-zinc-800 transition-colors cursor-pointer"
+                title="Reset Zoom"
+              >
+                <RotateCcw className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+
+          {/* Share via Gmail button */}
+          {onOpenGmail && (
+            <button
+              type="button"
+              onClick={() => {
+                onOpenGmail({
+                  subject: `Check out ${series.title} - Chapter ${currentChapter.chapterNumber} on MangaWild!`,
+                  body: `Hey,\n\nI was just reading "${series.title}" (Chapter ${currentChapter.chapterNumber}: ${currentChapter.title}) on MangaWild!\n\nSynopsis:\n${series.synopsis}\n\nRead it here: https://mangawild.online/series/${series.slug}`,
+                });
+              }}
+              className="p-1.5 text-zinc-400 hover:text-red-400 hover:bg-red-950/30 rounded-lg border border-transparent hover:border-red-900/40 transition-colors cursor-pointer flex items-center gap-1.5"
+              title="Share Chapter via Gmail"
+            >
+              <Mail className="w-3.5 h-3.5 text-red-400" />
+              <span className="hidden lg:inline text-[11px] font-medium text-zinc-300">Share via Gmail</span>
+            </button>
+          )}
+
           {/* Mode toggle */}
           <div className="hidden md:flex items-center p-0.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs">
             <button
@@ -373,6 +634,51 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                 <h4 className="text-xs font-bold text-white uppercase tracking-wider font-mono">
                   Viewer Settings
                 </h4>
+
+                {/* Zoom Level in Settings */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs text-zinc-400 font-mono">
+                    <span className="flex items-center gap-1">
+                      <ZoomIn className="w-3.5 h-3.5" /> Zoom Level
+                    </span>
+                    <span>{zoomLevel}%</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleZoomOut}
+                      className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-white cursor-pointer"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="range"
+                      min="50"
+                      max="250"
+                      step="25"
+                      value={zoomLevel}
+                      onChange={e => setZoomLevel(Number(e.target.value))}
+                      className="flex-1 accent-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleZoomIn}
+                      className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-white cursor-pointer"
+                    >
+                      +
+                    </button>
+                    {zoomLevel !== 100 && (
+                      <button
+                        type="button"
+                        onClick={handleZoomReset}
+                        className="p-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white cursor-pointer"
+                        title="Reset"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
 
                 {/* Brightness Slider */}
                 <div className="space-y-1.5">
@@ -453,25 +759,32 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
 
       {/* 2. Main Reader Canvas */}
       <main
-        className="flex-1 flex flex-col items-center justify-center p-2 sm:p-4"
+        className={`flex-1 flex flex-col items-center p-2 sm:p-4 w-full ${
+          readingMode === 'webtoon' ? 'justify-start' : 'justify-center my-auto'
+        }`}
         onClick={() => setShowControls(!showControls)}
+        onWheel={(e) => {
+          if (readingMode === 'webtoon' && containerRef.current) {
+            containerRef.current.scrollTop += e.deltaY;
+          }
+        }}
       >
+        {/* VIP Lock Wall */}
         {isLocked ? (
-          /* VIP Lock Wall */
-          <div className="max-w-md w-full my-12 p-8 rounded-2xl bg-zinc-900 border border-zinc-700 text-center space-y-5 shadow-2xl">
-            <div className="w-16 h-16 mx-auto rounded-full bg-zinc-800 text-white border border-zinc-700 flex items-center justify-center">
-              <Lock className="w-8 h-8" />
+          <div className="max-w-md w-full my-16 p-8 rounded-2xl bg-zinc-900/90 border border-zinc-800 text-center space-y-6 shadow-2xl">
+            <div className="w-14 h-14 mx-auto rounded-xl bg-zinc-800 border border-zinc-700 text-white flex items-center justify-center">
+              <Lock className="w-6 h-6" />
             </div>
 
             <div className="space-y-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center justify-center gap-1 font-mono">
-                <Sparkles className="w-3.5 h-3.5" /> VIP Exclusive Chapter
+              <span className="text-[11px] font-bold uppercase tracking-widest text-zinc-400 font-mono">
+                Exclusive VIP Manga
               </span>
-              <h3 className="text-2xl font-black text-white font-display">
-                CHAPTER {currentChapter.chapterNumber} LOCKED
+              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                {series?.title} · Chapter {currentChapter.chapterNumber}
               </h3>
-              <p className="text-xs text-zinc-300 leading-relaxed">
-                This chapter is available for VIP subscribers. Join VIP to unlock the full chapter archive and support original artists.
+              <p className="text-xs text-zinc-400 leading-relaxed max-w-sm mx-auto">
+                This manga is part of MangaWild&apos;s Exclusive Series catalog. Get an active VIP subscription to read all chapters and support indie manga creators.
               </p>
             </div>
 
@@ -482,44 +795,45 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                   e.stopPropagation();
                   onOpenVIPModal?.();
                 }}
-                className="w-full py-3 px-5 bg-white hover:bg-zinc-200 text-zinc-950 font-bold text-sm tracking-wide rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase cursor-pointer"
+                className="w-full py-3.5 px-5 bg-white hover:bg-zinc-200 text-zinc-950 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
               >
-                <Sparkles className="w-4 h-4" />
-                <span>{isAuthenticated ? 'Unlock with VIP Pass' : 'Login to Purchase VIP Pass'}</span>
+                <Lock className="w-4 h-4" />
+                <span>{isAuthenticated ? 'Get VIP Subscription to Read' : 'Sign In to Get VIP Subscription'}</span>
               </button>
             </div>
 
-            <div className="text-[11px] text-zinc-400 border-t border-zinc-800 pt-3">
-              Free chapters available on the series page.
+            <div className="text-[11px] text-zinc-500 border-t border-zinc-800/80 pt-3 flex items-center justify-between">
+              <span>Plans from ₹199/month</span>
+              <button
+                type="button"
+                onClick={() => onNavigate('series', { id: seriesId })}
+                className="text-zinc-400 hover:text-white underline cursor-pointer"
+              >
+                Back to Series
+              </button>
             </div>
           </div>
         ) : readingMode === 'webtoon' ? (
-          /* Webtoon Endless Scroll Mode */
+          /* Webtoon Endless Scroll Mode with Dynamic Zoom Scaling & Anti-Download Protection */
           <div
-            className={`w-full space-y-1 my-4 flex flex-col items-center webtoon-scroll ${
-              fitMode === 'width' ? 'max-w-3xl' : 'max-w-2xl'
-            }`}
+            className={`w-full space-y-1 my-4 flex flex-col items-center webtoon-scroll transition-all duration-200 select-none`}
+            style={{
+              maxWidth: fitMode === 'width' ? `${(zoomLevel / 100) * 850}px` : `${(zoomLevel / 100) * 650}px`,
+              width: `${zoomLevel}%`,
+            }}
           >
             {currentChapter.panels.map((panel, idx) => (
               <div
                 key={panel.id}
                 className="w-full shadow-2xl shadow-black relative group select-none overflow-hidden"
               >
-                <img
+                <BlurUpMangaImage
                   src={panel.imageUrl}
                   alt={`Chapter ${currentChapter.chapterNumber} Panel ${idx + 1}`}
-                  className="w-full h-auto block select-none pointer-events-none"
-                  loading={idx < 3 ? 'eager' : 'lazy'}
-                  draggable={false}
-                  onContextMenu={(e) => e.preventDefault()}
-                  data-protected-img="true"
-                />
-                {/* Anti-Download Transparent Security Shield: prevents long-press context menu and dragging on mobile & desktop */}
-                <div
-                  className="absolute inset-0 z-10 bg-transparent select-none"
-                  onContextMenu={(e) => e.preventDefault()}
-                  onDragStart={(e) => e.preventDefault()}
-                  aria-hidden="true"
+                  loading={idx < 2 ? 'eager' : 'lazy'}
+                  panelNumber={idx + 1}
+                  className="w-full"
+                  imgClassName="w-full h-auto block select-none pointer-events-none"
                 />
                 {panel.hasError && (
                   <div className="absolute top-2 right-2 z-20 bg-amber-500/90 text-black text-[10px] font-bold px-2 py-0.5 rounded shadow">
@@ -565,9 +879,9 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                       e.stopPropagation();
                       setShowChaptersDrawer(true);
                     }}
-                    className="px-4 py-2.5 bg-purple-950/40 hover:bg-purple-900/60 border border-purple-500/50 rounded-xl text-xs font-semibold text-purple-200 transition-colors cursor-pointer flex items-center gap-1.5"
+                    className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-xl text-xs font-semibold text-zinc-200 transition-colors cursor-pointer flex items-center gap-1.5"
                   >
-                    <List className="w-4 h-4 text-purple-400" />
+                    <List className="w-4 h-4 text-zinc-300" />
                     <span>All Chapters ({chapters.length})</span>
                   </button>
 
@@ -618,7 +932,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
           <div className="relative flex flex-col items-center justify-center max-w-4xl w-full my-auto">
             {activePanelIndex >= currentChapter.panels.length ? (
               /* Horizontal End-Card Slide - Only shown after the last page! */
-              <div className="relative flex flex-col items-center justify-center p-8 sm:p-12 rounded-3xl bg-zinc-900/90 border border-zinc-800 shadow-2xl max-w-xl w-full my-auto text-center space-y-5 animate-fade-in">
+              <div className="relative flex flex-col items-center justify-center p-8 sm:p-12 rounded-3xl bg-zinc-900/90 border border-zinc-800 shadow-2xl max-w-xl w-full my-auto text-center space-y-5">
                 <div className="w-16 h-16 mx-auto rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shadow-lg">
                   <CheckCircle className="w-8 h-8" />
                 </div>
@@ -653,9 +967,9 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                       e.stopPropagation();
                       setShowChaptersDrawer(true);
                     }}
-                    className="w-full sm:w-auto px-4 py-2.5 bg-purple-950/40 hover:bg-purple-900/60 border border-purple-500/50 rounded-xl text-xs font-semibold text-purple-200 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                    className="w-full sm:w-auto px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-xl text-xs font-semibold text-zinc-200 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                   >
-                    <List className="w-4 h-4 text-purple-400" />
+                    <List className="w-4 h-4 text-zinc-300" />
                     <span>All Chapters ({chapters.length})</span>
                   </button>
 
@@ -703,93 +1017,38 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
             ) : (
               currentChapter.panels[activePanelIndex] && (
                 <div
-                  className="relative select-none max-h-[85vh] flex items-center justify-center cursor-grab active:cursor-grabbing"
+                  className="relative select-none w-full max-w-4xl h-[78vh] sm:h-[82vh] min-h-[480px] flex items-center justify-center cursor-grab active:cursor-grabbing overflow-hidden rounded-2xl bg-[#06070a] border border-white/10 shadow-2xl"
+                  style={{ touchAction: 'none' }}
                   onTouchStart={handleTouchStart}
                   onTouchMove={handleTouchMove}
                   onTouchEnd={handleTouchEnd}
-                  onMouseDown={handleTouchStart}
-                  onMouseMove={handleTouchMove}
-                  onMouseUp={handleTouchEnd}
-                  onMouseLeave={handleTouchEnd}
+                  onTouchCancel={handleTouchEnd}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
                 >
-                  {/* Underneath Layer (Revealed seamlessly as top page curls & turns) */}
-                  {(() => {
-                    const isGoingPrev = (dragDeltaX > 0 || flipDirection === 'prev') && activePanelIndex > 0;
-                    const underneathPanel = isGoingPrev
-                      ? currentChapter.panels[activePanelIndex - 1]
-                      : currentChapter.panels[activePanelIndex + 1];
-
-                    if (underneathPanel) {
-                      return (
-                        <div className="absolute inset-0 z-0 overflow-hidden rounded-xl bg-zinc-950 flex items-center justify-center pointer-events-none shadow-xl border border-white/5 select-none">
-                          <img
-                            src={underneathPanel.imageUrl}
-                            alt={isGoingPrev ? `Page ${activePanelIndex}` : `Page ${activePanelIndex + 2}`}
-                            className="max-h-[82vh] w-auto object-contain mx-auto block select-none pointer-events-none"
-                            draggable={false}
-                            onContextMenu={(e) => e.preventDefault()}
-                            data-protected-img="true"
-                          />
-                          {/* Anti-Download Transparent Security Shield */}
-                          <div
-                            className="absolute inset-0 z-10 bg-transparent select-none"
-                            onContextMenu={(e) => e.preventDefault()}
-                            onDragStart={(e) => e.preventDefault()}
-                            aria-hidden="true"
-                          />
-                        </div>
-                      );
-                    }
-
-                    if (activePanelIndex >= currentChapter.panels.length - 1 && !isGoingPrev) {
-                      return (
-                        <div className="absolute inset-0 z-0 overflow-hidden rounded-xl bg-zinc-900 border border-zinc-800 flex flex-col items-center justify-center p-6 text-center pointer-events-none select-none">
-                          <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-2">
-                            <CheckCircle className="w-6 h-6" />
-                          </div>
-                          <p className="text-xs font-bold text-white">Next: Chapter Completion</p>
-                          <p className="text-[10px] text-zinc-400">Slide or click next to finish chapter</p>
-                        </div>
-                      );
-                    }
-
-                    return null;
-                  })()}
-
-                  {/* Active Page with Clean, Stable Horizontal Slide Animation (Zero Wobble, Zero Skew) */}
-                  <div
-                    style={{
-                      transform:
-                        isFlipping && flipDirection === 'next'
-                          ? 'translateX(-105%)'
-                          : isFlipping && flipDirection === 'prev'
-                          ? 'translateX(105%)'
-                          : isDragging && dragDeltaX !== 0
-                          ? `translateX(${dragDeltaX}px)`
-                          : 'translateX(0)',
-                      opacity: isFlipping ? 0.9 : 1,
-                      transition: isDragging
-                        ? 'none'
-                        : 'transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1), opacity 0.22s ease-out',
-                      boxShadow:
-                        dragDeltaX < 0 || flipDirection === 'next'
-                          ? '-8px 0 24px rgba(0,0,0,0.6)'
-                          : dragDeltaX > 0 || flipDirection === 'prev'
-                          ? '8px 0 24px rgba(0,0,0,0.6)'
-                          : '0 8px 24px rgba(0,0,0,0.5)',
-                    }}
-                    className="relative z-10 rounded-xl overflow-hidden border border-white/10 max-h-[85vh] bg-[#08090d] flex items-center justify-center select-none"
-                  >
-                    <img
+                  {/* Instant Static Panel Layer (Zero Animation Delay, Instant Page Switch with Blur-Up Loading) */}
+                  <div className="relative z-0 w-full h-full flex items-center justify-center select-none overflow-hidden">
+                    <BlurUpMangaImage
+                      key={currentChapter.panels[activePanelIndex].id || activePanelIndex}
                       src={currentChapter.panels[activePanelIndex].imageUrl}
                       alt={`Panel ${activePanelIndex + 1}`}
-                      className="max-h-[82vh] w-auto object-contain mx-auto block select-none pointer-events-none"
-                      draggable={false}
-                      onContextMenu={(e) => e.preventDefault()}
-                      data-protected-img="true"
+                      loading="eager"
+                      panelNumber={activePanelIndex + 1}
+                      className="max-h-[80vh] w-auto max-w-[95%] mx-auto flex items-center justify-center bg-transparent"
+                      imgStyle={{
+                        transform: `scale(${zoomLevel / 100})`,
+                        transformOrigin: 'center center',
+                        maxHeight: '80vh',
+                        maxWidth: '95%',
+                        objectFit: 'contain',
+                        margin: '0 auto',
+                      }}
+                      imgClassName="max-h-[80vh] w-auto max-w-[95%] object-contain mx-auto block select-none pointer-events-none"
                     />
 
-                    {/* Anti-Download Transparent Security Shield: blocks tap-and-hold download menu and drag */}
+                    {/* Anti-Download Transparent Security Shield */}
                     <div
                       className="absolute inset-0 z-20 bg-transparent select-none cursor-grab active:cursor-grabbing"
                       onContextMenu={(e) => e.preventDefault()}
@@ -801,12 +1060,12 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                   {/* Left & Right page flip zones & clickable buttons */}
                   <button
                     type="button"
-                    disabled={activePanelIndex === 0 || isFlipping}
+                    disabled={activePanelIndex === 0}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleFlipPrev();
                     }}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-black/70 hover:bg-purple-600 text-white disabled:opacity-0 transition-all cursor-pointer shadow-xl hover:scale-110 active:scale-95 border border-white/10"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-black/70 hover:bg-zinc-700 text-white disabled:opacity-0 transition-all cursor-pointer shadow-xl hover:scale-105 active:scale-95 border border-white/10"
                     title="Previous Page (← Swipe Right)"
                   >
                     <ChevronLeft className="w-6 h-6" />
@@ -814,12 +1073,11 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
 
                   <button
                     type="button"
-                    disabled={isFlipping}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleFlipNext();
                     }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-black/70 hover:bg-purple-600 text-white transition-all cursor-pointer shadow-xl hover:scale-110 active:scale-95 border border-white/10"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-black/70 hover:bg-zinc-700 text-white transition-all cursor-pointer shadow-xl hover:scale-105 active:scale-95 border border-white/10"
                     title="Next Page (Swipe Left →)"
                   >
                     <ChevronRight className="w-6 h-6" />
@@ -830,8 +1088,8 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
 
             {/* Tactile gesture hint */}
             <div className="mt-2 flex items-center gap-1.5 text-[11px] text-zinc-500 font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
-              <span>Slide finger or use arrow keys to flip realistic pages</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+              <span>Slide finger or use arrow keys to flip pages</span>
             </div>
 
             {/* Page Index indicator & Quick Chapter Switch */}

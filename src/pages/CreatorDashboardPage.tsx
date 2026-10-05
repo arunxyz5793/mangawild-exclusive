@@ -65,7 +65,7 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
   onNavigate,
   onPreviewChapter,
 }) => {
-  const { user, canAccessCreator } = useAuth();
+  const { user, canAccessCreator, toggleCreatorMode, isAuthenticated, openAuthModal } = useAuth();
   const { theme } = useTheme();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'series' | 'new_series' | 'new_chapter' | 'payouts'>('overview');
@@ -371,18 +371,45 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
   // If user role is free_user or subscriber, show role switch prompt
   if (!canAccessCreator) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-16 text-center">
-        <div className="w-16 h-16 mx-auto rounded-3xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white mb-6">
-          <PenTool className="w-8 h-8" />
+      <div className="max-w-4xl mx-auto px-4 py-16 text-center animate-fade-in">
+        <div className="w-16 h-16 mx-auto rounded-3xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white mb-6 shadow-xl">
+          <PenTool className="w-8 h-8 text-white" />
         </div>
-        <h1 className="text-3xl font-black tracking-tight mb-3">Become a MangaWild Creator</h1>
+        <h1 className="text-3xl font-black tracking-tight mb-3 text-white">Become a MangaWild Creator</h1>
         <p className="text-zinc-400 max-w-lg mx-auto mb-8 text-sm leading-relaxed">
-          Publish your original manga, reach passionate readers worldwide, and earn a 70% revenue share with weekly UPI payouts.
+          Publish your original manga, reach passionate readers worldwide, and earn a 70% revenue share with weekly direct payouts.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <button
+            type="button"
+            onClick={() => {
+              if (!isAuthenticated || user.id === 'guest_reader') {
+                openAuthModal({
+                  title: 'Creator Account Sign In',
+                  subtitle: 'Sign in to access your MangaWild Creator Studio and publish your original stories.',
+                  defaultRole: 'creator',
+                  defaultMode: 'signup',
+                  onSuccess: () => {
+                    toggleCreatorMode();
+                    const updatedProfile = StorageService.getOrCreateCreatorProfile(user);
+                    setCreatorProfile(updatedProfile);
+                  },
+                });
+              } else {
+                toggleCreatorMode();
+                const updatedProfile = StorageService.getOrCreateCreatorProfile(user);
+                setCreatorProfile(updatedProfile);
+              }
+            }}
+            className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-black text-sm transition-all shadow-xl hover:scale-105 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <PenTool className="w-4 h-4 text-zinc-950" />
+            <span>Switch to Creator Profile</span>
+          </button>
+          <button
+            type="button"
             onClick={() => onNavigate('home')}
-            className="w-full sm:w-auto px-6 py-3 rounded-xl border border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 font-semibold text-sm transition-all"
+            className="w-full sm:w-auto px-6 py-3.5 rounded-xl border border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 font-semibold text-sm transition-all cursor-pointer"
           >
             Back to Home
           </button>
@@ -407,12 +434,12 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-zinc-800/80 mb-6">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-wider bg-emerald-950/80 text-emerald-300 border border-emerald-800 font-bold">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-wider bg-zinc-800 text-zinc-300 border border-zinc-700 font-bold">
               Creator Studio
             </span>
             {creatorProfile?.verified && (
               <span className="text-[10px] font-mono text-zinc-400 flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3 text-emerald-400" /> Verified Mangaka
+                <ShieldCheck className="w-3 h-3 text-zinc-300" /> Verified Mangaka
               </span>
             )}
           </div>
@@ -464,8 +491,8 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
               : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
           }`}
         >
-          <BarChart3 className="w-3.5 h-3.5 text-purple-400" />
-          <span>30-Day Trends (Recharts)</span>
+          <BarChart3 className="w-3.5 h-3.5 text-zinc-400" />
+          <span>Views Analytics (Daily Graph)</span>
         </button>
         <button
           onClick={() => setActiveTab('series')}
@@ -519,10 +546,10 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
                 Monthly Royalties
               </p>
               <p className="text-2xl sm:text-3xl font-black mt-1 text-white">
-                ₹{(creatorProfile?.monthlyEarningsInr || 24500).toLocaleString('en-IN')}
+                ₹{(creatorProfile?.monthlyEarningsInr ?? 0).toLocaleString('en-IN')}
               </p>
-              <p className="text-[10px] text-emerald-400 font-mono mt-1 flex items-center gap-1">
-                <TrendingUp className="w-3 h-3" /> 70% Net Revenue Share
+              <p className="text-[10px] text-zinc-400 font-mono mt-1 flex items-center gap-1">
+                <TrendingUp className="w-3 h-3 text-zinc-400" /> 70% Net Revenue Share
               </p>
             </div>
 
@@ -531,7 +558,7 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
                 Total Chapter Reads
               </p>
               <p className="text-2xl sm:text-3xl font-black mt-1 text-white">
-                {(creatorProfile?.totalReads || 142000).toLocaleString('en-IN')}
+                {(creatorProfile?.totalReads ?? 0).toLocaleString('en-IN')}
               </p>
               <p className="text-[10px] text-zinc-500 font-mono mt-1">Across all published series</p>
             </div>
@@ -541,7 +568,7 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
                 Followers & Readers
               </p>
               <p className="text-2xl sm:text-3xl font-black mt-1 text-white">
-                {(creatorProfile?.followersCount || 3450).toLocaleString('en-IN')}
+                {(creatorProfile?.followersCount ?? 0).toLocaleString('en-IN')}
               </p>
               <p className="text-[10px] text-zinc-500 font-mono mt-1">Dedicated fanbase</p>
             </div>
@@ -551,7 +578,7 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
                 Pending Payout
               </p>
               <p className="text-2xl sm:text-3xl font-black mt-1 text-white">
-                ₹{(creatorProfile?.monthlyEarningsInr || 24500).toLocaleString('en-IN')}
+                ₹{(creatorProfile?.monthlyEarningsInr ?? 0).toLocaleString('en-IN')}
               </p>
               <button
                 onClick={handleRequestPayout}
@@ -679,9 +706,9 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
       {activeTab === 'analytics' && (
         <div className="space-y-6 animate-fade-in">
           <CreatorAnalyticsCharts
-            totalReads={creatorProfile?.totalReads || 142000}
-            monthlyEarningsInr={creatorProfile?.monthlyEarningsInr || 24500}
-            subscribersCount={creatorProfile?.followersCount || 3450}
+            totalReads={creatorProfile?.totalReads ?? 0}
+            monthlyEarningsInr={creatorProfile?.monthlyEarningsInr ?? 0}
+            subscribersCount={creatorProfile?.followersCount ?? 0}
             creatorName={creatorProfile?.penName || user.name}
           />
         </div>
@@ -770,9 +797,6 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
                         )}
                       </div>
                       <h2 className="text-xl font-black text-white">{selectedSeries.title}</h2>
-                      {selectedSeries.titleHindi && (
-                        <p className="text-xs text-zinc-400 font-mono">{selectedSeries.titleHindi}</p>
-                      )}
                       <p className="text-xs text-zinc-300 leading-relaxed">{selectedSeries.synopsis}</p>
                       <div className="flex flex-wrap gap-1.5 pt-1">
                         {selectedSeries.genres.map(g => (
@@ -1406,7 +1430,7 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
               <div>
                 <p className="text-[11px] font-mono text-zinc-400 uppercase">Available Payout Balance</p>
                 <p className="text-3xl font-black text-white mt-1">
-                  ₹{(creatorProfile?.monthlyEarningsInr || 24500).toLocaleString('en-IN')}
+                  ₹{(creatorProfile?.monthlyEarningsInr ?? 0).toLocaleString('en-IN')}
                 </p>
               </div>
               <button

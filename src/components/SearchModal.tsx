@@ -139,7 +139,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                         <Star className="w-3 h-3 fill-amber-400 text-amber-400" /> {series.rating}
                       </span>
                       <span>·</span>
-                      <span>{(series.totalReads / 1000).toFixed(0)}K reads</span>
+                      <span>{(series.totalReads ?? 0).toLocaleString()} reads</span>
                     </div>
                   </div>
                 </div>

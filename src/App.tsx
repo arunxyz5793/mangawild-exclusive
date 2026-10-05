@@ -94,8 +94,8 @@ function parseUrlToRoute(pathname: string): { view: string; params: Record<strin
     return { view: 'browse', params: {} };
   }
 
-  if (cleanPath === '/trending' || cleanPath === '/leaderboard') {
-    return { view: 'trending', params: {} };
+  if (cleanPath === '/new-series' || cleanPath === '/new_series' || cleanPath === '/trending' || cleanPath === '/leaderboard') {
+    return { view: 'new_series', params: {} };
   }
 
   if (cleanPath === '/creator' || cleanPath === '/creator-studio') {
@@ -174,8 +174,10 @@ function getRouteUrl(view: string, params?: Record<string, string>): string {
       return '/';
     case 'browse':
       return '/browse';
+    case 'new_series':
+      return '/new-series';
     case 'trending':
-      return '/trending';
+      return '/new-series';
     case 'creator':
       return '/creator';
     case 'admin':
@@ -353,9 +355,9 @@ function AppContent() {
     } else if (currentView === 'browse') {
       title = 'Browse All Manga & Webtoons Catalog - MangaWild';
       desc = 'Explore our library of indie manga, thrillers, supernatural horrors, and action comics from passionate creators.';
-    } else if (currentView === 'trending') {
-      title = 'Trending Manga Leaderboard & Top Reads - MangaWild';
-      desc = 'Discover the most popular trending manga ranked by reader engagement and community ratings on MangaWild.';
+    } else if (currentView === 'new_series' || currentView === 'trending') {
+      title = 'New Manga Series & Fresh Releases - MangaWild';
+      desc = 'Discover the newest serialized manga, fresh chapter releases, and exciting stories on MangaWild.';
     } else if (currentView === 'creator') {
       title = 'Creator Studio & Indie Publishing Desk - MangaWild';
       desc = 'Publish your original manga, earn 70% royalties, track reader analytics, and reach a passionate audience.';
@@ -470,6 +472,16 @@ function AppContent() {
             onReadChapter={handleReadChapter}
             onNavigate={handleNavigate}
             onOpenVIPModal={() => handleOpenVIPModal('monthly')}
+          />
+        )}
+
+        {currentView === 'new_series' && (
+          <BrowsePage
+            onSelectSeries={handleSelectSeries}
+            onOpenVIPModal={() => handleOpenVIPModal('monthly')}
+            onNavigate={handleNavigate}
+            initialSortBy="latest"
+            isNewSeriesView={true}
           />
         )}
 

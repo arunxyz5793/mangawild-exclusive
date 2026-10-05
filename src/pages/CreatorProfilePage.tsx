@@ -199,7 +199,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
         <p className="text-zinc-400">The manga creator you are looking for is not registered or unavailable.</p>
         <button
           onClick={() => onNavigate('creators')}
-          className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer"
+          className="px-4 py-2 bg-white hover:bg-zinc-200 text-zinc-950 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer"
         >
           View Creator Directory
         </button>
@@ -222,7 +222,13 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
       {/* Top Navigation Bar */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 flex items-center justify-between">
         <button
-          onClick={() => onNavigate('creators')}
+          onClick={() => {
+            if (typeof window !== 'undefined' && window.history.length > 1) {
+              window.history.back();
+            } else {
+              onNavigate('browse');
+            }
+          }}
           className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
             theme === 'dark'
               ? 'border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:text-white hover:bg-zinc-800'
@@ -230,14 +236,14 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
           }`}
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Creators Network</span>
+          <span>Back</span>
         </button>
 
         <div className="flex items-center gap-2">
           {isOwner && (
             <button
               onClick={handleOpenEdit}
-              className="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md transition-all active:scale-95 cursor-pointer"
+              className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-bold flex items-center gap-1.5 shadow-md transition-all active:scale-95 cursor-pointer"
             >
               <Edit3 className="w-3.5 h-3.5" />
               <span>Edit Profile</span>
@@ -274,11 +280,11 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                 <img
                   src={creator.avatarUrl}
                   alt={creator.penName}
-                  className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl object-cover ring-2 ring-purple-500/40 shadow-xl bg-zinc-900"
+                  className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl object-cover ring-2 ring-zinc-700 shadow-xl bg-zinc-900"
                 />
                 {creator.verified && (
                   <span
-                    className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center shadow-md font-black text-xs"
+                    className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white text-zinc-950 flex items-center justify-center shadow-md font-black text-xs"
                     title="Verified Creator"
                   >
                     ✓
@@ -295,7 +301,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                   >
                     {creator.penName}
                   </h1>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-purple-950/80 text-purple-300 border border-purple-800">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-zinc-800 text-zinc-300 border border-zinc-700">
                     Mangaka
                   </span>
                 </div>
@@ -324,7 +330,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                 <>
                   <button
                     onClick={handleOpenEdit}
-                    className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md transition-all active:scale-95 cursor-pointer"
+                    className="px-4 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-bold flex items-center gap-1.5 shadow-md transition-all active:scale-95 cursor-pointer"
                   >
                     <Edit3 className="w-4 h-4" />
                     <span>Edit Profile</span>
@@ -343,16 +349,19 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                 </>
               ) : (
                 <button
-                  onClick={() => toggleFollowCreator(creator.id)}
+                  onClick={() => {
+                    toggleFollowCreator(creator.id);
+                    setCreators(StorageService.getCreators());
+                  }}
                   className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-md cursor-pointer active:scale-95 ${
                     isFollowing
                       ? 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700'
-                      : 'bg-purple-600 hover:bg-purple-500 text-white'
+                      : 'bg-white hover:bg-zinc-200 text-zinc-950'
                   }`}
                 >
                   {isFollowing ? (
                     <>
-                      <Check className="w-4 h-4" />
+                      <Check className="w-4 h-4 text-emerald-400" />
                       <span>Following</span>
                     </>
                   ) : (
@@ -477,7 +486,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                         {isOwner && (
                           <button
                             onClick={handleOpenEdit}
-                            className="text-purple-400 hover:text-purple-300 underline font-semibold cursor-pointer"
+                            className="text-zinc-200 hover:text-zinc-300 underline font-semibold cursor-pointer"
                           >
                             + Add your social links
                           </button>
@@ -541,7 +550,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                 }`}
               >
                 <span className="text-[10px] font-mono uppercase text-zinc-400 block">Royalty Split</span>
-                <span className="text-lg font-black font-mono text-purple-400">
+                <span className="text-lg font-black font-mono text-zinc-200">
                   {creator.revenueSharePercent || 70}% Royalties
                 </span>
               </div>
@@ -557,7 +566,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
               onClick={() => setActiveTab('works')}
               className={`px-4 py-2 rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition-all cursor-pointer ${
                 activeTab === 'works'
-                  ? 'bg-purple-600 text-white shadow-md'
+                  ? 'bg-white text-zinc-950 shadow-md'
                   : theme === 'dark'
                   ? 'bg-zinc-900 text-zinc-400 hover:text-white'
                   : 'bg-zinc-100 text-zinc-600 hover:text-zinc-950'
@@ -573,7 +582,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
               }}
               className={`px-4 py-2 rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === 'edit'
-                  ? 'bg-purple-600 text-white shadow-md'
+                  ? 'bg-white text-zinc-950 shadow-md'
                   : theme === 'dark'
                   ? 'bg-zinc-900 text-zinc-400 hover:text-white'
                   : 'bg-zinc-100 text-zinc-600 hover:text-zinc-950'
@@ -594,7 +603,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
           >
             <div className="flex items-center justify-between pb-4 border-b border-zinc-200 dark:border-zinc-800">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-purple-600/20 text-purple-400 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-2xl bg-zinc-800/20 text-zinc-200 flex items-center justify-center">
                   <Edit3 className="w-5 h-5" />
                 </div>
                 <div>
@@ -628,7 +637,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                     value={editPenName}
                     onChange={e => setEditPenName(e.target.value)}
                     placeholder="e.g. Deep Mangaka"
-                    className={`w-full p-3 rounded-xl border text-xs focus:outline-none focus:border-purple-500 font-medium ${
+                    className={`w-full p-3 rounded-xl border text-xs focus:outline-none focus:border-zinc-600 font-medium ${
                       theme === 'dark' ? 'bg-black border-zinc-800 text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'
                     }`}
                   />
@@ -645,7 +654,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                     value={editHandle}
                     onChange={e => setEditHandle(e.target.value)}
                     placeholder="@deep_mangaka"
-                    className={`w-full p-3 rounded-xl border text-xs font-mono focus:outline-none focus:border-purple-500 ${
+                    className={`w-full p-3 rounded-xl border text-xs font-mono focus:outline-none focus:border-zinc-600 ${
                       theme === 'dark' ? 'bg-black border-zinc-800 text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'
                     }`}
                   />
@@ -662,7 +671,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                   value={editBio}
                   onChange={e => setEditBio(e.target.value)}
                   placeholder="Tell readers about yourself, your drawing style, inspirations, and upcoming chapter drops..."
-                  className={`w-full p-3 rounded-xl border text-xs leading-relaxed focus:outline-none focus:border-purple-500 ${
+                  className={`w-full p-3 rounded-xl border text-xs leading-relaxed focus:outline-none focus:border-zinc-600 ${
                     theme === 'dark' ? 'bg-black border-zinc-800 text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'
                   }`}
                 />
@@ -677,7 +686,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                   <img
                     src={editAvatarUrl || creator.avatarUrl}
                     alt="Preview"
-                    className="w-14 h-14 rounded-2xl object-cover border-2 border-purple-500/50 bg-zinc-900 shadow-md shrink-0"
+                    className="w-14 h-14 rounded-2xl object-cover border-2 border-zinc-600/50 bg-zinc-900 shadow-md shrink-0"
                   />
                   <div className="flex-1 flex gap-2 items-center">
                     <input
@@ -685,11 +694,11 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                       value={editAvatarUrl}
                       onChange={e => setEditAvatarUrl(e.target.value)}
                       placeholder="Enter photo URL or choose file..."
-                      className={`flex-1 p-3 rounded-xl border text-xs focus:outline-none focus:border-purple-500 font-mono ${
+                      className={`flex-1 p-3 rounded-xl border text-xs focus:outline-none focus:border-zinc-600 font-mono ${
                         theme === 'dark' ? 'bg-black border-zinc-800 text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'
                       }`}
                     />
-                    <label className="px-3.5 py-3 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shrink-0 transition-colors">
+                    <label className="px-3.5 py-3 rounded-xl bg-zinc-800/20 hover:bg-zinc-800/30 text-zinc-300 border border-zinc-700 text-xs font-semibold flex items-center gap-1.5 cursor-pointer shrink-0 transition-colors">
                       <Camera className="w-3.5 h-3.5" />
                       <span>Upload Photo</span>
                       <input
@@ -710,7 +719,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                         type="button"
                         onClick={() => setEditAvatarUrl(p)}
                         className={`w-8 h-8 rounded-xl overflow-hidden border transition-all cursor-pointer ${
-                          editAvatarUrl === p ? 'border-purple-500 scale-105 ring-2 ring-purple-500/40' : 'border-zinc-700 hover:border-zinc-500'
+                          editAvatarUrl === p ? 'border-zinc-600 scale-105 ring-2 ring-zinc-700' : 'border-zinc-700 hover:border-zinc-500'
                         }`}
                       >
                         <img src={p} alt="Preset" className="w-full h-full object-cover" />
@@ -723,7 +732,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
               {/* SOCIAL MEDIA SECTION */}
               <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800 space-y-4">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-purple-400" />
+                  <Sparkles className="w-4 h-4 text-zinc-200" />
                   <span className={`font-bold uppercase tracking-wider ${theme === 'dark' ? 'text-zinc-200' : 'text-zinc-800'}`}>
                     Social Media Profiles & Links
                   </span>
@@ -835,7 +844,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
               <div className="pt-4 flex items-center gap-3">
                 <button
                   type="submit"
-                  className="px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold shadow-lg transition-all active:scale-95 cursor-pointer flex items-center gap-2"
+                  className="px-6 py-3 bg-white hover:bg-zinc-200 text-zinc-950 rounded-xl text-xs font-bold shadow-lg transition-all active:scale-95 cursor-pointer flex items-center gap-2"
                 >
                   <Check className="w-4 h-4" />
                   <span>Save Profile Changes</span>
@@ -942,7 +951,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                       </div>
 
                       <h3
-                        className={`text-base font-black tracking-tight line-clamp-1 group-hover:text-purple-400 transition-colors ${
+                        className={`text-base font-black tracking-tight line-clamp-1 group-hover:text-zinc-200 transition-colors ${
                           theme === 'dark' ? 'text-white' : 'text-zinc-900'
                         }`}
                       >
@@ -970,15 +979,15 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                     <div className="flex items-center gap-3">
                       <span className="flex items-center gap-1">
                         <Eye className="w-3.5 h-3.5 text-zinc-400" />
-                        <span>{(series.totalViews || 12000).toLocaleString()}</span>
+                        <span>{(series.totalViews ?? 0).toLocaleString()}</span>
                       </span>
                       <span className="flex items-center gap-1">
-                        <Heart className="w-3.5 h-3.5 text-rose-400 fill-rose-400/30" />
-                        <span>{(series.likesCount || 850).toLocaleString()}</span>
+                        <Heart className="w-3.5 h-3.5 text-zinc-400" />
+                        <span>{(series.likesCount ?? 0).toLocaleString()}</span>
                       </span>
                     </div>
 
-                    <span className="font-bold text-purple-400 group-hover:underline">
+                    <span className="font-bold text-zinc-200 group-hover:underline">
                       Read Series →
                     </span>
                   </div>
@@ -999,7 +1008,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
           >
             <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-zinc-800/20 text-zinc-200 flex items-center justify-center">
                   <Edit3 className="w-4 h-4" />
                 </div>
                 <div>
@@ -1028,7 +1037,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                   value={editPenName}
                   onChange={e => setEditPenName(e.target.value)}
                   placeholder="e.g. Deep Mangaka"
-                  className={`w-full p-2.5 rounded-xl border text-xs focus:outline-none focus:border-purple-500 ${
+                  className={`w-full p-2.5 rounded-xl border text-xs focus:outline-none focus:border-zinc-600 ${
                     theme === 'dark' ? 'bg-black border-zinc-800 text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'
                   }`}
                 />
@@ -1045,7 +1054,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                   value={editHandle}
                   onChange={e => setEditHandle(e.target.value)}
                   placeholder="@deep_mangaka"
-                  className={`w-full p-2.5 rounded-xl border text-xs font-mono focus:outline-none focus:border-purple-500 ${
+                  className={`w-full p-2.5 rounded-xl border text-xs font-mono focus:outline-none focus:border-zinc-600 ${
                     theme === 'dark' ? 'bg-black border-zinc-800 text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'
                   }`}
                 />
@@ -1061,7 +1070,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                   value={editBio}
                   onChange={e => setEditBio(e.target.value)}
                   placeholder="Share a short bio, art style, inspiration, or projects in the works..."
-                  className={`w-full p-2.5 rounded-xl border text-xs leading-relaxed focus:outline-none focus:border-purple-500 ${
+                  className={`w-full p-2.5 rounded-xl border text-xs leading-relaxed focus:outline-none focus:border-zinc-600 ${
                     theme === 'dark' ? 'bg-black border-zinc-800 text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'
                   }`}
                 />
@@ -1083,7 +1092,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                     value={editAvatarUrl}
                     onChange={e => setEditAvatarUrl(e.target.value)}
                     placeholder="https://example.com/avatar.jpg"
-                    className={`flex-1 p-2.5 rounded-xl border text-xs focus:outline-none focus:border-purple-500 ${
+                    className={`flex-1 p-2.5 rounded-xl border text-xs focus:outline-none focus:border-zinc-600 ${
                       theme === 'dark' ? 'bg-black border-zinc-800 text-white' : 'bg-zinc-50 border-zinc-300 text-zinc-900'
                     }`}
                   />
@@ -1096,7 +1105,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                         key={idx}
                         type="button"
                         onClick={() => setEditAvatarUrl(p)}
-                        className="w-7 h-7 rounded-lg overflow-hidden border border-zinc-700 hover:border-purple-400 transition-all cursor-pointer"
+                        className="w-7 h-7 rounded-lg overflow-hidden border border-zinc-700 hover:border-white transition-all cursor-pointer"
                       >
                         <img src={p} alt="Preset" className="w-full h-full object-cover" />
                       </button>
@@ -1108,7 +1117,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
               {/* SOCIAL LINKS FORM */}
               <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 space-y-3">
                 <div className="flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                  <Sparkles className="w-3.5 h-3.5 text-zinc-200" />
                   <span className="font-bold uppercase tracking-wider text-zinc-300">
                     Social Media & Portfolio Links
                   </span>
@@ -1224,7 +1233,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold flex items-center gap-1.5 shadow-lg cursor-pointer active:scale-95"
+                  className="px-6 py-2 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-bold flex items-center gap-1.5 shadow-lg cursor-pointer active:scale-95"
                 >
                   <Check className="w-4 h-4" />
                   <span>Save Changes</span>
