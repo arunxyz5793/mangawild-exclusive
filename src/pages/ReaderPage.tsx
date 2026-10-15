@@ -20,7 +20,6 @@ import {
   ZoomOut,
   RotateCcw,
   Volume2,
-  Mail,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -35,7 +34,6 @@ interface ReaderPageProps {
   chapterId: string;
   onNavigate: (view: string, params?: Record<string, string>) => void;
   onOpenVIPModal?: () => void;
-  onOpenGmail?: (options?: { recipient?: string; subject?: string; body?: string }) => void;
 }
 
 export const ReaderPage: React.FC<ReaderPageProps> = ({
@@ -43,7 +41,6 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
   chapterId,
   onNavigate,
   onOpenVIPModal,
-  onOpenGmail,
 }) => {
   const { user, isVIP, isAuthenticated } = useAuth();
   const { t } = useLanguage();
@@ -490,6 +487,13 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
+          <button
+            onClick={() => onNavigate('home')}
+            className="hidden md:flex items-center cursor-pointer transition-transform duration-150 active:scale-95 drop-shadow-md hover:opacity-90"
+            title="MangaWild Home"
+          >
+            <MangaWildLogo size="sm" />
+          </button>
           <div className="max-w-[140px] sm:max-w-xs truncate">
             <h1 className="text-xs sm:text-sm font-bold text-white leading-tight truncate">
               <span className="truncate">{series.title}</span>
@@ -581,23 +585,6 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
             )}
           </div>
 
-          {/* Share via Gmail button */}
-          {onOpenGmail && (
-            <button
-              type="button"
-              onClick={() => {
-                onOpenGmail({
-                  subject: `Check out ${series.title} - Chapter ${currentChapter.chapterNumber} on MangaWild!`,
-                  body: `Hey,\n\nI was just reading "${series.title}" (Chapter ${currentChapter.chapterNumber}: ${currentChapter.title}) on MangaWild!\n\nSynopsis:\n${series.synopsis}\n\nRead it here: https://mangawild.online/series/${series.slug}`,
-                });
-              }}
-              className="p-1.5 text-zinc-400 hover:text-red-400 hover:bg-red-950/30 rounded-lg border border-transparent hover:border-red-900/40 transition-colors cursor-pointer flex items-center gap-1.5"
-              title="Share Chapter via Gmail"
-            >
-              <Mail className="w-3.5 h-3.5 text-red-400" />
-              <span className="hidden lg:inline text-[11px] font-medium text-zinc-300">Share via Gmail</span>
-            </button>
-          )}
 
           {/* Mode toggle */}
           <div className="hidden md:flex items-center p-0.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs">

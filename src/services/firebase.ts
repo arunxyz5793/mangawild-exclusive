@@ -6,7 +6,10 @@ import firebaseConfig from '../../firebase-applet-config.json';
 const app = initializeApp(firebaseConfig);
 
 // CRITICAL: The app will break without specifying the firestoreDatabaseId
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db = getFirestore(
+  app,
+  (firebaseConfig as any).firestoreDatabaseId || 'ai-studio-mangawild-6c426fc8-997a-4201-b9d3-84c8cedea66e'
+);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 

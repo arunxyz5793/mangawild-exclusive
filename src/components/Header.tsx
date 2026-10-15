@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Search,
   Bell,
@@ -20,7 +20,6 @@ import {
   Newspaper,
   Users,
   Compass,
-  Mail,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -34,7 +33,6 @@ interface HeaderProps {
   onNavigate: (view: string, params?: Record<string, string>) => void;
   onOpenVIPModal: () => void;
   onOpenSearch: () => void;
-  onOpenGmail?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -42,7 +40,6 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigate,
   onOpenVIPModal,
   onOpenSearch,
-  onOpenGmail,
 }) => {
   const {
     user,
@@ -59,7 +56,44 @@ export const Header: React.FC<HeaderProps> = ({
   } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const [isScrolledDown, setIsScrolledDown] = useState(false);
   const [isMenuDrawerOpen, setIsMenuDrawerOpen] = useState(false);
+  const lastScrollYRef = useRef(0);
+
+  // Direction-aware scroll listener:
+  // - Scrolls down: slides header out with animation, blur removed, buttons hidden
+  // - Scrolls up slightly: slides header down immediately with blur and buttons restored
+  // - At top: always visible
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const lastScrollY = lastScrollYRef.current;
+      const delta = currentScrollY - lastScrollY;
+
+      if (currentScrollY <= 20) {
+        setIsHeaderVisible(true);
+        setIsScrolledDown(false);
+      } else {
+        setIsScrolledDown(true);
+
+        // User scrolling DOWN past 60px: hide header
+        if (delta > 6 && currentScrollY > 60) {
+          setIsHeaderVisible(false);
+          setIsNotifOpen(false);
+        }
+        // User scrolling UP: immediately reveal header
+        else if (delta < -4) {
+          setIsHeaderVisible(true);
+        }
+      }
+
+      lastScrollYRef.current = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authDefaultRole, setAuthDefaultRole] = useState<'reader' | 'creator' | 'admin'>('reader');
@@ -118,27 +152,45 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      {/* Main Navigation Header - Spacious, Open, and Clean */}
+      {/* 1. Permanent Fixed MangaWild Logo & Typography - Pinned at top-left across entire website (just like Instagram in screenshot) */}
+      <div className="fixed top-3 sm:top-4 left-4 sm:left-6 z-50 pointer-events-auto">
+        <button
+          onClick={() => onNavigate('home')}
+          className="focus:outline-none flex items-center cursor-pointer transition-transform duration-150 active:scale-95 drop-shadow-[0_2px_12px_rgba(0,0,0,0.65)] hover:opacity-90"
+          title="MangaWild Home"
+        >
+          <MangaWildLogo size="md" />
+        </button>
+      </div>
+
+      {/* Static layout spacer to maintain top margin for page content */}
+      <div className="h-16 sm:h-20 w-full shrink-0 pointer-events-none" aria-hidden="true" />
+
+      {/* 2. Smart Direction-Aware Header Bar: slides out on scroll-down, slides down on scroll-up */}
       <header
-        className={`sticky top-0 z-40 transition-colors backdrop-blur-md border-b ${
-          theme === 'dark'
-            ? 'bg-[#09090b]/95 border-zinc-800'
-            : 'bg-white/95 border-zinc-200 shadow-xs'
+        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ease-out pointer-events-none ${
+          isHeaderVisible
+            ? 'translate-y-0 opacity-100'
+            : '-translate-y-full opacity-0'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between gap-4 sm:gap-8">
-          {/* Left: MangaWild Logo */}
-          <div className="flex items-center gap-3 shrink-0">
-            <button
-              onClick={() => onNavigate('home')}
-              className="focus:outline-none flex items-center cursor-pointer transition-transform active:scale-98"
-            >
-              <MangaWildLogo size="md" />
-            </button>
-          </div>
+        {/* Blurry header background that is present whenever header is shown */}
+        <div
+          className={`absolute inset-0 transition-opacity duration-300 pointer-events-auto ${
+            theme === 'dark'
+              ? 'bg-[#09090b]/85 border-b border-zinc-800/80 backdrop-blur-md shadow-xs'
+              : 'bg-white/85 border-b border-zinc-200/80 backdrop-blur-md shadow-xs'
+          }`}
+        />
 
-          {/* Center: Clean Text Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-6 xl:gap-8 text-sm font-semibold">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between gap-4 sm:gap-8 relative z-10">
+          {/* Left spacer so navigation and action buttons align cleanly beside the fixed logo */}
+          <div className="w-[160px] sm:w-[195px] shrink-0 pointer-events-none" aria-hidden="true" />
+
+          {/* Menu Buttons & Actions - Clickable when header is in view */}
+          <div className="flex items-center justify-between flex-1 gap-4 sm:gap-8 pointer-events-auto">
+            {/* Center: Clean Text Navigation Links */}
+            <nav className="hidden lg:flex items-center gap-6 xl:gap-8 text-sm font-semibold">
             {navLinks.map(link => {
               const isActive = currentView === link.id;
               return (
@@ -193,21 +245,6 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="hidden md:inline text-xs font-medium text-zinc-400">Search...</span>
             </button>
 
-            {/* Gmail Workspace Integration Button */}
-            {onOpenGmail && (
-              <button
-                type="button"
-                onClick={onOpenGmail}
-                className={`p-1.5 sm:p-2 rounded-xl transition-all duration-150 active:scale-95 cursor-pointer flex items-center justify-center ${
-                  theme === 'dark'
-                    ? 'text-red-400 hover:text-red-300 hover:bg-red-950/40 border border-red-900/30'
-                    : 'text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200'
-                }`}
-                title="Gmail Workspace Center (Send & Read)"
-              >
-                <Mail className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
-            )}
 
             {/* Dark / Light Theme Toggle */}
             <button
@@ -345,6 +382,7 @@ export const Header: React.FC<HeaderProps> = ({
               <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-current" />
               <span className="hidden sm:inline font-mono uppercase tracking-wider">Menu</span>
             </button>
+          </div>
           </div>
         </div>
       </header>
@@ -756,24 +794,6 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="text-[10px] font-mono text-zinc-500">Plans</span>
               </button>
 
-              {/* Gmail Workspace & Recommendations */}
-              {onOpenGmail && (
-                <button
-                  onClick={() => {
-                    onOpenGmail();
-                    setIsMenuDrawerOpen(false);
-                  }}
-                  className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold text-red-400 hover:text-white hover:bg-red-950/40 flex items-center justify-between transition-colors cursor-pointer border border-red-900/30 my-1"
-                >
-                  <div className="flex items-center gap-3">
-                    <Mail className="w-4 h-4 text-red-400" />
-                    <span>Gmail Workspace & Mail</span>
-                  </div>
-                  <span className="text-[9px] font-mono uppercase bg-red-950 text-red-300 px-1.5 py-0.5 rounded border border-red-800">
-                    Google
-                  </span>
-                </button>
-              )}
 
               <div className="border-t border-zinc-800/80 my-2 pt-2">
                 <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider px-3 mb-2">

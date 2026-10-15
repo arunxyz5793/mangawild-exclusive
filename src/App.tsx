@@ -589,6 +589,7 @@ function AppContent() {
           closeAuthModal();
         }}
       />
+
     </div>
   );
 }

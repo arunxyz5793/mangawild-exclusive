@@ -44,7 +44,7 @@ export const MangaWildLogo: React.FC<MangaWildLogoProps> = ({
       <div className="flex flex-col justify-center min-w-0">
         <div className="flex items-center gap-2">
           <span
-            className={`font-display font-black tracking-wider leading-none text-slate-100 ${textSizes[size]}`}
+            className={`font-display font-black tracking-wider leading-none text-zinc-900 dark:text-slate-100 ${textSizes[size]}`}
             style={{ letterSpacing: '0.04em' }}
           >
             MANGAWILD
@@ -56,7 +56,7 @@ export const MangaWildLogo: React.FC<MangaWildLogoProps> = ({
             </span>
           )}
         </div>
-        <span className="hidden sm:block text-[10px] uppercase font-mono tracking-widest text-slate-400 mt-0.5 truncate">
+        <span className="hidden sm:block text-[10px] uppercase font-mono tracking-widest text-zinc-500 dark:text-slate-400 mt-0.5 truncate">
           Official Digital Manga
         </span>
       </div>
