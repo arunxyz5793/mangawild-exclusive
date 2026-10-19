@@ -823,7 +823,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                   imgClassName="w-full h-auto block select-none pointer-events-none"
                 />
                 {panel.hasError && (
-                  <div className="absolute top-2 right-2 z-20 bg-amber-500/90 text-black text-[10px] font-bold px-2 py-0.5 rounded shadow">
+                  <div className="absolute top-2 right-2 z-20 bg-zinc-800/90 border border-zinc-700 text-zinc-300 text-[10px] font-bold px-2 py-0.5 rounded shadow">
                     Scan Issue Flagged
                   </div>
                 )}
@@ -833,11 +833,11 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
             {/* Vertical Chapter Completion Section - appears vertically after the last page */}
             {!isLocked && (
               <div className="w-full max-w-2xl py-16 px-4 text-center space-y-4 mt-8 border-t border-zinc-800/80">
-                <div className="w-14 h-14 mx-auto rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shadow-lg">
-                  <CheckCircle className="w-7 h-7" />
+                <div className="w-12 h-12 mx-auto rounded-full bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center justify-center shadow-md">
+                  <CheckCircle className="w-6 h-6 text-zinc-300" />
                 </div>
                 <div>
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-bold bg-emerald-950/80 px-2.5 py-1 rounded-full border border-emerald-800">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold bg-zinc-800/80 px-2.5 py-1 rounded-full border border-zinc-700">
                     Chapter Completed
                   </span>
                   <h3 className="text-2xl font-black text-white mt-2">
@@ -920,11 +920,11 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
             {activePanelIndex >= currentChapter.panels.length ? (
               /* Horizontal End-Card Slide - Only shown after the last page! */
               <div className="relative flex flex-col items-center justify-center p-8 sm:p-12 rounded-3xl bg-zinc-900/90 border border-zinc-800 shadow-2xl max-w-xl w-full my-auto text-center space-y-5">
-                <div className="w-16 h-16 mx-auto rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shadow-lg">
+                <div className="w-16 h-16 mx-auto rounded-full bg-slate-800 border border-slate-700 text-slate-300 flex items-center justify-center shadow-lg">
                   <CheckCircle className="w-8 h-8" />
                 </div>
                 <div>
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-bold bg-emerald-950/80 px-2.5 py-1 rounded-full border border-emerald-800">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-300 font-bold bg-slate-800/90 px-3 py-1 rounded-full border border-slate-700">
                     Chapter Completed
                   </span>
                   <h3 className="text-2xl font-black text-white mt-2">

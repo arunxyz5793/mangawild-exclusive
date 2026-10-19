@@ -2106,8 +2106,10 @@ export const StorageService = {
   getUsers(): User[] {
     const rawList = getStored<User[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
     let hasAdmin = false;
+    const seenIds = new Set<string>();
+    const list: User[] = [];
 
-    const list = rawList.map(u => {
+    for (const u of rawList) {
       // Check if this is the system admin account (or any legacy admin entry)
       const isAdminAccount =
         u.id === OFFICIAL_ADMIN.id ||
@@ -2118,31 +2120,43 @@ export const StorageService = {
         u.username?.toLowerCase() === 'mangawild_admin';
 
       if (isAdminAccount) {
-        hasAdmin = true;
-        return {
-          ...u,
-          id: OFFICIAL_ADMIN.id,
-          name: 'Admin',
-          username: OFFICIAL_ADMIN.username,
-          email: OFFICIAL_ADMIN.email,
-          password: OFFICIAL_ADMIN.password,
-          role: 'admin' as UserRole,
-          isVIP: true,
-          avatarUrl: u.avatarUrl || '/avatars/admin.svg',
-        };
+        if (!hasAdmin) {
+          hasAdmin = true;
+          seenIds.add(OFFICIAL_ADMIN.id);
+          list.push({
+            ...u,
+            id: OFFICIAL_ADMIN.id,
+            name: 'Admin',
+            username: OFFICIAL_ADMIN.username,
+            email: u.email || OFFICIAL_ADMIN.email,
+            password: OFFICIAL_ADMIN.password,
+            role: 'admin' as UserRole,
+            isVIP: true,
+            avatarUrl: u.avatarUrl || '/avatars/admin.svg',
+          });
+        }
+        // Skip duplicate admin records
+        continue;
       }
 
-      // STRICT SECURITY: No other account can EVER hold the 'admin' role!
+      // Non-admin user: ensure strictly unique ID
+      let finalId = u.id;
+      if (!finalId || seenIds.has(finalId)) {
+        finalId = `user_${u.username || 'reader'}_${Math.random().toString(36).substring(2, 7)}`;
+      }
+      seenIds.add(finalId);
+
       const safeRole: UserRole = u.role === 'admin' ? 'free_user' : u.role;
       const cleanUser = u.username || (u.email ? u.email.split('@')[0] : 'user').replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
-      return {
+      list.push({
         ...u,
-        name: cleanUser,
+        id: finalId,
+        name: u.name || cleanUser,
         username: cleanUser,
         role: safeRole,
         password: u.password || 'password123',
-      };
-    });
+      });
+    }
 
     if (!hasAdmin) {
       list.unshift({
@@ -2162,7 +2176,13 @@ export const StorageService = {
   },
 
   saveUsers(users: User[]): void {
-    setStored(STORAGE_KEYS.USERS, users);
+    const seen = new Set<string>();
+    const deduplicated = users.filter(u => {
+      if (!u.id || seen.has(u.id)) return false;
+      seen.add(u.id);
+      return true;
+    });
+    setStored(STORAGE_KEYS.USERS, deduplicated);
   },
 
   getCurrentUser(): User {

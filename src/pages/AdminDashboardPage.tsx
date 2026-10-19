@@ -894,8 +894,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800/40">
-                  {usersList.map(u => (
-                    <tr key={u.id} className="hover:bg-zinc-800/30">
+                  {usersList.map((u, idx) => (
+                    <tr key={`${u.id}_${idx}`} className="hover:bg-zinc-800/30">
                       <td className="py-3 px-4 font-bold text-white">{u.name}</td>
                       <td className="py-3 px-4 font-mono text-zinc-400">@{u.username || 'user'}</td>
                       <td className="py-3 px-4 text-zinc-400">{u.email}</td>
@@ -906,7 +906,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                       </td>
                       <td className="py-3 px-4 text-right">
                         {u.id === 'user_admin_01' || u.role === 'admin' ? (
-                          <span className="text-[11px] font-mono text-amber-400 font-bold px-2.5 py-1 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                          <span className="text-[11px] font-mono text-zinc-200 font-bold px-2.5 py-1 bg-zinc-800 border border-zinc-700 rounded-lg">
                             System Admin (Fixed)
                           </span>
                         ) : (
@@ -936,7 +936,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
               <div className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/40">
                 <p className="text-[11px] font-mono text-zinc-400 uppercase">Gross Platform Volume</p>
                 <p className="text-3xl font-black text-white mt-1">₹4,28,000</p>
-                <p className="text-[10px] text-zinc-500 font-mono mt-1">VIP subscriptions + coins</p>
+                <p className="text-[10px] text-zinc-500 font-mono mt-1">VIP All-Access Subscriptions</p>
               </div>
 
               <div className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/40">

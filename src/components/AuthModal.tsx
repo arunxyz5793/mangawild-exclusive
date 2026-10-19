@@ -14,11 +14,15 @@ import {
   AlertCircle,
   Copy,
   Check,
+  KeyRound,
+  RefreshCw,
+  ArrowLeft,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { UserRole } from '../types/auth';
 import { PRIMARY_CLIENT_ID } from '../services/googleAuth';
+import { StorageService } from '../services/storage';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -42,7 +46,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const { theme } = useTheme();
   const { signIn, signUp, signInWithGoogle, signInWithGoogleDirect } = useAuth();
 
-  const [mode, setMode] = useState<'signin' | 'signup'>(defaultMode);
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot_password' | 'verify_otp'>(defaultMode);
   const [selectedPersona, setSelectedPersona] = useState<'reader' | 'creator' | 'admin'>(defaultRole);
 
   const [username, setUsername] = useState('');
@@ -50,10 +54,55 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showDirectGoogleInput, setShowDirectGoogleInput] = useState(false);
   const [directGoogleEmail, setDirectGoogleEmail] = useState('callmedevoc@gmail.com');
   const [copiedOrigin, setCopiedOrigin] = useState(false);
+
+  // Forgot Password & OTP state
+  const [resetEmail, setResetEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [generatedOtpPreview, setGeneratedOtpPreview] = useState<string | null>(null);
+
+  // Auto-clears error message immediately when user modifies input
+  const handleEmailChange = (val: string) => {
+    setEmail(val);
+    setLoginIdentifier(val);
+    if (errorMsg) setErrorMsg(null);
+  };
+
+  const handlePasswordChange = (val: string) => {
+    setPassword(val);
+    if (errorMsg) setErrorMsg(null);
+  };
+
+  const handleUsernameChange = (val: string) => {
+    setUsername(val);
+    if (errorMsg) setErrorMsg(null);
+  };
+
+  const handleResetEmailChange = (val: string) => {
+    setResetEmail(val);
+    if (errorMsg) setErrorMsg(null);
+  };
+
+  const handleOtpChange = (val: string) => {
+    setOtpCode(val.replace(/[^0-9]/g, '').slice(0, 6));
+    if (errorMsg) setErrorMsg(null);
+  };
+
+  const handleNewPasswordChange = (val: string) => {
+    setNewPassword(val);
+    if (errorMsg) setErrorMsg(null);
+  };
+
+  const handleConfirmPasswordChange = (val: string) => {
+    setConfirmPassword(val);
+    if (errorMsg) setErrorMsg(null);
+  };
 
   const isDedicatedAdmin = defaultRole === 'admin' || selectedPersona === 'admin';
 
@@ -68,8 +117,74 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (defaultRole) setSelectedPersona(defaultRole);
       }
       setErrorMsg(null);
+      setSuccessMsg(null);
     }
   }, [isOpen, defaultMode, defaultRole]);
+
+  // Send 6-Digit OTP for Password Reset
+  const handleSendResetOTP = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    const cleanEmail = resetEmail.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setErrorMsg('Please enter a valid email address.');
+      return;
+    }
+
+    // Generate random 6-digit OTP code
+    const randomOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    StorageService.savePasswordResetOTP(cleanEmail, randomOtp);
+    setGeneratedOtpPreview(randomOtp);
+    setMode('verify_otp');
+    setSuccessMsg(`A 6-digit verification code has been sent to ${cleanEmail}.`);
+  };
+
+  // Verify OTP and reset password
+  const handleVerifyOTPAndReset = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    const cleanEmail = resetEmail.trim().toLowerCase();
+    const cleanOtp = otpCode.trim();
+
+    if (!cleanOtp || cleanOtp.length !== 6) {
+      setErrorMsg('Please enter the complete 6-digit verification code.');
+      return;
+    }
+
+    const isValid = StorageService.verifyPasswordResetOTP(cleanEmail, cleanOtp);
+    if (!isValid) {
+      setErrorMsg('Invalid or expired verification code. Please check the code and try again.');
+      return;
+    }
+
+    if (!newPassword || newPassword.length < 4) {
+      setErrorMsg('New password must be at least 4 characters long.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setErrorMsg('Passwords do not match. Please ensure both passwords match.');
+      return;
+    }
+
+    const resetSuccess = StorageService.resetPassword(cleanEmail, newPassword);
+    if (resetSuccess) {
+      setSuccessMsg('Your password has been reset successfully! You can now sign in.');
+      setEmail(cleanEmail);
+      setPassword(newPassword);
+      setOtpCode('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setMode('signin');
+    } else {
+      // If user was not yet in users table, register them with new password
+      setErrorMsg('Account with this email not found. Please check your email or register a new account.');
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -203,7 +318,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <div>
             <h2 className="text-xl font-black tracking-tight flex items-center gap-2">
               {isDedicatedAdmin ? (
-                <Shield className="w-5 h-5 text-amber-400" />
+                <Shield className="w-5 h-5 text-zinc-300" />
               ) : (
                 <Sparkles className="w-5 h-5 text-white" />
               )}
@@ -294,6 +409,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
+          {successMsg && (
+            <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-200 text-xs flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 shrink-0 text-emerald-400" />
+              <span>{successMsg}</span>
+            </div>
+          )}
+
           {errorMsg && (
             <div className="p-3 rounded-xl bg-red-950/50 border border-red-800 text-red-200 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
@@ -301,137 +423,298 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-3.5">
-            {mode === 'signup' ? (
-              <>
-                {/* Unique Username Input */}
+          {/* Mode 1: Forgot Password (Request 6-Digit OTP) */}
+          {mode === 'forgot_password' ? (
+            <form onSubmit={handleSendResetOTP} className="space-y-3.5">
+              <div className="flex items-center gap-2 mb-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErrorMsg(null);
+                    setSuccessMsg(null);
+                    setMode('signin');
+                  }}
+                  className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+                  title="Back to Sign In"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-semibold text-zinc-300">
-                      Choose Your Unique Username
-                    </label>
-                    <span className="text-[10px] text-zinc-500 font-mono">Unique handle, no spaces</span>
-                  </div>
-                  <div className="relative">
-                    <AtSign className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
-                    <input
-                      type="text"
-                      required
-                      value={username}
-                      onChange={e =>
-                        setUsername(
-                          e.target.value.toLowerCase().replace(/[^a-zA-Z0-9_]/g, '').slice(0, 30)
-                        )
-                      }
-                      placeholder="e.g. shadow_slayer or manga_artist"
-                      className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs font-mono focus:outline-none focus:border-white transition-colors"
-                    />
-                  </div>
-                  {username && (
-                    <p className="text-[11px] text-zinc-400 mt-1 font-mono">
-                      Your unique profile ID: <span className="text-white font-bold">@{username}</span>
-                    </p>
-                  )}
+                  <h4 className="text-sm font-bold text-white">Reset Account Password</h4>
+                  <p className="text-[11px] text-zinc-400">Enter your email to receive a 6-digit verification code</p>
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-300 mb-1">Email Address</label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      placeholder="your.email@example.com"
-                      className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
-                    />
-                  </div>
+              <div>
+                <label className="block text-xs font-semibold text-zinc-300 mb-1">Registered Email Address</label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
+                  <input
+                    type="email"
+                    required
+                    value={resetEmail}
+                    onChange={e => handleResetEmailChange(e.target.value)}
+                    placeholder="Enter the email associated with your account"
+                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
+                    autoFocus
+                  />
                 </div>
+              </div>
 
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 px-4 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-sm transition-all shadow-md active:scale-98 flex items-center justify-center gap-2 cursor-pointer mt-2 disabled:opacity-50"
+              >
+                <span>Send 6-Digit Verification Code</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </form>
+          ) : mode === 'verify_otp' ? (
+            /* Mode 2: Verify 6-Digit Code & Enter New Password */
+            <form onSubmit={handleVerifyOTPAndReset} className="space-y-3.5">
+              <div className="flex items-center gap-2 mb-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErrorMsg(null);
+                    setMode('forgot_password');
+                  }}
+                  className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+                  title="Back"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-300 mb-1">Create Password</label>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
-                    <input
-                      type="password"
-                      required
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      placeholder="Create a secure password"
-                      className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
-                    />
-                  </div>
-                  <p className="text-[10px] text-zinc-500 mt-1 font-mono">
-                    Must be used every time you sign in to this account.
+                  <h4 className="text-sm font-bold text-white">Enter 6-Digit Code</h4>
+                  <p className="text-[11px] text-zinc-400">
+                    Code sent to <span className="text-zinc-200 font-mono">{resetEmail}</span>
                   </p>
                 </div>
-              </>
-            ) : (
-              <>
-                {/* Sign In Mode: Strictly Email/Username & Password ONLY */}
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-300 mb-1">
-                    {isDedicatedAdmin ? 'Administrator Email or Username' : 'Email Address or Username'}
-                  </label>
-                  <div className="relative">
-                    <UserIcon className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
-                    <input
-                      type="text"
-                      required
-                      value={email || loginIdentifier}
-                      onChange={e => {
-                        setEmail(e.target.value);
-                        setLoginIdentifier(e.target.value);
-                      }}
-                      placeholder={isDedicatedAdmin ? 'admin@mangawild.com or admin' : 'name@example.com or @username'}
-                      className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
-                      autoFocus
-                    />
-                  </div>
+              </div>
+
+              {/* Direct OTP Test Code Preview Helper */}
+              {generatedOtpPreview && (
+                <div className="p-2.5 rounded-xl bg-zinc-900/90 border border-zinc-700/80 flex items-center justify-between text-xs text-zinc-300">
+                  <span className="flex items-center gap-1.5 font-mono">
+                    <KeyRound className="w-3.5 h-3.5 text-sky-400" />
+                    <span>Your OTP: <strong className="text-white tracking-widest text-sm">{generatedOtpPreview}</strong></span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOtpCode(generatedOtpPreview);
+                      if (errorMsg) setErrorMsg(null);
+                    }}
+                    className="text-[11px] text-sky-400 hover:text-sky-300 underline font-semibold cursor-pointer"
+                  >
+                    Paste Code
+                  </button>
                 </div>
+              )}
 
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-semibold text-zinc-300">Password</label>
-                  </div>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
-                    <input
-                      type="password"
-                      required
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      placeholder={isDedicatedAdmin ? 'Enter Administrator password' : 'Enter your password'}
-                      className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
-                      autoComplete="current-password"
-                    />
-                  </div>
+              <div>
+                <label className="block text-xs font-semibold text-zinc-300 mb-1">
+                  6-Digit Verification Code
+                </label>
+                <div className="relative">
+                  <KeyRound className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={e => handleOtpChange(e.target.value)}
+                    placeholder="123456"
+                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-sm font-mono tracking-widest text-center focus:outline-none focus:border-white transition-colors"
+                    autoFocus
+                  />
                 </div>
-              </>
-            )}
+              </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 px-4 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-sm transition-all shadow-md active:scale-98 flex items-center justify-center gap-2 cursor-pointer mt-2 disabled:opacity-50"
-            >
-              <span>
-                {loading
-                  ? 'Verifying...'
-                  : isDedicatedAdmin
-                  ? 'Sign In to Admin Suite'
-                  : mode === 'signup'
-                  ? `Create ${selectedPersona === 'creator' ? 'Creator' : 'Reader'} Account`
-                  : 'Sign In'}
-              </span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </form>
+              <div>
+                <label className="block text-xs font-semibold text-zinc-300 mb-1">New Password</label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
+                  <input
+                    type="password"
+                    required
+                    value={newPassword}
+                    onChange={e => handleNewPasswordChange(e.target.value)}
+                    placeholder="At least 4 characters"
+                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
+                  />
+                </div>
+              </div>
 
-          {/* Social Sign-In (Disabled for Admin mode: Admin MUST use official email/password) */}
-          {!isDedicatedAdmin && (
+              <div>
+                <label className="block text-xs font-semibold text-zinc-300 mb-1">Confirm New Password</label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
+                  <input
+                    type="password"
+                    required
+                    value={confirmPassword}
+                    onChange={e => handleConfirmPasswordChange(e.target.value)}
+                    placeholder="Repeat new password"
+                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 px-4 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-sm transition-all shadow-md active:scale-98 flex items-center justify-center gap-2 cursor-pointer mt-2 disabled:opacity-50"
+              >
+                <span>Verify & Reset Password</span>
+                <Check className="w-4 h-4" />
+              </button>
+            </form>
+          ) : (
+            /* Mode 3: Sign In or Sign Up Form */
+            <form onSubmit={handleSubmit} className="space-y-3.5">
+              {mode === 'signup' ? (
+                <>
+                  {/* Unique Username Input */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-semibold text-zinc-300">
+                        Choose Your Unique Username
+                      </label>
+                      <span className="text-[10px] text-zinc-500 font-mono">Unique handle, no spaces</span>
+                    </div>
+                    <div className="relative">
+                      <AtSign className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
+                      <input
+                        type="text"
+                        required
+                        value={username}
+                        onChange={e =>
+                          handleUsernameChange(
+                            e.target.value.toLowerCase().replace(/[^a-zA-Z0-9_]/g, '').slice(0, 30)
+                          )
+                        }
+                        placeholder="e.g. shadow_slayer or manga_artist"
+                        className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs font-mono focus:outline-none focus:border-white transition-colors"
+                      />
+                    </div>
+                    {username && (
+                      <p className="text-[11px] text-zinc-400 mt-1 font-mono">
+                        Your unique profile ID: <span className="text-white font-bold">@{username}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-300 mb-1">Email Address</label>
+                    <div className="relative">
+                      <Mail className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={e => handleEmailChange(e.target.value)}
+                        placeholder="your.email@example.com"
+                        className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-300 mb-1">Create Password</label>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
+                      <input
+                        type="password"
+                        required
+                        value={password}
+                        onChange={e => handlePasswordChange(e.target.value)}
+                        placeholder="Create a secure password"
+                        className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
+                      />
+                    </div>
+                    <p className="text-[10px] text-zinc-500 mt-1 font-mono">
+                      Must be used every time you sign in to this account.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Sign In Mode: Strictly Email/Username & Password ONLY */}
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-300 mb-1">
+                      {isDedicatedAdmin ? 'Administrator Email or Username' : 'Email Address or Username'}
+                    </label>
+                    <div className="relative">
+                      <UserIcon className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
+                      <input
+                        type="text"
+                        required
+                        value={email || loginIdentifier}
+                        onChange={e => handleEmailChange(e.target.value)}
+                        placeholder={isDedicatedAdmin ? 'admin@mangawild.com or admin' : 'name@example.com or @username'}
+                        className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-semibold text-zinc-300">Password</label>
+                      {!isDedicatedAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setErrorMsg(null);
+                            setSuccessMsg(null);
+                            setResetEmail(email || loginIdentifier || '');
+                            setMode('forgot_password');
+                          }}
+                          className="text-[11px] text-zinc-400 hover:text-white hover:underline transition-colors cursor-pointer"
+                        >
+                          Forgot password?
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
+                      <input
+                        type="password"
+                        required
+                        value={password}
+                        onChange={e => handlePasswordChange(e.target.value)}
+                        placeholder={isDedicatedAdmin ? 'Enter Administrator password' : 'Enter your password'}
+                        className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
+                        autoComplete="current-password"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 px-4 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-sm transition-all shadow-md active:scale-98 flex items-center justify-center gap-2 cursor-pointer mt-2 disabled:opacity-50"
+              >
+                <span>
+                  {loading
+                    ? 'Verifying...'
+                    : isDedicatedAdmin
+                    ? 'Sign In to Admin Suite'
+                    : mode === 'signup'
+                    ? `Create ${selectedPersona === 'creator' ? 'Creator' : 'Reader'} Account`
+                    : 'Sign In'}
+                </span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </form>
+          )}
+
+          {/* Social Sign-In (Disabled for Admin mode and password recovery) */}
+          {!isDedicatedAdmin && (mode === 'signin' || mode === 'signup') && (
             <div className="pt-2 space-y-2">
               <div className="relative flex items-center justify-center mb-3">
                 <div className="border-t border-zinc-800 w-full" />
@@ -511,7 +794,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
-          {/* Mode Switcher (Disabled for Admin mode) */}
+          {/* Bottom Switcher */}
           {!isDedicatedAdmin && (
             <div className="text-center pt-1">
               {mode === 'signup' ? (
@@ -519,21 +802,44 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   Already have an account?{' '}
                   <button
                     type="button"
-                    onClick={() => setMode('signin')}
-                    className="text-white font-bold hover:underline ml-1"
+                    onClick={() => {
+                      setErrorMsg(null);
+                      setSuccessMsg(null);
+                      setMode('signin');
+                    }}
+                    className="text-white font-bold hover:underline ml-1 cursor-pointer"
                   >
                     Sign In
                   </button>
                 </p>
-              ) : (
+              ) : mode === 'signin' ? (
                 <p className="text-xs text-zinc-400">
                   Don't have an account yet?{' '}
                   <button
                     type="button"
-                    onClick={() => setMode('signup')}
-                    className="text-white font-bold hover:underline ml-1"
+                    onClick={() => {
+                      setErrorMsg(null);
+                      setSuccessMsg(null);
+                      setMode('signup');
+                    }}
+                    className="text-white font-bold hover:underline ml-1 cursor-pointer"
                   >
                     Sign Up
+                  </button>
+                </p>
+              ) : (
+                <p className="text-xs text-zinc-400">
+                  Remember your password?{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setErrorMsg(null);
+                      setSuccessMsg(null);
+                      setMode('signin');
+                    }}
+                    className="text-white font-bold hover:underline ml-1 cursor-pointer"
+                  >
+                    Back to Sign In
                   </button>
                 </p>
               )}

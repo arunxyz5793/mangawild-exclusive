@@ -138,6 +138,31 @@
   --color-slate-badge-text: var(--badge-text);
 }
 
+@font-face {
+  font-family: 'Rockidz 3D';
+  src: url('/fonts/rockidz-3d.otf') format('opentype'),
+       url('/fonts/rockidz-3d.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Rockidz';
+  src: url('/fonts/rockidz-3d.ttf') format('truetype'),
+       url('/fonts/Rockidz-341X.ttf') format('truetype'),
+       url('/fonts/Rockidz Demo.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+.font-rockidz-3d {
+  font-family: 'Rockidz 3D', 'Rockidz', cursive, system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  text-rendering: optimizeLegibility;
+}
+
 .font-display {
   font-family: 'Bebas Neue', 'Plus Jakarta Sans', sans-serif;
   letter-spacing: 0.03em;

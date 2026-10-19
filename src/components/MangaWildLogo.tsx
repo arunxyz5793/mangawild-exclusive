@@ -4,12 +4,14 @@ interface MangaWildLogoProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   showExclusiveBadge?: boolean;
+  showWordmark?: boolean;
 }
 
 export const MangaWildLogo: React.FC<MangaWildLogoProps> = ({
   className = '',
   size = 'md',
-  showExclusiveBadge = true,
+  showExclusiveBadge = false,
+  showWordmark = false,
 }) => {
   const logoDimensions = {
     sm: 'w-8 h-8',
@@ -19,10 +21,10 @@ export const MangaWildLogo: React.FC<MangaWildLogoProps> = ({
   };
 
   const textSizes = {
-    sm: 'text-lg',
-    md: 'text-2xl',
-    lg: 'text-3xl',
-    xl: 'text-4xl',
+    sm: 'text-xl sm:text-2xl',
+    md: 'text-2xl sm:text-3xl',
+    lg: 'text-3xl sm:text-4xl',
+    xl: 'text-4xl sm:text-5xl',
   };
 
   return (
@@ -40,26 +42,31 @@ export const MangaWildLogo: React.FC<MangaWildLogoProps> = ({
         <div className="absolute inset-0 rounded-xl ring-1 ring-white/10 pointer-events-none" />
       </div>
 
-      {/* MangaWild Wordmark & Badge */}
-      <div className="flex flex-col justify-center min-w-0">
-        <div className="flex items-center gap-2">
-          <span
-            className={`font-display font-black tracking-wider leading-none text-zinc-900 dark:text-slate-100 ${textSizes[size]}`}
-            style={{ letterSpacing: '0.04em' }}
-          >
-            MANGAWILD
-          </span>
-
-          {showExclusiveBadge && (
-            <span className="hidden sm:inline-block bg-slate-800/90 text-slate-200 border border-slate-700 text-[10px] font-bold tracking-widest px-2 py-0.5 rounded font-mono uppercase shadow-xs">
-              EXCLUSIVE
+      {/* Optional Wordmark & Badge (hidden by default as requested) */}
+      {showWordmark && (
+        <div className="flex flex-col justify-center min-w-0">
+          <div className="flex items-center gap-2">
+            <span
+              className={`font-rockidz-3d tracking-wider leading-none text-zinc-900 dark:text-slate-100 ${textSizes[size]}`}
+              style={{
+                fontFamily: "'Rockidz 3D', 'Rockidz', cursive, system-ui, sans-serif",
+                letterSpacing: '0.04em',
+              }}
+            >
+              MANGAWILD
             </span>
-          )}
+
+            {showExclusiveBadge && (
+              <span className="hidden sm:inline-block bg-slate-800/90 text-slate-200 border border-slate-700 text-[10px] font-bold tracking-widest px-2 py-0.5 rounded font-mono uppercase shadow-xs">
+                EXCLUSIVE
+              </span>
+            )}
+          </div>
+          <span className="hidden sm:block text-[10px] uppercase font-mono tracking-widest text-zinc-500 dark:text-slate-400 mt-0.5 truncate">
+            Official Digital Manga
+          </span>
         </div>
-        <span className="hidden sm:block text-[10px] uppercase font-mono tracking-widest text-zinc-500 dark:text-slate-400 mt-0.5 truncate">
-          Official Digital Manga
-        </span>
-      </div>
+      )}
     </div>
   );
 };

@@ -11,31 +11,22 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    const saved = localStorage.getItem('mw_theme');
-    if (saved === 'light' || saved === 'dark') return saved;
-    return 'dark'; // Default to dark mode for prime manga reading
-  });
+  const theme: Theme = 'dark';
 
-  const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme);
-    localStorage.setItem('mw_theme', newTheme);
+  const setTheme = (_newTheme: Theme) => {
+    // Permanently locked to optimized dark theme per user request
   };
 
   const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark');
+    // Permanently locked to optimized dark theme per user request
   };
 
   useEffect(() => {
     const root = document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-      root.classList.remove('light');
-    } else {
-      root.classList.remove('dark');
-      root.classList.add('light');
-    }
-  }, [theme]);
+    root.classList.add('dark');
+    root.classList.remove('light');
+    localStorage.setItem('mw_theme', 'dark');
+  }, []);
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>

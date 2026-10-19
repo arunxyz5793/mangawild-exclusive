@@ -492,7 +492,7 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
           }`}
         >
           <BarChart3 className="w-3.5 h-3.5 text-zinc-400" />
-          <span>Views Analytics (Daily Graph)</span>
+          <span>30-Day Rankings (Views & Likes)</span>
         </button>
         <button
           onClick={() => setActiveTab('series')}
@@ -644,7 +644,7 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
                                 series.moderationStatus === 'approved'
                                   ? 'bg-emerald-950/80 text-emerald-300 border-emerald-800'
                                   : series.moderationStatus === 'pending_review'
-                                  ? 'bg-amber-950/80 text-amber-300 border-amber-800'
+                                  ? 'bg-zinc-800 text-zinc-300 border-zinc-700'
                                   : 'bg-red-950/80 text-red-300 border-red-800'
                               }`}
                             >
@@ -699,10 +699,27 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
               </div>
             )}
           </div>
+
+          {/* Clean 30-Day Ranked Manga Performance Leaderboard */}
+          <div className="pt-4 border-t border-zinc-800/80">
+            <CreatorAnalyticsCharts
+              totalReads={creatorProfile?.totalReads ?? 0}
+              monthlyEarningsInr={creatorProfile?.monthlyEarningsInr ?? 0}
+              subscribersCount={creatorProfile?.followersCount ?? 0}
+              creatorName={creatorProfile?.penName || user.name}
+              seriesList={seriesList}
+              onSelectSeries={(series) => {
+                setSelectedSeries(series);
+                setChapterSeriesId(series.id);
+                setActiveTab('series');
+              }}
+              onNavigateNewSeries={() => setActiveTab('new_series')}
+            />
+          </div>
         </div>
       )}
 
-      {/* TAB: 30-DAY ANALYTICS & TRENDS (RECHARTS) */}
+      {/* TAB: 30-DAY ANALYTICS & TRENDS */}
       {activeTab === 'analytics' && (
         <div className="space-y-6 animate-fade-in">
           <CreatorAnalyticsCharts
@@ -710,6 +727,13 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
             monthlyEarningsInr={creatorProfile?.monthlyEarningsInr ?? 0}
             subscribersCount={creatorProfile?.followersCount ?? 0}
             creatorName={creatorProfile?.penName || user.name}
+            seriesList={seriesList}
+            onSelectSeries={(series) => {
+              setSelectedSeries(series);
+              setChapterSeriesId(series.id);
+              setActiveTab('series');
+            }}
+            onNavigateNewSeries={() => setActiveTab('new_series')}
           />
         </div>
       )}
@@ -758,7 +782,7 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
                         className={`text-[9px] font-mono px-1.5 py-0.5 rounded uppercase font-bold ${
                           s.moderationStatus === 'approved'
                             ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                            : 'bg-amber-950 text-amber-300 border border-amber-800'
+                            : 'bg-zinc-800 text-zinc-300 border border-zinc-700'
                         }`}
                       >
                         {s.moderationStatus === 'approved' ? 'Approved' : 'Pending Review'}
@@ -785,7 +809,7 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
                           className={`text-[10px] font-mono px-2.5 py-0.5 rounded-full font-bold uppercase border ${
                             selectedSeries.moderationStatus === 'approved'
                               ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
-                              : 'bg-amber-950 text-amber-300 border-amber-800'
+                              : 'bg-zinc-800 text-zinc-300 border-zinc-700'
                           }`}
                         >
                           Status: {selectedSeries.moderationStatus.replace('_', ' ')}
@@ -812,8 +836,8 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
                   </div>
 
                   {selectedSeries.moderationStatus === 'pending_review' && (
-                    <div className="p-3.5 rounded-xl bg-amber-950/40 border border-amber-800 text-amber-200 text-xs flex items-center gap-2">
-                      <Clock className="w-4 h-4 shrink-0" />
+                    <div className="p-3.5 rounded-xl bg-zinc-900/90 border border-zinc-700 text-zinc-300 text-xs flex items-center gap-2">
+                      <Clock className="w-4 h-4 shrink-0 text-zinc-400" />
                       <span>
                         This manga is currently pending review by the MangaWild editorial team. You can still add and prepare new chapter pages below!
                       </span>
@@ -864,7 +888,7 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
                                   className={`text-[9px] font-mono px-2 py-0.5 rounded-full font-bold uppercase ${
                                     ch.moderationStatus === 'approved'
                                       ? 'bg-emerald-950 text-emerald-300'
-                                      : 'bg-amber-950 text-amber-300'
+                                      : 'bg-zinc-800 text-zinc-300 border border-zinc-700'
                                   }`}
                                 >
                                   {ch.moderationStatus}
@@ -1147,7 +1171,7 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
               <div className="p-3.5 rounded-2xl bg-zinc-800/60 border border-zinc-700 text-xs text-zinc-300 flex items-start gap-2.5">
                 <ShieldCheck className="w-5 h-5 text-white shrink-0 mt-0.5" />
                 <p className="leading-relaxed">
-                  <strong className="text-white">Admin Approval Workflow:</strong> When you submit, this series will be sent to the MangaWild Admin Approval Desk with status <code className="bg-zinc-900 px-1 py-0.5 rounded text-amber-300 font-mono">pending_review</code>. The admin will verify your artwork, hero image, and description before publishing it live for all readers.
+                  <strong className="text-white">Admin Approval Workflow:</strong> When you submit, this series will be sent to the MangaWild Admin Approval Desk with status <code className="bg-zinc-900 px-1.5 py-0.5 rounded text-zinc-200 border border-zinc-700 font-mono">pending_review</code>. The admin will verify your artwork, hero image, and description before publishing it live for all readers.
                 </p>
               </div>
             </div>

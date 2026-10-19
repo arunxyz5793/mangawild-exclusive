@@ -53,9 +53,9 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
 
         <div className="flex items-center gap-3 w-full md:w-auto justify-end">
           {isVIP ? (
-            <div className="px-4 py-2 rounded-xl bg-amber-500/10 text-amber-300 border border-amber-500/30 font-bold text-xs font-mono flex items-center gap-2 shadow-sm">
-              <Crown className="w-4 h-4 text-amber-400" />
-              <span>{user.subscription?.planId === 'yearly' ? '★ Annual VIP Pass Active' : '★ Monthly VIP Pass Active'}</span>
+            <div className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-200 border border-zinc-700 font-bold text-xs font-mono flex items-center gap-2 shadow-xs">
+              <Crown className="w-4 h-4 text-zinc-300" />
+              <span>{user.subscription?.planId === 'yearly' ? 'VIP Annual Pass Active' : 'VIP Monthly Pass Active'}</span>
             </div>
           ) : (
             <button

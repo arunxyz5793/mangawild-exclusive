@@ -368,13 +368,13 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
               onClick={() => toggleBookmark(series.id)}
               className={`px-4 py-3 rounded-xl border text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer active:scale-95 ${
                 isBookmarked
-                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-400 shadow-sm'
+                  ? 'bg-zinc-800 border-zinc-700 text-white shadow-xs'
                   : theme === 'dark'
-                  ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-amber-400'
-                  : 'bg-white border-zinc-300 text-zinc-700 hover:text-amber-600 shadow-xs'
+                  ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white'
+                  : 'bg-white border-zinc-300 text-zinc-700 hover:text-zinc-950 shadow-xs'
               }`}
             >
-              <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-current text-amber-500' : ''}`} />
+              <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-current text-white' : ''}`} />
               <span>{isBookmarked ? 'In Library' : 'Save to Library'}</span>
             </button>
 

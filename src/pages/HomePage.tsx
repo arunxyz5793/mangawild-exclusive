@@ -277,8 +277,8 @@ export const HomePage: React.FC<HomePageProps> = ({
       <section className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
         <div className="flex items-center justify-between border-b pb-4 border-zinc-200 dark:border-zinc-800">
           <div>
-            <div className="flex items-center gap-2 text-xs text-amber-400 font-bold uppercase tracking-wider font-mono">
-              <Sparkles className="w-4 h-4" />
+            <div className="flex items-center gap-2 text-xs text-zinc-300 font-bold uppercase tracking-wider font-mono">
+              <Sparkles className="w-4 h-4 text-zinc-300" />
               <span>Fresh Releases &bull; New Series</span>
             </div>
             <h2
@@ -310,8 +310,8 @@ export const HomePage: React.FC<HomePageProps> = ({
               }`}
             >
               {/* New Badge */}
-              <div className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-lg bg-amber-400 text-zinc-950 font-mono font-black text-[10px] flex items-center gap-1 shadow-md uppercase tracking-wider">
-                <Sparkles className="w-3 h-3" />
+              <div className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-lg bg-white text-zinc-950 font-mono font-black text-[10px] flex items-center gap-1 shadow-md uppercase tracking-wider">
+                <Sparkles className="w-3 h-3 text-zinc-950" />
                 <span>NEW</span>
               </div>
 

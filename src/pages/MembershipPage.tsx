@@ -40,6 +40,20 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
   const [couponDiscount, setCouponDiscount] = useState<number | null>(null);
   const [couponMessage, setCouponMessage] = useState<{ text: string; isError: boolean } | null>(null);
 
+  // Cancellation state
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('Finished reading favorite series');
+  const [cancelNotes, setCancelNotes] = useState('');
+  const [isCancelledPending, setIsCancelledPending] = useState(() => {
+    return localStorage.getItem('mw_sub_cancelled') === 'true';
+  });
+
+  // Support ticket modal state
+  const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
+  const [supportSubject, setSupportSubject] = useState('Subscription / Billing Query');
+  const [supportMessage, setSupportMessage] = useState('');
+  const [supportSuccess, setSupportSuccess] = useState<string | null>(null);
+
   // Gift modal state
   const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
   const [giftRecipient, setGiftRecipient] = useState('');
@@ -51,6 +65,25 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 3500);
+  };
+
+  const handleConfirmCancellation = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsCancelledPending(true);
+    localStorage.setItem('mw_sub_cancelled', 'true');
+    setIsCancelModalOpen(false);
+    showToast('Cancellation request submitted. Your VIP pass remains active until the end of your billing term.');
+  };
+
+  const handleSendSupportTicket = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supportMessage.trim()) return;
+    setSupportSuccess('Thank you! Your ticket has been logged and sent to support@mangawild.online. Our reader team will respond to your email.');
+    setTimeout(() => {
+      setSupportSuccess(null);
+      setIsSupportModalOpen(false);
+      setSupportMessage('');
+    }, 3200);
   };
 
   const payments = StorageService.getPayments().filter(p => p.userId === user.id);
@@ -163,7 +196,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
       {/* Toast Notification */}
       {toastMsg && (
         <div className="fixed bottom-6 right-6 z-50 bg-zinc-900 border border-zinc-700 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-fade-in font-mono text-xs">
-          <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+          <Sparkles className="w-4 h-4 text-zinc-300 shrink-0" />
           <span>{toastMsg}</span>
         </div>
       )}
@@ -217,7 +250,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
               }`}
             >
               <span>Annual Billing</span>
-              <span className="text-[10px] font-mono font-bold bg-amber-400 text-zinc-950 px-1.5 py-0.2 rounded-full">
+              <span className="text-[10px] font-mono font-bold bg-zinc-800 text-zinc-200 border border-zinc-700 px-2 py-0.5 rounded-full">
                 SAVE 37%
               </span>
             </button>
@@ -231,7 +264,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
               <div className="w-12 h-12 rounded-xl bg-zinc-800 text-white border border-zinc-700 flex items-center justify-center shrink-0 shadow-md">
-                <Crown className="w-6 h-6 text-amber-400" />
+                <Crown className="w-6 h-6 text-white" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
@@ -262,7 +295,28 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
             </div>
           </div>
 
-          {/* Unlocked Benefits Summary & Manage Auto-Renewal */}
+          {/* Cancellation Notice if Cancellation was Requested */}
+          {isCancelledPending && (
+            <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800 text-xs text-zinc-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <span className="flex items-center gap-2">
+                <Info className="w-4 h-4 text-zinc-400 shrink-0" />
+                <span>Your cancellation request is confirmed. VIP perks remain 100% active until your period expires, after which it will not renew.</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCancelledPending(false);
+                  localStorage.removeItem('mw_sub_cancelled');
+                  showToast('Subscription auto-renewal reinstated.');
+                }}
+                className="text-white underline font-semibold text-xs whitespace-nowrap cursor-pointer hover:text-zinc-200"
+              >
+                Keep Active
+              </button>
+            </div>
+          )}
+
+          {/* Unlocked Benefits Summary & Manage Subscription */}
           <div className="pt-4 border-t border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-zinc-300">
               <div className="flex items-center gap-2">
@@ -280,13 +334,19 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={handleCancelAutoRenewal}
-                className="text-xs text-zinc-400 hover:text-white underline cursor-pointer font-mono"
-              >
-                Pause Auto-Renewal
-              </button>
+              {isCancelledPending ? (
+                <span className="text-xs font-mono text-zinc-400 bg-zinc-800 px-3 py-1.5 rounded-xl border border-zinc-700">
+                  Cancellation Scheduled
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsCancelModalOpen(true)}
+                  className="px-3.5 py-1.5 rounded-xl bg-zinc-800/80 hover:bg-red-950/40 border border-zinc-700 hover:border-red-800/60 text-xs text-zinc-300 hover:text-red-300 font-medium transition-colors cursor-pointer"
+                >
+                  Cancel Subscription
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -428,7 +488,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
                     }}
                     className="py-2 px-3 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-zinc-700/60"
                   >
-                    <Gift className="w-3.5 h-3.5 text-amber-400" />
+                    <Gift className="w-3.5 h-3.5 text-zinc-300" />
                     <span>Gift Plan</span>
                   </button>
                 </div>
@@ -514,7 +574,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
       {/* Feature Comparison Matrix Table */}
       <div className="max-w-4xl mx-auto space-y-4 pt-4">
         <h3 className="text-xl font-bold text-white flex items-center gap-2">
-          <Zap className="w-5 h-5 text-amber-400" />
+          <Zap className="w-5 h-5 text-zinc-300" />
           <span>Membership Comparison Matrix</span>
         </h3>
 
@@ -524,39 +584,39 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
               <tr className="border-b border-zinc-800 font-mono text-[11px] uppercase text-zinc-400">
                 <th className="p-4">Feature / Benefit</th>
                 <th className="p-4 text-center">Free Reader</th>
-                <th className="p-4 text-center text-amber-300 bg-amber-500/5">VIP Pass Member</th>
+                <th className="p-4 text-center text-zinc-200 bg-zinc-900/60">VIP Pass Member</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/80 font-mono text-zinc-300">
               <tr>
                 <td className="p-3.5 pl-4 font-sans font-medium text-white">Full Access to All Exclusive VIP Chapters</td>
                 <td className="p-3.5 text-center text-zinc-500">Locked / Previews only</td>
-                <td className="p-3.5 text-center text-emerald-400 font-bold bg-amber-500/5">✓ 100% Unrestricted</td>
+                <td className="p-3.5 text-center text-emerald-400 font-bold bg-zinc-900/30">✓ 100% Unrestricted</td>
               </tr>
               <tr>
                 <td className="p-3.5 pl-4 font-sans font-medium text-white">Ad-Free Uninterrupted Reading</td>
                 <td className="p-3.5 text-center text-zinc-500">Standard Ads</td>
-                <td className="p-3.5 text-center text-emerald-400 font-bold bg-amber-500/5">✓ Completely Ad-Free</td>
+                <td className="p-3.5 text-center text-emerald-400 font-bold bg-zinc-900/30">✓ Completely Ad-Free</td>
               </tr>
               <tr>
                 <td className="p-3.5 pl-4 font-sans font-medium text-white">Ultra HD 4K Scans & Full Zoom</td>
                 <td className="p-3.5 text-center text-zinc-500">Standard Definition</td>
-                <td className="p-3.5 text-center text-emerald-400 font-bold bg-amber-500/5">✓ High DPI 4K Zoom</td>
+                <td className="p-3.5 text-center text-emerald-400 font-bold bg-zinc-900/30">✓ High DPI 4K Zoom</td>
               </tr>
               <tr>
                 <td className="p-3.5 pl-4 font-sans font-medium text-white">24-Hour Early Access to New Releases</td>
                 <td className="p-3.5 text-center text-zinc-500">Public Release</td>
-                <td className="p-3.5 text-center text-emerald-400 font-bold bg-amber-500/5">✓ 24-Hour Early Drop</td>
+                <td className="p-3.5 text-center text-emerald-400 font-bold bg-zinc-900/30">✓ 24-Hour Early Drop</td>
               </tr>
               <tr>
                 <td className="p-3.5 pl-4 font-sans font-medium text-white">Direct Manga Creator Royalty Share</td>
                 <td className="p-3.5 text-center text-zinc-500">Ad revenue pool</td>
-                <td className="p-3.5 text-center text-emerald-400 font-bold bg-amber-500/5">✓ 70% Direct to Artists</td>
+                <td className="p-3.5 text-center text-emerald-400 font-bold bg-zinc-900/30">✓ 70% Direct to Artists</td>
               </tr>
               <tr>
                 <td className="p-3.5 pl-4 font-sans font-medium text-white">VIP Badge on Profile & Comments</td>
                 <td className="p-3.5 text-center text-zinc-500">None</td>
-                <td className="p-3.5 text-center text-amber-400 font-bold bg-amber-500/5">✓ Gold VIP Badge</td>
+                <td className="p-3.5 text-center text-zinc-200 font-bold bg-zinc-900/30">✓ VIP Reader Badge</td>
               </tr>
             </tbody>
           </table>
@@ -607,7 +667,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
             {/* Header */}
             <div className="flex items-start justify-between">
               <div>
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-300 bg-zinc-800 px-2.5 py-1 rounded-full border border-zinc-700">
                   Detailed Plan Breakdown
                 </span>
                 <h3 className="text-2xl font-black text-white mt-1.5">
@@ -655,7 +715,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Gold VIP badge on user profile, comments, and reviews</span>
+                  <span>Exclusive VIP badge on user profile, comments, and reviews</span>
                 </li>
               </ul>
             </div>
@@ -663,7 +723,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
             {/* Promo / Coupon Code Section */}
             <div className="space-y-2 p-3.5 rounded-2xl bg-zinc-800/40 border border-zinc-700/60">
               <span className="text-[11px] font-mono text-zinc-400 flex items-center gap-1.5">
-                <Tag className="w-3.5 h-3.5 text-amber-400" />
+                <Tag className="w-3.5 h-3.5 text-zinc-300" />
                 <span>Have a discount coupon? (Try: MANGAWILD20)</span>
               </span>
               <div className="flex gap-2">
@@ -672,7 +732,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
                   value={couponCode}
                   onChange={e => setCouponCode(e.target.value)}
                   placeholder="Enter promo coupon code..."
-                  className="flex-1 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white placeholder-zinc-500 uppercase font-mono focus:outline-none focus:border-amber-400"
+                  className="flex-1 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white placeholder-zinc-500 uppercase font-mono focus:outline-none focus:border-white"
                 />
                 <button
                   type="button"
@@ -699,7 +759,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
                 }}
                 className="w-full py-3.5 px-4 bg-white hover:bg-zinc-200 text-zinc-950 font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
               >
-                <Zap className="w-4 h-4 text-amber-500" />
+                <Zap className="w-4 h-4 text-zinc-950" />
                 <span>
                   {couponDiscount
                     ? `Proceed with Discount (₹${Math.round(detailsModalPlan.priceInr * (1 - couponDiscount / 100))})`
@@ -713,7 +773,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
                   onClick={() => handleStartFreeTrial(detailsModalPlan)}
                   className="py-2.5 px-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-zinc-200 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  <Calendar className="w-3.5 h-3.5 text-purple-400" />
+                  <Calendar className="w-3.5 h-3.5 text-zinc-300" />
                   <span>Start 7-Day Trial</span>
                 </button>
 
@@ -726,7 +786,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
                   }}
                   className="py-2.5 px-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-zinc-200 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  <Gift className="w-3.5 h-3.5 text-amber-400" />
+                  <Gift className="w-3.5 h-3.5 text-zinc-300" />
                   <span>Gift this Plan</span>
                 </button>
               </div>
@@ -735,7 +795,227 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
         </div>
       )}
 
-      {/* 4. Gift Plan Modal */}
+      {/* 5. Reader Support & Billing Help Center Section */}
+      <div className="max-w-4xl mx-auto p-6 sm:p-8 rounded-3xl bg-zinc-900/80 border border-zinc-800 space-y-6 text-left">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold bg-zinc-800 px-2.5 py-0.5 rounded border border-zinc-700">
+              READER SUPPORT & BILLING DESK
+            </span>
+            <h3 className="text-xl sm:text-2xl font-black text-white mt-2">
+              Need Help with Subscriptions or Reading?
+            </h3>
+            <p className="text-xs text-zinc-400 mt-1 max-w-xl leading-relaxed">
+              Have questions regarding your VIP membership, payments, cancellation requests, or manga chapter access? Contact our reader support desk directly.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsSupportModalOpen(true)}
+            className="px-5 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-bold text-xs cursor-pointer shadow-md transition-all active:scale-95 shrink-0"
+          >
+            Submit Help Ticket
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-zinc-800/80 text-xs text-zinc-300">
+          <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 space-y-1">
+            <span className="text-[10px] font-mono text-zinc-500 block uppercase">Official Email</span>
+            <span className="font-mono text-white font-semibold">support@mangawild.online</span>
+            <p className="text-[11px] text-zinc-400">Response within 12 hours</p>
+          </div>
+          <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 space-y-1">
+            <span className="text-[10px] font-mono text-zinc-500 block uppercase">Cancellation Guarantee</span>
+            <span className="text-white font-semibold">Self-Service in 1 Click</span>
+            <p className="text-[11px] text-zinc-400">Zero cancellation charges</p>
+          </div>
+          <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 space-y-1">
+            <span className="text-[10px] font-mono text-zinc-500 block uppercase">Creator Royalty Protection</span>
+            <span className="text-white font-semibold">70% Direct Payout</span>
+            <p className="text-[11px] text-zinc-400">Weekly creator distributions</p>
+          </div>
+        </div>
+      </div>
+
+      {/* 6. Cancel Subscription Modal */}
+      {isCancelModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+          onClick={() => setIsCancelModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg bg-zinc-900 border border-zinc-700/80 rounded-3xl p-6 sm:p-8 space-y-5 shadow-2xl relative animate-scale-in text-white"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-red-400 font-bold bg-red-950/60 px-2 py-0.5 rounded border border-red-800/50">
+                  Manage Plan
+                </span>
+                <h3 className="text-xl font-bold text-white mt-1">Cancel VIP Subscription</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCancelModalOpen(false)}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              We're sorry to see you go. If you choose to cancel, your VIP benefits will remain completely active until your current billing period ends. You will not be billed again.
+            </p>
+
+            <form onSubmit={handleConfirmCancellation} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
+                  Please let us know why you're cancelling:
+                </label>
+                <select
+                  value={cancelReason}
+                  onChange={e => setCancelReason(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white focus:outline-none focus:border-white"
+                >
+                  <option value="Finished reading favorite series">Finished reading favorite series</option>
+                  <option value="Taking a temporary break">Taking a temporary break</option>
+                  <option value="Subscription fee or billing concern">Subscription fee or billing concern</option>
+                  <option value="Technical or reader experience issue">Technical or reader experience issue</option>
+                  <option value="Other reason">Other reason</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-300 mb-1">
+                  Additional feedback (optional):
+                </label>
+                <textarea
+                  rows={2}
+                  value={cancelNotes}
+                  onChange={e => setCancelNotes(e.target.value)}
+                  placeholder="How can we make MangaWild better?"
+                  className="w-full px-3.5 py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white"
+                />
+              </div>
+
+              <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 text-[11px] text-zinc-400 space-y-1">
+                <p className="text-zinc-300 font-semibold">Cancellation terms:</p>
+                <p>&bull; No cancellation fees or penalties.</p>
+                <p>&bull; Unrestricted VIP reading continues until the end of your billing cycle.</p>
+                <p>&bull; You can resume auto-renewal at any time.</p>
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCancelModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 cursor-pointer"
+                >
+                  Keep My Subscription
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-red-950 hover:bg-red-900 border border-red-800 text-red-200 font-bold text-xs cursor-pointer shadow-md transition-all active:scale-95"
+                >
+                  Confirm Cancellation
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 7. Support Ticket Modal */}
+      {isSupportModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+          onClick={() => setIsSupportModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg bg-zinc-900 border border-zinc-700/80 rounded-3xl p-6 sm:p-8 space-y-5 shadow-2xl relative animate-scale-in text-white"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold bg-zinc-800 px-2 py-0.5 rounded border border-zinc-700">
+                  Reader Help Desk
+                </span>
+                <h3 className="text-xl font-bold text-white mt-1">Submit Support Ticket</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSupportModalOpen(false)}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {supportSuccess ? (
+              <div className="p-4 rounded-2xl bg-zinc-950 border border-emerald-800 text-emerald-300 text-xs font-mono">
+                {supportSuccess}
+              </div>
+            ) : (
+              <form onSubmit={handleSendSupportTicket} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-300 mb-1">Subject</label>
+                  <select
+                    value={supportSubject}
+                    onChange={e => setSupportSubject(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white focus:outline-none focus:border-white"
+                  >
+                    <option value="Subscription / Billing Query">Subscription / Billing Query</option>
+                    <option value="Cancellation / Refund Assistance">Cancellation / Refund Assistance</option>
+                    <option value="Manga Reading / Scan Issue">Manga Reading / Scan Issue</option>
+                    <option value="Account Access / Verification">Account Access / Verification</option>
+                    <option value="Creator Inquiry">Creator Inquiry</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-300 mb-1">Your Email</label>
+                  <input
+                    type="email"
+                    required
+                    defaultValue={user.email || 'reader@example.com'}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-300 mb-1">Message Details</label>
+                  <textarea
+                    required
+                    rows={4}
+                    value={supportMessage}
+                    onChange={e => setSupportMessage(e.target.value)}
+                    placeholder="Describe your issue or query in detail..."
+                    className="w-full px-3.5 py-2 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsSupportModalOpen(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-white cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-bold text-xs cursor-pointer shadow-md transition-all active:scale-95"
+                  >
+                    Send Ticket
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 8. Gift Plan Modal */}
       {isGiftModalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
@@ -747,7 +1027,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Gift className="w-5 h-5 text-amber-400" />
+                <Gift className="w-5 h-5 text-zinc-300" />
                 <h3 className="text-lg font-bold text-white">Gift a VIP Pass</h3>
               </div>
               <button
@@ -764,7 +1044,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
             </p>
 
             {giftSuccess ? (
-              <div className="p-4 rounded-2xl bg-emerald-950/80 border border-emerald-700 text-emerald-300 text-xs font-mono">
+              <div className="p-4 rounded-2xl bg-zinc-950 border border-emerald-700 text-emerald-300 text-xs font-mono">
                 {giftSuccess}
               </div>
             ) : (
@@ -775,7 +1055,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
                   value={giftRecipient}
                   onChange={e => setGiftRecipient(e.target.value)}
                   placeholder="recipient@email.com or @username"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white"
                 />
 
                 <div className="flex justify-end gap-2 pt-2">
@@ -788,7 +1068,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs cursor-pointer shadow-md transition-all active:scale-95"
+                    className="px-5 py-2 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-bold text-xs cursor-pointer shadow-md transition-all active:scale-95"
                   >
                     Send VIP Gift
                   </button>

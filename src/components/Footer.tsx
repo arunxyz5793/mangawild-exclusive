@@ -85,11 +85,9 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenVIPModal }) =>
               <li>
                 <button
                   onClick={() => onNavigate('membership')}
-                  className={`font-bold hover:underline cursor-pointer flex items-center gap-1 transition-all active:scale-95 ${
-                    theme === 'dark' ? 'text-zinc-200' : 'text-purple-700'
-                  }`}
+                  className="font-bold hover:underline cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 text-zinc-200 hover:text-white"
                 >
-                  <Sparkles className="w-3 h-3 text-purple-400" /> Subscription Plans
+                  <Sparkles className="w-3 h-3 text-zinc-400" /> VIP All-Access Pass
                 </button>
               </li>
             </ul>
@@ -181,7 +179,16 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenVIPModal }) =>
                   onClick={() => onNavigate('membership')}
                   className="hover:text-zinc-950 dark:hover:text-white transition-colors cursor-pointer"
                 >
-                  Coins & Subscriptions
+                  VIP Membership
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => onNavigate('membership')}
+                  className="hover:text-zinc-950 dark:hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <span>Help & Support</span>
+                  <span className="text-[10px] text-zinc-500 font-mono">support@mangawild.online</span>
                 </button>
               </li>
             </ul>
