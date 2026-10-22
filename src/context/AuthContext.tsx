@@ -3,7 +3,7 @@ import { User, UserRole, Permission, hasPermission } from '../types/auth';
 import { StorageService, OFFICIAL_ADMIN } from '../services/storage';
 import { PlatformNotification } from '../types/manga';
 import { authenticateWithGoogleOAuth } from '../services/googleAuth';
-import { testFirestoreConnection } from '../services/firebase';
+import { testFirestoreConnection, auth, createUserWithEmailAndPassword } from '../services/firebase';
 import { processSubscriptionSuccess } from '../services/razorpay';
 
 interface AuthContextType {
@@ -445,6 +445,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(newUser);
     StorageService.setCurrentUser(newUser);
     setIsAuthenticated(true);
+
+    // Asynchronously sync user account to Firebase Authentication
+    createUserWithEmailAndPassword(auth, cleanEmail, pass).catch((err: any) => {
+      // If already exists or App Check notice, ignore safely
+      console.warn('Firebase Auth background sync notice:', err?.code || err?.message);
+    });
+
     return true;
   };
 

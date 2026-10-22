@@ -226,6 +226,22 @@ function AppContent() {
   const [selectedPlanId, setSelectedPlanId] = useState<'monthly' | 'yearly'>('monthly');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
+  // Check if visitor arrived from an official Firebase Password Reset email link
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      const urlMode = searchParams.get('mode');
+      const oobCode = searchParams.get('oobCode');
+      if (urlMode === 'resetPassword' || oobCode) {
+        openAuthModal({
+          title: 'Reset Account Password',
+          subtitle: 'Verification code received from your email link. Enter your new password below.',
+          defaultMode: 'signin',
+        });
+      }
+    }
+  }, []);
+
   // VIP Purchase Handler: strictly requires user to be logged in!
   const handleOpenVIPModal = (planId: 'monthly' | 'yearly' = 'yearly') => {
     if (!isAuthenticated) {

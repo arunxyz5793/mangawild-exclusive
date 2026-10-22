@@ -2172,7 +2172,14 @@ export const StorageService = {
       });
     }
 
-    return list;
+    // Absolute uniqueness guarantee: prevent any duplicate IDs across components & tables
+    const uniqueMap = new Map<string, User>();
+    for (const u of list) {
+      if (!uniqueMap.has(u.id)) {
+        uniqueMap.set(u.id, u);
+      }
+    }
+    return Array.from(uniqueMap.values());
   },
 
   saveUsers(users: User[]): void {
@@ -3321,6 +3328,43 @@ export const StorageService = {
     return true;
   },
 
+  // Complete Reset of Views and Likes for Public Launch
+  resetAllViewsAndLikes(): void {
+    try {
+      // 1. Reset all series views, reads, and likes to 0
+      const seriesList = this.getSeries().map(s => ({
+        ...s,
+        totalViews: 0,
+        totalReads: 0,
+        likesCount: 0,
+      }));
+      this.saveSeries(seriesList);
+
+      // 2. Reset all chapter views to 0
+      const chapters = this.getChapters().map(ch => ({
+        ...ch,
+        viewsCount: 0,
+      }));
+      this.saveChapters(chapters);
+
+      // 3. Reset all creator totalReads and monthly earnings to 0
+      const creators = this.getCreators().map(c => ({
+        ...c,
+        totalReads: 0,
+        monthlyEarningsInr: 0,
+      }));
+      this.saveCreators(creators);
+
+      // 4. Clear user liked series, daily views log, and old reading history
+      localStorage.removeItem(STORAGE_KEYS.LIKED_SERIES);
+      localStorage.removeItem('mw_daily_views_log');
+      localStorage.removeItem(STORAGE_KEYS.READING_HISTORY);
+      localStorage.setItem('mw_publish_clean_slate_v5_prod', 'true');
+    } catch (e) {
+      console.warn('Metrics reset notice:', e);
+    }
+  },
+
   // Reset to Factory Seed
   resetToFactorySeed(): void {
     localStorage.removeItem(STORAGE_KEYS.USERS);
@@ -3338,3 +3382,15 @@ export const StorageService = {
     window.location.reload();
   },
 };
+
+// Automatic clean slate initialization for publication launch
+if (typeof window !== 'undefined') {
+  try {
+    if (localStorage.getItem('mw_publish_clean_slate_v5_prod') !== 'true') {
+      StorageService.resetAllViewsAndLikes();
+    }
+  } catch {
+    // Ignore in SSR/restricted contexts
+  }
+}
+

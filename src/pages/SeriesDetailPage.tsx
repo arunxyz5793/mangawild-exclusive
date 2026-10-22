@@ -58,8 +58,8 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
         bio: `Original mangaka and graphic novel creator of "${series.title}".`,
         avatarUrl: series.coverUrl || '/avatars/avatar-3.svg',
         verified: true,
-        followersCount: 142,
-        totalReads: series.totalViews || 1200,
+        followersCount: 0,
+        totalReads: series.totalReads ?? 0,
         seriesCount: 1,
         joinedDate: '2026-01-15',
         joinedAt: '2026-01-15',
@@ -79,7 +79,7 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
   const [shareCopied, setShareCopied] = useState(false);
   const [chapterSearchQuery, setChapterSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [likesCount, setLikesCount] = useState<number>(() => series?.likesCount || 120);
+  const [likesCount, setLikesCount] = useState<number>(() => series?.likesCount ?? 0);
 
   // Increment series views on view mount
   useEffect(() => {

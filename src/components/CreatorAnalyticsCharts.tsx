@@ -59,9 +59,9 @@ export const CreatorAnalyticsCharts: React.FC<CreatorAnalyticsChartsProps> = ({
   const rankedManga = useMemo(() => {
     return allSeries
       .map(s => {
-        // Calculate realistic 30-day baseline metrics
-        const baseViews = s.totalReads || s.totalViews || Math.round(totalReads / Math.max(1, allSeries.length));
-        const baseLikes = s.likesCount || Math.max(12, Math.round(baseViews * 0.085));
+        // Real metrics from actual reader engagement
+        const baseViews = s.totalReads || s.totalViews || 0;
+        const baseLikes = s.likesCount || 0;
 
         const periodViews = Math.max(0, Math.round(baseViews * timeframeMultiplier));
         const periodLikes = Math.max(0, Math.round(baseLikes * timeframeMultiplier));

@@ -34,6 +34,7 @@ import {
   Copy,
   ExternalLink,
   Package,
+  RotateCcw,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -949,6 +950,58 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                 <p className="text-[11px] font-mono text-zinc-400 uppercase">Platform Net (30%)</p>
                 <p className="text-3xl font-black text-white mt-1">₹1,28,400</p>
                 <p className="text-[10px] text-zinc-500 font-mono mt-1">Infrastructure & servers</p>
+              </div>
+            </div>
+
+            {/* Production Launch Readiness & Metrics Clean Slate */}
+            <div className="p-6 rounded-3xl border border-zinc-800 bg-zinc-950/80 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-bold bg-emerald-950/80 px-2.5 py-0.5 rounded-full border border-emerald-800">
+                      Production Ready
+                    </span>
+                    <span className="text-xs text-zinc-400 font-mono">
+                      Database Clean Slate
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-bold text-white mt-1">
+                    Public Launch Metrics & Views Control
+                  </h3>
+                  <p className="text-xs text-zinc-400 max-w-xl leading-relaxed mt-0.5">
+                    Before publishing or sharing the platform with real users, ensure that all views, chapter reads, and likes are reset to a clean baseline so organic reader engagement starts at zero.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    StorageService.resetAllViewsAndLikes();
+                    setSeriesList(StorageService.getSeries());
+                    setChaptersList(StorageService.getChapters());
+                    setCreatorsList(StorageService.getCreators());
+                    showToast('Success: All series views, chapter reads, and likes have been reset to 0 for public launch!');
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-xs flex items-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer shrink-0"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-zinc-950" />
+                  <span>Reset All Views & Likes to 0</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-zinc-800/80 text-xs font-mono">
+                <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800">
+                  <span className="text-zinc-500 text-[10px] block uppercase">Total Series in Catalog</span>
+                  <span className="text-white font-bold text-sm">{seriesList.length} Series</span>
+                </div>
+                <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800">
+                  <span className="text-zinc-500 text-[10px] block uppercase">Live Chapters</span>
+                  <span className="text-white font-bold text-sm">{chaptersList.length} Chapters</span>
+                </div>
+                <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800">
+                  <span className="text-zinc-500 text-[10px] block uppercase">Indexed Creators</span>
+                  <span className="text-white font-bold text-sm">{creatorsList.length} Artists</span>
+                </div>
               </div>
             </div>
           </div>

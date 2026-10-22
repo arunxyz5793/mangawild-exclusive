@@ -23,6 +23,7 @@ import { useTheme } from '../context/ThemeContext';
 import { UserRole } from '../types/auth';
 import { PRIMARY_CLIENT_ID } from '../services/googleAuth';
 import { StorageService } from '../services/storage';
+import { sendFirebasePasswordReset, confirmFirebasePasswordReset } from '../services/firebase';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -60,12 +61,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [directGoogleEmail, setDirectGoogleEmail] = useState('callmedevoc@gmail.com');
   const [copiedOrigin, setCopiedOrigin] = useState(false);
 
-  // Forgot Password & OTP state
+  // Forgot Password & Verification Code state
   const [resetEmail, setResetEmail] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [generatedOtpPreview, setGeneratedOtpPreview] = useState<string | null>(null);
+  const [resendTimer, setResendTimer] = useState(0);
+
+  // Countdown timer for email resend
+  React.useEffect(() => {
+    if (resendTimer > 0) {
+      const timer = setInterval(() => {
+        setResendTimer(prev => Math.max(0, prev - 1));
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [resendTimer]);
 
   // Auto-clears error message immediately when user modifies input
   const handleEmailChange = (val: string) => {
@@ -90,7 +101,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   const handleOtpChange = (val: string) => {
-    setOtpCode(val.replace(/[^0-9]/g, '').slice(0, 6));
+    setOtpCode(val.trim());
     if (errorMsg) setErrorMsg(null);
   };
 
@@ -106,9 +117,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const isDedicatedAdmin = defaultRole === 'admin' || selectedPersona === 'admin';
 
-  // Sync mode and persona when modal opens with custom options
+  // Sync mode and persona when modal opens with custom options or Firebase email action link
   React.useEffect(() => {
     if (isOpen) {
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlMode = urlParams.get('mode');
+        const oobCode = urlParams.get('oobCode');
+        if (oobCode) {
+          setOtpCode(oobCode);
+          setMode('verify_otp');
+          setErrorMsg(null);
+          setSuccessMsg('Verification code detected from email link. Please enter your new password.');
+          return;
+        } else if (urlMode === 'resetPassword') {
+          setMode('forgot_password');
+          setErrorMsg(null);
+          return;
+        }
+      }
+
       if (defaultRole === 'admin') {
         setMode('signin');
         setSelectedPersona('admin');
@@ -121,8 +149,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   }, [isOpen, defaultMode, defaultRole]);
 
-  // Send 6-Digit OTP for Password Reset
-  const handleSendResetOTP = (e: React.FormEvent) => {
+  // Request Firebase / Secure Email Engine to dispatch Password Reset Verification Code
+  const handleSendResetOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -133,16 +161,97 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    // Generate random 6-digit OTP code
-    const randomOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    StorageService.savePasswordResetOTP(cleanEmail, randomOtp);
-    setGeneratedOtpPreview(randomOtp);
-    setMode('verify_otp');
-    setSuccessMsg(`A 6-digit verification code has been sent to ${cleanEmail}.`);
+    setLoading(true);
+
+    try {
+      let dispatched = false;
+
+      // 1. Try Firebase Authentication first
+      try {
+        await sendFirebasePasswordReset(cleanEmail);
+        dispatched = true;
+      } catch (fbErr: any) {
+        console.warn('Firebase reset dispatch error, falling back to authenticated mail engine:', fbErr);
+      }
+
+      // 2. If Firebase encountered an App Check error or restriction, use the authenticated email engine
+      if (!dispatched) {
+        const resp = await fetch('/api/auth/send-email-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: cleanEmail }),
+        });
+        const data = await resp.json().catch(() => null);
+        if (resp.ok && data?.success) {
+          dispatched = true;
+        } else {
+          throw new Error(data?.error || 'Failed to dispatch verification email');
+        }
+      }
+
+      // Local backup OTP for offline resilience
+      const randomOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      StorageService.savePasswordResetOTP(cleanEmail, randomOtp);
+
+      setResendTimer(45);
+      setMode('verify_otp');
+      setSuccessMsg(
+        `A secure verification code has been dispatched to ${cleanEmail}. Please check your email inbox and spam folder.`
+      );
+    } catch (err: any) {
+      console.error('Password reset dispatch failed:', err);
+      setErrorMsg(err?.message || 'Failed to dispatch verification code. Please check your email and try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Verify OTP and reset password
-  const handleVerifyOTPAndReset = (e: React.FormEvent) => {
+  // Resend code via Firebase / Secure Email Engine
+  const handleResendEmail = async () => {
+    if (resendTimer > 0 || loading) return;
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setLoading(true);
+
+    const cleanEmail = resetEmail.trim().toLowerCase();
+    try {
+      let dispatched = false;
+
+      try {
+        await sendFirebasePasswordReset(cleanEmail);
+        dispatched = true;
+      } catch (fbErr) {
+        console.warn('Firebase resend error, using mail engine:', fbErr);
+      }
+
+      if (!dispatched) {
+        const resp = await fetch('/api/auth/send-email-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: cleanEmail }),
+        });
+        const data = await resp.json().catch(() => null);
+        if (resp.ok && data?.success) {
+          dispatched = true;
+        } else {
+          throw new Error(data?.error || 'Failed to resend email');
+        }
+      }
+
+      const randomOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      StorageService.savePasswordResetOTP(cleanEmail, randomOtp);
+
+      setResendTimer(45);
+      setSuccessMsg(`A fresh verification email has been dispatched to ${cleanEmail}. Please check your inbox.`);
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Failed to resend email. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Verify OTP / Action Code and reset password
+  const handleVerifyOTPAndReset = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -150,14 +259,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const cleanEmail = resetEmail.trim().toLowerCase();
     const cleanOtp = otpCode.trim();
 
-    if (!cleanOtp || cleanOtp.length !== 6) {
-      setErrorMsg('Please enter the complete 6-digit verification code.');
-      return;
-    }
-
-    const isValid = StorageService.verifyPasswordResetOTP(cleanEmail, cleanOtp);
-    if (!isValid) {
-      setErrorMsg('Invalid or expired verification code. Please check the code and try again.');
+    if (!cleanOtp) {
+      setErrorMsg('Please enter the verification code received in your email.');
       return;
     }
 
@@ -171,18 +274,72 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    const resetSuccess = StorageService.resetPassword(cleanEmail, newPassword);
-    if (resetSuccess) {
-      setSuccessMsg('Your password has been reset successfully! You can now sign in.');
-      setEmail(cleanEmail);
-      setPassword(newPassword);
-      setOtpCode('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setMode('signin');
-    } else {
-      // If user was not yet in users table, register them with new password
-      setErrorMsg('Account with this email not found. Please check your email or register a new account.');
+    setLoading(true);
+
+    try {
+      let verified = false;
+
+      // 1. Try server-side OTP verification first
+      try {
+        const resp = await fetch('/api/auth/verify-email-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: cleanEmail, otp: cleanOtp }),
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.valid) {
+            verified = true;
+          }
+        }
+      } catch (backendErr) {
+        console.warn('Server verify attempt:', backendErr);
+      }
+
+      // 2. Try Firebase action code confirmation with code from email
+      if (!verified) {
+        try {
+          await confirmFirebasePasswordReset(cleanOtp, newPassword);
+          verified = true;
+        } catch (fbErr: any) {
+          console.warn('Firebase confirm action code:', fbErr);
+        }
+      }
+
+      // 3. Fallback to local stored OTP
+      if (!verified && StorageService.verifyPasswordResetOTP(cleanEmail, cleanOtp)) {
+        verified = true;
+      }
+
+      if (!verified) {
+        setErrorMsg('Invalid or expired verification code. Please check the code in your email and try again.');
+        setLoading(false);
+        return;
+      }
+
+      const resetSuccess = StorageService.resetPassword(cleanEmail, newPassword);
+      if (resetSuccess) {
+        setSuccessMsg('Your password has been reset successfully! You can now sign in.');
+        setEmail(cleanEmail);
+        setPassword(newPassword);
+        setOtpCode('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setMode('signin');
+      } else {
+        await signUp(cleanEmail.split('@')[0], cleanEmail, newPassword, 'free_user');
+        setSuccessMsg('Your password has been configured! You can now sign in.');
+        setEmail(cleanEmail);
+        setPassword(newPassword);
+        setOtpCode('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setMode('signin');
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Failed to reset password. Please check your verification code.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -423,7 +580,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
-          {/* Mode 1: Forgot Password (Request 6-Digit OTP) */}
+          {/* Mode 1: Forgot Password (Request Firebase Reset Email) */}
           {mode === 'forgot_password' ? (
             <form onSubmit={handleSendResetOTP} className="space-y-3.5">
               <div className="flex items-center gap-2 mb-1">
@@ -441,7 +598,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
                 <div>
                   <h4 className="text-sm font-bold text-white">Reset Account Password</h4>
-                  <p className="text-[11px] text-zinc-400">Enter your email to receive a 6-digit verification code</p>
+                  <p className="text-[11px] text-zinc-400">Enter your email. Firebase will send you a verification code</p>
                 </div>
               </div>
 
@@ -466,12 +623,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 disabled={loading}
                 className="w-full py-3 px-4 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-sm transition-all shadow-md active:scale-98 flex items-center justify-center gap-2 cursor-pointer mt-2 disabled:opacity-50"
               >
-                <span>Send 6-Digit Verification Code</span>
+                <span>{loading ? 'Requesting Firebase to Send Email...' : 'Send Verification Code to Email'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>
           ) : mode === 'verify_otp' ? (
-            /* Mode 2: Verify 6-Digit Code & Enter New Password */
+            /* Mode 2: Verify Code from Email & Enter New Password */
             <form onSubmit={handleVerifyOTPAndReset} className="space-y-3.5">
               <div className="flex items-center gap-2 mb-1">
                 <button
@@ -486,46 +643,46 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <ArrowLeft className="w-4 h-4" />
                 </button>
                 <div>
-                  <h4 className="text-sm font-bold text-white">Enter 6-Digit Code</h4>
+                  <h4 className="text-sm font-bold text-white">Enter Verification Code</h4>
                   <p className="text-[11px] text-zinc-400">
-                    Code sent to <span className="text-zinc-200 font-mono">{resetEmail}</span>
+                    Code dispatched to <span className="text-zinc-200 font-mono font-semibold">{resetEmail}</span>
                   </p>
                 </div>
               </div>
 
-              {/* Direct OTP Test Code Preview Helper */}
-              {generatedOtpPreview && (
-                <div className="p-2.5 rounded-xl bg-zinc-900/90 border border-zinc-700/80 flex items-center justify-between text-xs text-zinc-300">
-                  <span className="flex items-center gap-1.5 font-mono">
-                    <KeyRound className="w-3.5 h-3.5 text-sky-400" />
-                    <span>Your OTP: <strong className="text-white tracking-widest text-sm">{generatedOtpPreview}</strong></span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOtpCode(generatedOtpPreview);
-                      if (errorMsg) setErrorMsg(null);
-                    }}
-                    className="text-[11px] text-sky-400 hover:text-sky-300 underline font-semibold cursor-pointer"
-                  >
-                    Paste Code
-                  </button>
+              {/* Secure Info Notice: Absolutely ZERO OTP code shown on screen */}
+              <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 flex items-start gap-2.5 text-xs text-zinc-300">
+                <Mail className="w-4 h-4 text-zinc-400 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-semibold text-white">Verification Email Dispatched</p>
+                  <p className="text-[11px] text-zinc-400 leading-relaxed">
+                    A secure verification code has been dispatched to <span className="text-zinc-200 font-mono font-bold">{resetEmail}</span>. Please check your email inbox or Spam/Junk folder.
+                  </p>
                 </div>
-              )}
+              </div>
 
               <div>
-                <label className="block text-xs font-semibold text-zinc-300 mb-1">
-                  6-Digit Verification Code
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-zinc-300">
+                    Verification Code
+                  </label>
+                  <button
+                    type="button"
+                    disabled={resendTimer > 0 || loading}
+                    onClick={handleResendEmail}
+                    className="text-[11px] text-zinc-400 hover:text-white disabled:opacity-40 disabled:hover:text-zinc-400 cursor-pointer font-mono transition-colors"
+                  >
+                    {resendTimer > 0 ? `Resend email in ${resendTimer}s` : 'Resend code via email'}
+                  </button>
+                </div>
                 <div className="relative">
                   <KeyRound className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
                   <input
                     type="text"
                     required
-                    maxLength={6}
                     value={otpCode}
                     onChange={e => handleOtpChange(e.target.value)}
-                    placeholder="123456"
+                    placeholder="Enter code from email"
                     className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-sm font-mono tracking-widest text-center focus:outline-none focus:border-white transition-colors"
                     autoFocus
                   />
@@ -567,7 +724,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 disabled={loading}
                 className="w-full py-3 px-4 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-sm transition-all shadow-md active:scale-98 flex items-center justify-center gap-2 cursor-pointer mt-2 disabled:opacity-50"
               >
-                <span>Verify & Reset Password</span>
+                <span>{loading ? 'Verifying & Updating...' : 'Verify & Reset Password'}</span>
                 <Check className="w-4 h-4" />
               </button>
             </form>
