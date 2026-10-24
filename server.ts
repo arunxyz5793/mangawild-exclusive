@@ -1,8 +1,12 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -22,6 +26,22 @@ app.use(express.json({ limit: '15mb' }));
 // Health check endpoint
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Search Console Sitemaps & Robots
+app.get('/sitemap.xml', (_req, res) => {
+  res.type('application/xml');
+  res.sendFile(path.resolve(__dirname, 'public', 'sitemap.xml'));
+});
+
+app.get('/devoc-mangawild-online-sitemap_e1f25dbc.xml', (_req, res) => {
+  res.type('application/xml');
+  res.sendFile(path.resolve(__dirname, 'public', 'devoc-mangawild-online-sitemap_e1f25dbc.xml'));
+});
+
+app.get('/robots.txt', (_req, res) => {
+  res.type('text/plain');
+  res.sendFile(path.resolve(__dirname, 'public', 'robots.txt'));
 });
 
 // Secure server-side OTP Store for password resets (15 min TTL)

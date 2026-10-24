@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://devoc.mangawild.online/sitemap.xml
+Sitemap: https://devoc.mangawild.online/devoc-mangawild-online-sitemap_e1f25dbc.xml
