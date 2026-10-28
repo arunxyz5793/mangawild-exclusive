@@ -181,11 +181,8 @@ export interface ReadingHistoryItem {
   seriesId: string;
   chapterId: string;
   chapterNumber: number;
-  chapterTitle?: string;
   panelIndex: number;
   totalPanels: number;
-  progressPercent?: number;
-  isCompleted?: boolean;
   updatedAt: string;
 }
 

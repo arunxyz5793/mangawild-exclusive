@@ -91,8 +91,7 @@ service cloud.firestore {
 
       // Subcollection: Reading Progress
       match /reading_progress/{progressId} {
-        allow read: if isOwner(userId) && isValidId(progressId);
-        allow write: if isOwner(userId) && isValidId(progressId) && isValidProgress(incoming()) && incoming().userId == userId;
+        allow read, write: if isOwner(userId) && isValidId(progressId);
       }
 
       // Subcollection: Bookmarks
