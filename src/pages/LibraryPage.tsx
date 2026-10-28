@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Bookmark, Clock, Star, ArrowRight, UserPlus, MessageSquare, ExternalLink, Crown, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Bookmark, Clock, Star, ArrowRight, UserPlus, MessageSquare, ExternalLink, Crown, Sparkles, CheckCircle2, Cloud, RefreshCw } from 'lucide-react';
 import { StorageService } from '../services/storage';
+import { readingProgressService, READING_PROGRESS_EVENT } from '../services/readingProgressService';
 import { useAuth } from '../context/AuthContext';
 import { MangaSeries } from '../types/manga';
 
@@ -21,7 +22,36 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
   const allSeries = StorageService.getSeries();
   const allCreators = StorageService.getCreators();
 
-  const readingHistory = StorageService.getReadingHistory(user.id);
+  const [readingHistory, setReadingHistory] = useState(() => StorageService.getReadingHistory(user.id));
+  const [isSyncingCloud, setIsSyncingCloud] = useState<boolean>(false);
+
+  // Sync reading history and progress from Firestore on mount & on progress events
+  useEffect(() => {
+    let isMounted = true;
+    setIsSyncingCloud(true);
+
+    readingProgressService.syncFromFirestore(user.id).then(syncedList => {
+      if (isMounted) {
+        setReadingHistory(syncedList);
+        setIsSyncingCloud(false);
+      }
+    }).catch(() => {
+      if (isMounted) setIsSyncingCloud(false);
+    });
+
+    const handleProgressUpdate = (e: any) => {
+      if (e.detail?.userId === user.id) {
+        setReadingHistory(StorageService.getReadingHistory(user.id));
+      }
+    };
+
+    window.addEventListener(READING_PROGRESS_EVENT, handleProgressUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener(READING_PROGRESS_EVENT, handleProgressUpdate);
+    };
+  }, [user.id]);
+
   const bookmarkedSeries = allSeries.filter(s => bookmarks.includes(s.id));
   const followedCreatorsList = allCreators.filter(c => followedCreators.includes(c.id));
   const userReviews = StorageService.getReviews().filter(r => r.userId === user.id);
@@ -123,8 +153,28 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
       {/* Content 1: Reading History */}
       {activeTab === 'history' && (
         <div className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h3 className="text-xs uppercase font-mono tracking-wider text-zinc-400 font-bold flex items-center gap-2">
+              <Clock className="w-3.5 h-3.5 text-zinc-300" />
+              <span>Continue Reading ({readingHistory.length})</span>
+            </h3>
+            <div className="flex items-center gap-2 text-[11px] font-mono text-zinc-400">
+              {isSyncingCloud ? (
+                <span className="flex items-center gap-1.5 text-sky-400">
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  <span>Syncing with Firestore...</span>
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5 text-emerald-400">
+                  <Cloud className="w-3 h-3" />
+                  <span>Firestore Cloud Synced</span>
+                </span>
+              )}
+            </div>
+          </div>
+
           {readingHistory.length === 0 ? (
-            <div className="py-16 text-center text-stone-500 text-sm">
+            <div className="py-16 text-center text-stone-500 text-sm bg-white/[0.01] rounded-2xl border border-white/5">
               You haven&apos;t started reading any manga yet. Explore the catalog to begin!
             </div>
           ) : (
@@ -132,35 +182,87 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
               {readingHistory.map(item => {
                 const series = allSeries.find(s => s.id === item.seriesId);
                 if (!series) return null;
+
+                const total = Math.max(item.totalPanels || 1, 1);
+                const currentPanel = Math.min(item.panelIndex || 1, total);
+                const percent = Math.min(
+                  100,
+                  Math.max(1, item.progressPercent ?? Math.round((currentPanel / total) * 100))
+                );
+                const isFinished = Boolean(item.isCompleted || percent >= 95);
+
                 return (
                   <div
                     key={item.seriesId}
-                    className="p-4 rounded-xl bg-white/[0.02] border border-white/10 flex items-center justify-between gap-4 hover:border-white/30 transition-all"
+                    className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800 hover:border-zinc-700 flex flex-col justify-between gap-3 transition-all shadow-md group"
                   >
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-start gap-4">
                       <img
                         src={series.coverUrl}
                         alt={series.title}
-                        className="w-14 h-20 object-cover rounded-lg bg-stone-900 border border-white/10 shrink-0"
+                        className="w-16 h-24 object-cover rounded-xl bg-zinc-950 border border-white/10 shrink-0 group-hover:scale-102 transition-transform"
                       />
-                      <div>
-                        <h4 className="text-base font-bold text-white">{series.title}</h4>
-                        <p className="text-xs text-stone-300 font-semibold mt-0.5 font-mono">
-                          Chapter {item.chapterNumber} (Panel {item.panelIndex}/{item.totalPanels})
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <h4 className="text-sm sm:text-base font-bold text-white truncate">
+                            {series.title}
+                          </h4>
+                        </div>
+
+                        <p className="text-xs text-zinc-300 font-semibold mt-0.5 font-mono truncate">
+                          Ch. {item.chapterNumber} {item.chapterTitle ? `· ${item.chapterTitle}` : ''}
                         </p>
-                        <p className="text-[11px] text-stone-500 mt-1">
+
+                        <div className="flex items-center gap-2 mt-2">
+                          {isFinished ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                              <CheckCircle2 className="w-3 h-3" /> Completed
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 rounded-full">
+                              {percent}% Read
+                            </span>
+                          )}
+
+                          <span className="text-[10px] text-zinc-500 font-mono">
+                            Panel {currentPanel}/{total}
+                          </span>
+                        </div>
+
+                        <p className="text-[10px] text-zinc-500 font-mono mt-1">
                           Last read {new Date(item.updatedAt).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => onReadChapter(series.id, item.chapterId)}
-                      className="px-4 py-2 bg-white hover:bg-stone-200 text-black text-xs font-bold uppercase rounded-lg shadow-sm flex items-center gap-1 shrink-0 transition-colors"
-                    >
-                      <span>Resume</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
+                    {/* Visual Chapter Progress Bar */}
+                    <div className="space-y-1 pt-1">
+                      <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden border border-white/5 relative">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${
+                            isFinished
+                              ? 'bg-gradient-to-r from-emerald-400 to-teal-400 shadow-[0_0_8px_rgba(16,185,129,0.5)]'
+                              : 'bg-gradient-to-r from-sky-400 via-white to-sky-300 shadow-[0_0_8px_rgba(56,189,248,0.5)]'
+                          }`}
+                          style={{ width: `${percent}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Bottom Actions */}
+                    <div className="flex items-center justify-between pt-1 border-t border-zinc-800/80">
+                      <span className="text-[10px] font-mono text-zinc-500 flex items-center gap-1">
+                        <Cloud className="w-3 h-3 text-sky-400/80" /> Firestore Saved
+                      </span>
+
+                      <button
+                        onClick={() => onReadChapter(series.id, item.chapterId)}
+                        className="px-3.5 py-1.5 bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-bold uppercase tracking-wider rounded-xl shadow-sm flex items-center gap-1.5 shrink-0 transition-transform active:scale-95 cursor-pointer"
+                      >
+                        <span>{isFinished ? 'Re-read' : 'Resume'}</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                 );
               })}

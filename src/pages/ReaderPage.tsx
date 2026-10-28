@@ -20,12 +20,15 @@ import {
   ZoomOut,
   RotateCcw,
   Volume2,
+  Cloud,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { StorageService } from '../services/storage';
+import { readingProgressService } from '../services/readingProgressService';
 import { Chapter, MangaSeries } from '../types/manga';
 import { MangaWildLogo } from '../components/MangaWildLogo';
+import { MangaWildProgressLoader } from '../components/MangaWildProgressLoader';
 import { MangaCommentsSection } from '../components/MangaCommentsSection';
 import { BlurUpMangaImage } from '../components/BlurUpMangaImage';
 
@@ -67,6 +70,12 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
   const [showChaptersDrawer, setShowChaptersDrawer] = useState<boolean>(false);
   const [chapterSearchQuery, setChapterSearchQuery] = useState<string>('');
 
+  // Reading Progress & Firestore Database Cloud Sync States
+  const [readingProgress, setReadingProgress] = useState<number>(1);
+  const [isSavingProgress, setIsSavingProgress] = useState<boolean>(false);
+  const [isCloudSynced, setIsCloudSynced] = useState<boolean>(true);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const handleZoomIn = () => {
     setZoomLevel(prev => Math.min(prev + 25, 250));
   };
@@ -81,7 +90,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Sync state if props change
+  // Sync state if props change, restore prior progress, and initialize tracking
   useEffect(() => {
     const s = StorageService.getSeriesById(seriesId);
     const chs = StorageService.getChapters(seriesId);
@@ -90,21 +99,147 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
     setSeries(s);
     setChapters(chs);
     setCurrentChapter(curCh);
-    setActivePanelIndex(0);
 
-    // Save reading progress & increment dynamic real views
     if (curCh && s) {
       StorageService.incrementChapterViews(curCh.id, s.id);
-      StorageService.saveReadingProgress(user.id, {
+
+      // Check existing reading progress for this series
+      const existingProgress = readingProgressService.getProgress(user.id, s.id);
+      let initialPanel = 0;
+
+      // If user previously read this chapter, resume from their last panel
+      if (
+        existingProgress &&
+        existingProgress.chapterId === curCh.id &&
+        existingProgress.panelIndex > 1 &&
+        !existingProgress.isCompleted
+      ) {
+        initialPanel = Math.min(curCh.panels.length - 1, existingProgress.panelIndex - 1);
+      }
+      setActivePanelIndex(initialPanel);
+
+      const totalPanels = curCh.panels.length || 1;
+      const initialPercent = existingProgress?.progressPercent || Math.max(1, Math.round(((initialPanel + 1) / totalPanels) * 100));
+      setReadingProgress(initialPercent);
+
+      // Save initial progress to local and firestore
+      readingProgressService.saveProgress(user.id, {
         seriesId: s.id,
         chapterId: curCh.id,
         chapterNumber: curCh.chapterNumber,
-        panelIndex: 1,
-        totalPanels: curCh.panels.length,
+        chapterTitle: curCh.title,
+        panelIndex: initialPanel + 1,
+        totalPanels,
+        progressPercent: initialPercent,
+        isCompleted: initialPercent >= 95,
         updatedAt: new Date().toISOString(),
+      }).then(() => {
+        setIsCloudSynced(true);
       });
     }
   }, [seriesId, chapterId, user.id]);
+
+  // Webtoon Continuous Scroll Reading Progress Tracking
+  useEffect(() => {
+    if (readingMode !== 'webtoon' || !currentChapter || !series) return;
+
+    const computeWebtoonScroll = () => {
+      const el = containerRef.current;
+      let scrollTop = window.scrollY;
+      let scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+
+      if (el && isFullscreen) {
+        scrollTop = el.scrollTop;
+        scrollHeight = el.scrollHeight - el.clientHeight;
+      }
+
+      if (scrollHeight <= 0) {
+        setReadingProgress(100);
+        return;
+      }
+
+      const ratio = Math.min(1, Math.max(0, scrollTop / scrollHeight));
+      const pct = Math.min(100, Math.max(1, Math.round(ratio * 100)));
+      const totalPanels = currentChapter.panels.length;
+      const currentPanel = Math.min(totalPanels, Math.max(1, Math.ceil(ratio * totalPanels)));
+      const isCompleted = pct >= 92;
+
+      setReadingProgress(pct);
+
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      setIsSavingProgress(true);
+      saveTimeoutRef.current = setTimeout(() => {
+        readingProgressService.saveProgress(user.id, {
+          seriesId: series.id,
+          chapterId: currentChapter.id,
+          chapterNumber: currentChapter.chapterNumber,
+          chapterTitle: currentChapter.title,
+          panelIndex: currentPanel,
+          totalPanels,
+          progressPercent: pct,
+          isCompleted,
+          updatedAt: new Date().toISOString(),
+        }).then(() => {
+          setIsSavingProgress(false);
+          setIsCloudSynced(true);
+        }).catch(() => {
+          setIsSavingProgress(false);
+        });
+      }, 650);
+    };
+
+    window.addEventListener('scroll', computeWebtoonScroll, { passive: true });
+    const el = containerRef.current;
+    if (el) {
+      el.addEventListener('scroll', computeWebtoonScroll, { passive: true });
+    }
+
+    return () => {
+      window.removeEventListener('scroll', computeWebtoonScroll);
+      if (el) {
+        el.removeEventListener('scroll', computeWebtoonScroll);
+      }
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, [readingMode, currentChapter, series, user.id, isFullscreen]);
+
+  // Page Flip Mode Reading Progress Tracking
+  useEffect(() => {
+    if (readingMode !== 'page_flip' || !currentChapter || !series) return;
+    const totalPanels = currentChapter.panels.length;
+    if (totalPanels === 0) return;
+
+    const panelNum = Math.min(totalPanels, activePanelIndex + 1);
+    const pct = Math.min(100, Math.round((panelNum / totalPanels) * 100));
+    const isCompleted = activePanelIndex >= totalPanels || pct >= 95;
+
+    setReadingProgress(pct);
+
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    setIsSavingProgress(true);
+    saveTimeoutRef.current = setTimeout(() => {
+      readingProgressService.saveProgress(user.id, {
+        seriesId: series.id,
+        chapterId: currentChapter.id,
+        chapterNumber: currentChapter.chapterNumber,
+        chapterTitle: currentChapter.title,
+        panelIndex: panelNum,
+        totalPanels,
+        progressPercent: pct,
+        isCompleted,
+        updatedAt: new Date().toISOString(),
+      }).then(() => {
+        setIsSavingProgress(false);
+        setIsCloudSynced(true);
+      }).catch(() => {
+        setIsSavingProgress(false);
+      });
+    }, 500);
+
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, [activePanelIndex, readingMode, currentChapter, series, user.id]);
 
   if (!series || !currentChapter) {
     return (
@@ -415,6 +550,14 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
         touchAction: readingMode === 'webtoon' ? 'pan-y' : 'pan-x',
       }}
     >
+      {/* High-Precision MangaWild Pinned Reading Progress Bar */}
+      <div className="fixed top-0 left-0 right-0 z-50 h-[3.5px] bg-zinc-950/80 pointer-events-none">
+        <div
+          className="h-full bg-gradient-to-r from-sky-400 via-white to-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.9)] transition-all duration-150 ease-out"
+          style={{ width: `${readingProgress}%` }}
+        />
+      </div>
+
       {/* Fullscreen Floating Controls Bar with Interactive Zoom, Mode Switch & Exit */}
       {isFullscreen && (
         <div className="fixed top-4 right-4 z-50 flex items-center gap-1.5 sm:gap-2 bg-black/90 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/20 shadow-2xl text-white select-none animate-fade-in">
@@ -1103,6 +1246,40 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
           </div>
         )}
       </main>
+
+      {/* Dynamic Reading Progress & Firestore Sync Floating HUD */}
+      <div
+        className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-40 transition-all duration-300 ${
+          showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
+        }`}
+      >
+        <div className="flex items-center gap-2.5 bg-zinc-900/90 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-zinc-700/80 shadow-2xl text-xs font-mono select-none">
+          {/* Progress Percentage & Panel Count */}
+          <span className="font-bold text-white flex items-center gap-1.5">
+            <span className="text-sky-400 font-black">{readingProgress}%</span>
+            <span className="text-zinc-500">•</span>
+            <span className="text-zinc-300 text-[11px]">
+              {readingMode === 'webtoon' ? 'Scroll Progress' : `Panel ${activePanelIndex + 1}/${currentChapter.panels.length}`}
+            </span>
+          </span>
+
+          <div className="w-[1px] h-3.5 bg-zinc-700 mx-0.5" />
+
+          {/* Firestore Real-Time Cloud Sync Badge */}
+          <div className="flex items-center gap-1.5 text-[11px] text-zinc-300">
+            <Cloud className="w-3.5 h-3.5 text-sky-400" />
+            <span className="text-zinc-400 hidden sm:inline">
+              {isSavingProgress ? 'Syncing...' : 'Synced with Firestore'}
+            </span>
+            <span
+              className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                isSavingProgress ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'
+              }`}
+              title={isSavingProgress ? 'Saving progress to Firestore...' : 'Saved to Firestore database'}
+            />
+          </div>
+        </div>
+      </div>
 
       {/* 3. Chapters Directory Slide-Over Drawer */}
       {showChaptersDrawer && (

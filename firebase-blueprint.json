@@ -88,8 +88,11 @@
         "seriesId": { "type": "string", "maxLength": 128 },
         "chapterId": { "type": "string", "maxLength": 128 },
         "chapterNumber": { "type": "number" },
+        "chapterTitle": { "type": "string", "maxLength": 150 },
         "panelIndex": { "type": "number" },
         "totalPanels": { "type": "number" },
+        "progressPercent": { "type": "number" },
+        "isCompleted": { "type": "boolean" },
         "updatedAt": { "type": "string", "maxLength": 50 }
       },
       "required": ["id", "userId", "seriesId", "chapterId"]

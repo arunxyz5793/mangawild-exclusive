@@ -98,6 +98,15 @@
   }
 }
 
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
 .animate-pop {
   animation: popClick 0.2s ease-out;
 }

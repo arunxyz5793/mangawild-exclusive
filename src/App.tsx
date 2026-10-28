@@ -22,6 +22,7 @@ import { NewsPage } from './pages/NewsPage';
 import { RazorpayCheckoutModal } from './components/RazorpayCheckoutModal';
 import { SearchModal } from './components/SearchModal';
 import { AuthModal } from './components/AuthModal';
+import { MangaWildProgressLoader } from './components/MangaWildProgressLoader';
 import { StorageService } from './services/storage';
 import { MangaSeries, Chapter } from './types/manga';
 
@@ -225,6 +226,7 @@ function AppContent() {
   const [isVIPModalOpen, setIsVIPModalOpen] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<'monthly' | 'yearly'>('monthly');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isInitialBooting, setIsInitialBooting] = useState(true);
 
   // Check if visitor arrived from an official Firebase Password Reset email link
   useEffect(() => {
@@ -472,6 +474,15 @@ function AppContent() {
 
   return (
     <div className={`min-h-screen flex flex-col transition-colors duration-200 ${theme === 'dark' ? 'bg-[#09090b] text-[#f4f4f5]' : 'bg-[#f8fafc] text-[#0f172a]'}`}>
+      {/* MangaWild Initial Opening Splash Loading Animation */}
+      {isInitialBooting && (
+        <MangaWildProgressLoader
+          mode="splash"
+          minDurationMs={1200}
+          onComplete={() => setIsInitialBooting(false)}
+        />
+      )}
+
       {/* Strict 3-zone Header */}
       <Header
         currentView={currentView}
