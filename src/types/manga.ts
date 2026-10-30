@@ -264,3 +264,29 @@ export interface WorldwideMangaNews {
   coverUrl?: string;
   summary: string;
 }
+
+export interface CreatorTip {
+  id: string;
+  creatorId: string;
+  seriesId?: string;
+  seriesTitle?: string;
+  chapterId?: string;
+  chapterNumber?: number;
+  userId?: string;
+  supporterName: string;
+  supporterAvatar?: string;
+  coins: number;
+  amountInr?: number;
+  message?: string;
+  createdAt: string;
+}
+
+export interface TopSupporter {
+  name: string;
+  avatar?: string;
+  totalCoins: number;
+  totalTipsCount: number;
+  lastMessage?: string;
+  lastTippedAt: string;
+  rank: number;
+}

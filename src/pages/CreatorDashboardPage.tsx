@@ -683,6 +683,15 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
         {/* Action Buttons */}
         <div className="flex items-center gap-2 flex-wrap">
           <button
+            onClick={() => onNavigate('creator-profile', { id: creatorProfile?.id, author: creatorProfile?.penName || user.name })}
+            className="px-3.5 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-white font-medium text-xs flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+            title="View Public Mangaka Profile & Tip Jar"
+          >
+            <Eye className="w-3.5 h-3.5 text-zinc-400" />
+            <span>View Profile</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('new_series')}
             className="px-3.5 py-1.5 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-semibold text-xs flex items-center gap-1.5 transition-all shadow-xs active:scale-95 cursor-pointer"
           >

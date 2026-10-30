@@ -57,6 +57,13 @@
 
   html {
     scroll-behavior: smooth;
+    box-sizing: border-box;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  *, ::before, ::after {
+    box-sizing: border-box;
   }
 
   body {
@@ -64,7 +71,37 @@
     background-color: var(--bg-page);
     color: var(--text-primary);
     overflow-x: hidden;
+    max-width: 100vw;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
     transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Universal Viewport Containment: Prevent all buttons, inputs & interactive elements from breaking viewport */
+  button,
+  [role="button"],
+  input,
+  select,
+  textarea,
+  .btn-interactive,
+  .interactive-field {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Cards, Hero section elements and containers strictly contained */
+  .hero-card,
+  .hero-section,
+  .card-interactive,
+  section,
+  article,
+  header,
+  nav,
+  main {
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   /* Anti-Piracy & Image Protection: Disable long-press download, touch callout, and image dragging */
@@ -116,18 +153,53 @@
 }
 
 .btn-interactive {
-  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
 }
+.btn-interactive:hover {
+  transform: translateY(-1px);
+}
 .btn-interactive:active {
-  transform: scale(0.95);
+  transform: scale(0.96);
+}
+
+/* Monochromatic interactive field state */
+.interactive-field {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.interactive-field:hover {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18);
+  transform: translateY(-1px);
+}
+.interactive-field:active {
+  transform: scale(0.97);
+}
+.interactive-field:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4);
+}
+
+@keyframes fadeOutParticles {
+  0% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.animate-fade-out {
+  animation: fadeOutParticles 1.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .card-interactive {
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
 }
 .card-interactive:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
 }
 
 @theme {
@@ -265,9 +337,35 @@
 }
 
 /* Mobile Screen Compatibility & Touch Protection */
-html, body {
+html, body, #root {
   max-width: 100vw;
+  width: 100%;
   overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+/* Deep Layout Audit: Flex & Grid Horizontal Containment */
+.flex,
+.grid,
+[class*="flex"],
+[class*="grid"] {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Ensure child elements inside flex rows shrink and wrap gracefully */
+.flex > *,
+.inline-flex > * {
+  max-width: 100%;
+}
+
+/* Consistent Padding Containment */
+.contain-padded {
+  width: 100%;
+  max-width: 100%;
+  padding-left: clamp(0.875rem, 3.5vw, 1.5rem);
+  padding-right: clamp(0.875rem, 3.5vw, 1.5rem);
+  box-sizing: border-box;
 }
 
 /* Fullscreen Reader Continuous Vertical Scrolling Fix */

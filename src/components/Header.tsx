@@ -226,11 +226,11 @@ export const Header: React.FC<HeaderProps> = ({
           </nav>
 
           {/* Right: Search, Theme Toggle, Notifications, VIP & Menu */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 ml-auto">
+          <div className="flex items-center gap-1 sm:gap-2.5 shrink-0 ml-auto">
             {/* Search Button (Minimalist pill with ⌘K badge) */}
             <button
               onClick={onOpenSearch}
-              className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 hover:text-zinc-200 transition-all duration-150 active:scale-95 cursor-pointer"
+              className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 hover:text-zinc-200 transition-all duration-150 active:scale-95 cursor-pointer"
               title="Search Manga Catalog (Ctrl+K)"
             >
               <Search className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
@@ -247,7 +247,7 @@ export const Header: React.FC<HeaderProps> = ({
                   setIsNotifOpen(!isNotifOpen);
                   if (!isNotifOpen) markNotificationsAsRead();
                 }}
-                className={`relative p-2 rounded-xl transition-all duration-150 active:scale-95 cursor-pointer border border-transparent ${
+                className={`relative p-1.5 sm:p-2 rounded-xl transition-all duration-150 active:scale-95 cursor-pointer border border-transparent ${
                   theme === 'dark'
                     ? 'text-zinc-400 hover:text-white hover:bg-white/[0.06] hover:border-white/[0.08]'
                     : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100'
@@ -307,7 +307,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={() => onNavigate('membership')}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer active:scale-95 border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white"
+              className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer active:scale-95 border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white"
               title="MangaWild VIP Pass & Membership"
             >
               <Crown className="w-3.5 h-3.5 text-zinc-200" />
@@ -323,7 +323,7 @@ export const Header: React.FC<HeaderProps> = ({
             {!isAuthenticated && (
               <button
                 onClick={() => handleOpenAuth('reader')}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-black bg-white hover:bg-zinc-200 rounded-xl transition-all whitespace-nowrap cursor-pointer active:scale-95 shadow-xs"
+                className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-black bg-white hover:bg-zinc-200 rounded-xl transition-all whitespace-nowrap cursor-pointer active:scale-95 shadow-xs"
               >
                 <UserIcon className="w-3.5 h-3.5" />
                 <span>Log In</span>

@@ -236,3 +236,74 @@ export function processSubscriptionSuccess(
 
   return { updatedUser, paymentRecord };
 }
+
+/**
+ * Launch Razorpay checkout specifically for Creator Tipping
+ */
+export async function launchRazorpayTipCheckout({
+  amountInr,
+  creatorName,
+  creatorId,
+  seriesTitle,
+  user,
+  message,
+  onSuccess,
+  onDismiss,
+  onError,
+}: {
+  amountInr: number;
+  creatorName: string;
+  creatorId: string;
+  seriesTitle?: string;
+  user?: User | null;
+  message?: string;
+  onSuccess: (paymentId: string) => void;
+  onDismiss?: () => void;
+  onError?: (err: Error) => void;
+}): Promise<boolean> {
+  const isLoaded = await loadRazorpayScript();
+  if (!isLoaded || !window.Razorpay) {
+    if (onError) onError(new Error('Razorpay payment gateway could not be loaded.'));
+    return false;
+  }
+
+  const options: RazorpayOptions = {
+    key: RAZORPAY_KEY_ID,
+    amount: Math.round(amountInr * 100), // paise
+    currency: 'INR',
+    name: 'MangaWild Creator Tip',
+    description: `Support Mangaka: ${creatorName}${seriesTitle ? ` (${seriesTitle})` : ''}`,
+    prefill: {
+      name: user?.name || 'Manga Supporter',
+      email: user?.email || 'reader@mangawild.com',
+      contact: (user as any)?.phone || '9999999999',
+    },
+    notes: {
+      creatorId,
+      creatorName,
+      tipMessage: message || 'Fan appreciation',
+      platform: 'MangaWild Direct Mangaka Payouts',
+    },
+    theme: {
+      color: '#18181b', // Monochromatic dark zinc
+    },
+    handler: (response) => {
+      onSuccess(response.razorpay_payment_id);
+    },
+    modal: {
+      ondismiss: () => {
+        if (onDismiss) onDismiss();
+      },
+    },
+  };
+
+  try {
+    const rzp = new window.Razorpay(options);
+    rzp.open();
+    return true;
+  } catch (err: any) {
+    if (onError) onError(err);
+    return false;
+  }
+}
+

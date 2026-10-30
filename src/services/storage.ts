@@ -17,6 +17,8 @@ import {
   PlatformNotification,
   WorldwideMangaNews,
   UserReport,
+  CreatorTip,
+  TopSupporter,
 } from '../types/manga';
 import { generateMangaCoverSvg, generateChapterPanelSvg } from '../utils/mangaAssets';
 
@@ -36,6 +38,7 @@ const STORAGE_KEYS = {
   FOLLOWED_CREATORS: 'mw_followed_creators_v4',
   REPORTS: 'mw_user_reports_v1',
   PASSWORD_RESETS: 'mw_password_resets_v1',
+  TIPS: 'mw_creator_tips_v1',
 };
 
 // Official System Administrator Configuration
@@ -3414,6 +3417,128 @@ export const StorageService = {
     } catch (e) {
       console.warn('Metrics reset notice:', e);
     }
+  },
+
+  // Creator Tipping & Top Supporters Leaderboard
+  getTips(creatorId?: string): CreatorTip[] {
+    const defaultTips: CreatorTip[] = [
+      {
+        id: 'tip_seed_1',
+        creatorId: 'creator_deep_mangaka',
+        seriesId: 'series_chintu_01',
+        supporterName: 'rahul_otaku',
+        supporterAvatar: '/avatars/avatar-1.svg',
+        coins: 500,
+        amountInr: 250,
+        message: 'Masterpiece storytelling! Cannot wait for the next chapter!',
+        createdAt: '2026-10-25T14:32:00Z',
+      },
+      {
+        id: 'tip_seed_2',
+        creatorId: 'creator_deep_mangaka',
+        seriesId: 'series_chintu_01',
+        supporterName: 'aarav_sharma',
+        supporterAvatar: '/avatars/avatar-3.svg',
+        coins: 300,
+        amountInr: 150,
+        message: 'The artwork in the climax was insane.',
+        createdAt: '2026-10-26T18:10:00Z',
+      },
+      {
+        id: 'tip_seed_3',
+        creatorId: 'creator_deep_mangaka',
+        supporterName: 'manga_samurai',
+        supporterAvatar: '/avatars/avatar-5.svg',
+        coins: 150,
+        amountInr: 75,
+        message: 'Keep going, full support from India!',
+        createdAt: '2026-10-27T09:45:00Z',
+      },
+      {
+        id: 'tip_seed_4',
+        creatorId: 'creator_deep_mangaka',
+        supporterName: 'priya_k',
+        supporterAvatar: '/avatars/avatar-4.svg',
+        coins: 100,
+        amountInr: 50,
+        message: 'Proud to support indie creators.',
+        createdAt: '2026-10-28T12:00:00Z',
+      },
+    ];
+
+    const tips = getStored<CreatorTip[]>(STORAGE_KEYS.TIPS, defaultTips);
+    if (!creatorId) return tips;
+    return tips.filter(t => t.creatorId === creatorId);
+  },
+
+  addTip(tipData: Omit<CreatorTip, 'id' | 'createdAt'>): CreatorTip {
+    const allTips = this.getTips();
+    const newTip: CreatorTip = {
+      ...tipData,
+      id: `tip_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      createdAt: new Date().toISOString(),
+    };
+    allTips.unshift(newTip);
+    setStored(STORAGE_KEYS.TIPS, allTips);
+
+    // Also increment creator monthlyEarningsInr (e.g. ₹0.50 per coin)
+    const creators = this.getCreators();
+    const creator = creators.find(c => c.id === tipData.creatorId || c.userId === tipData.creatorId);
+    if (creator) {
+      const addedInr = Math.round(tipData.coins * 0.5);
+      creator.monthlyEarningsInr = (creator.monthlyEarningsInr || 0) + addedInr;
+      this.saveCreators(creators);
+    }
+
+    // Add notification to creator
+    this.addNotification({
+      id: `notif_tip_${Date.now()}`,
+      userId: tipData.creatorId,
+      title: 'New Tip Received!',
+      message: `${tipData.supporterName} tipped you ${tipData.coins} coins! ${tipData.message ? `"${tipData.message}"` : ''}`,
+      type: 'payment',
+      read: false,
+      createdAt: new Date().toISOString(),
+      link: '/creator',
+    });
+
+    return newTip;
+  },
+
+  getTopSupporters(creatorId: string): TopSupporter[] {
+    const tips = this.getTips(creatorId);
+    const map = new Map<string, { totalCoins: number; count: number; avatar?: string; lastMessage?: string; lastDate: string }>();
+
+    for (const t of tips) {
+      const existing = map.get(t.supporterName) || {
+        totalCoins: 0,
+        count: 0,
+        avatar: t.supporterAvatar,
+        lastMessage: t.message,
+        lastDate: t.createdAt,
+      };
+      existing.totalCoins += t.coins;
+      existing.count += 1;
+      if (new Date(t.createdAt).getTime() > new Date(existing.lastDate).getTime()) {
+        existing.lastDate = t.createdAt;
+        if (t.message) existing.lastMessage = t.message;
+      }
+      map.set(t.supporterName, existing);
+    }
+
+    return Array.from(map.entries())
+      .map(([name, data]) => ({
+        name,
+        avatar: data.avatar,
+        totalCoins: data.totalCoins,
+        totalTipsCount: data.count,
+        lastMessage: data.lastMessage,
+        lastTippedAt: data.lastDate,
+        rank: 0,
+      }))
+      .sort((a, b) => b.totalCoins - a.totalCoins)
+      .map((item, idx) => ({ ...item, rank: idx + 1 }))
+      .slice(0, 10);
   },
 
   // Reset to Factory Seed

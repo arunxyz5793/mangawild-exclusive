@@ -16,10 +16,13 @@ import {
   Lock,
   Crown,
   UserPlus,
+  Coins,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { StorageService } from '../services/storage';
+import { CreatorTipJar } from '../components/CreatorTipJar';
 import { RatingReviewSection } from '../components/RatingReviewSection';
 import { MangaCommentsSection } from '../components/MangaCommentsSection';
 import { MangaSeries, Chapter } from '../types/manga';
@@ -80,6 +83,7 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
   const [chapterSearchQuery, setChapterSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [likesCount, setLikesCount] = useState<number>(() => series?.likesCount ?? 0);
+  const [isTipModalOpen, setIsTipModalOpen] = useState(false);
 
   // Increment series views on view mount
   useEffect(() => {
@@ -202,7 +206,7 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
                 <button
                   type="button"
                   onClick={() => onNavigate('creator-profile', { id: series.creatorId, author: series.author })}
-                  className={`font-black underline decoration-purple-500/60 underline-offset-4 hover:text-purple-400 transition-colors cursor-pointer ${
+                  className={`font-semibold underline decoration-zinc-500 underline-offset-4 hover:text-white transition-colors cursor-pointer ${
                     theme === 'dark' ? 'text-white' : 'text-zinc-950'
                   }`}
                   title={`View ${series.author}'s Creator Profile`}
@@ -211,31 +215,47 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
                 </button>
               </span>
               {creator && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    toggleFollowCreator(creator.id);
-                    setCreatorProfile(prev => {
-                      if (!prev) return prev;
-                      const wasFollowing = followedCreators.includes(creator.id);
-                      return {
-                        ...prev,
-                        followersCount: wasFollowing ? Math.max(0, prev.followersCount - 1) : prev.followersCount + 1,
-                      };
-                    });
-                  }}
-                  className={`text-xs px-3 py-1 rounded-xl border font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95 ${
-                    isFollowingCreator
-                      ? theme === 'dark'
-                        ? 'bg-zinc-800 border-zinc-700 text-white'
-                        : 'bg-zinc-200 border-zinc-300 text-zinc-900'
-                      : 'bg-white hover:bg-zinc-200 text-zinc-950 border-white'
-                  }`}
-                >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  <span>{isFollowingCreator ? '✓ Following' : '+ Follow'}</span>
-                  <span className="text-[10px] font-mono opacity-80">({creator.followersCount})</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toggleFollowCreator(creator.id);
+                      setCreatorProfile(prev => {
+                        if (!prev) return prev;
+                        const wasFollowing = followedCreators.includes(creator.id);
+                        return {
+                          ...prev,
+                          followersCount: wasFollowing ? Math.max(0, prev.followersCount - 1) : prev.followersCount + 1,
+                        };
+                      });
+                    }}
+                    className={`text-xs px-3 py-1 rounded-xl border font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95 ${
+                      isFollowingCreator
+                        ? theme === 'dark'
+                          ? 'bg-zinc-800 border-zinc-700 text-white'
+                          : 'bg-zinc-200 border-zinc-300 text-zinc-900'
+                        : 'bg-white hover:bg-zinc-200 text-zinc-950 border-white'
+                    }`}
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>{isFollowingCreator ? '✓ Following' : '+ Follow'}</span>
+                    <span className="text-[10px] font-mono opacity-80">({creator.followersCount})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsTipModalOpen(true)}
+                    className={`text-xs px-3 py-1 rounded-xl border font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95 ${
+                      theme === 'dark'
+                        ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700'
+                        : 'bg-zinc-100 border-zinc-300 text-zinc-800 hover:bg-zinc-200'
+                    }`}
+                    title={`Tip ${series.author}`}
+                  >
+                    <Coins className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>Tip</span>
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -251,7 +271,7 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
                 Rating
               </span>
               <div className={`flex items-center gap-1 font-bold font-mono text-sm ${theme === 'dark' ? 'text-white' : 'text-zinc-900'}`}>
-                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                <Star className="w-3.5 h-3.5 fill-white text-white" />
                 <span>{series.rating.toFixed(1)}</span>
                 <span className="text-zinc-500 text-xs font-normal">/ 5.0</span>
               </div>
@@ -275,8 +295,8 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
               <span className={`text-[10px] font-mono uppercase block ${theme === 'dark' ? 'text-zinc-400' : 'text-zinc-500'}`}>
                 Likes
               </span>
-              <div className={`flex items-center gap-1.5 font-bold font-mono text-sm ${theme === 'dark' ? 'text-rose-400' : 'text-rose-600'}`}>
-                <Heart className="w-3.5 h-3.5 fill-current" />
+              <div className={`flex items-center gap-1.5 font-bold font-mono text-sm ${theme === 'dark' ? 'text-white' : 'text-zinc-900'}`}>
+                <Heart className="w-3.5 h-3.5 fill-current text-zinc-400" />
                 <span>{likesCount.toLocaleString()}</span>
               </div>
             </div>
@@ -302,8 +322,8 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
             {series.synopsis}
           </p>
 
-          {/* Action Row */}
-          <div className="flex flex-wrap items-center gap-3 pt-2">
+          {/* Action Row - Fully Responsive & Monochromatic */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-2 w-full">
             {resumeChapter ? (
               <button
                 onClick={() => {
@@ -315,18 +335,18 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
                     onReadChapter(series.id, resumeChapter.id);
                   }
                 }}
-                className="px-6 py-3 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center gap-2 hover:scale-[1.02] cursor-pointer"
+                className="w-full sm:w-auto px-6 py-3 bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer hover:ring-2 hover:ring-white/30"
               >
                 {Boolean(series.isExclusive && !isVIP && user.role !== 'admin' && !isCreatorOfSeries) ? (
                   <>
-                    <Lock className="w-4 h-4" />
+                    <Lock className="w-4 h-4 text-black" />
                     <span>Unlock VIP to Read</span>
                   </>
                 ) : (
                   <>
-                    <BookOpen className="w-4 h-4" />
+                    <BookOpen className="w-4 h-4 text-black" />
                     <span>
-                      {seriesProgress ? `Resume Ch. ${resumeChapter.chapterNumber}` : 'Read First Chapter'}
+                      {seriesProgress ? `Resume Ch. ${resumeChapter.chapterNumber}` : 'Read Ch. 1'}
                     </span>
                   </>
                 )}
@@ -334,30 +354,30 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
             ) : (user.role === 'admin' || isCreatorOfSeries) ? (
               <button
                 onClick={() => onNavigate('creator')}
-                className="px-6 py-3 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center gap-2 hover:scale-[1.02] cursor-pointer"
+                className="w-full sm:w-auto px-6 py-3 bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer hover:ring-2 hover:ring-white/30"
               >
-                <Plus className="w-4 h-4" />
-                <span>Upload First Chapter</span>
+                <Plus className="w-4 h-4 text-black" />
+                <span>Add Chapter</span>
               </button>
             ) : null}
 
-            {/* Like Button */}
+            {/* Like Button (Strictly Monochromatic) */}
             <button
               onClick={() => {
                 const res = toggleLikeSeries(series.id);
                 setLikesCount(res.likesCount);
               }}
-              className={`px-4 py-3 rounded-xl border text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer active:scale-95 ${
+              className={`flex-1 sm:flex-initial px-4 py-3 rounded-xl border text-xs font-semibold uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
                 likedSeries.includes(series.id)
-                  ? 'bg-rose-500/15 border-rose-500/40 text-rose-400 shadow-sm'
+                  ? 'bg-white text-black border-white shadow-sm'
                   : theme === 'dark'
-                  ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-rose-400'
-                  : 'bg-white border-zinc-300 text-zinc-700 hover:text-rose-600 shadow-xs'
+                  ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700'
+                  : 'bg-white border-zinc-300 text-zinc-700 hover:text-zinc-950 shadow-xs'
               }`}
             >
               <Heart
                 className={`w-4 h-4 transition-transform ${
-                  likedSeries.includes(series.id) ? 'fill-current text-rose-500 scale-110' : ''
+                  likedSeries.includes(series.id) ? 'fill-black text-black' : 'text-zinc-400'
                 }`}
               />
               <span>{likedSeries.includes(series.id) ? 'Liked' : 'Like'}</span>
@@ -366,28 +386,42 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
             {/* Bookmark Button */}
             <button
               onClick={() => toggleBookmark(series.id)}
-              className={`px-4 py-3 rounded-xl border text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer active:scale-95 ${
+              className={`flex-1 sm:flex-initial px-4 py-3 rounded-xl border text-xs font-semibold uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
                 isBookmarked
                   ? 'bg-zinc-800 border-zinc-700 text-white shadow-xs'
                   : theme === 'dark'
-                  ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white'
+                  ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700'
                   : 'bg-white border-zinc-300 text-zinc-700 hover:text-zinc-950 shadow-xs'
               }`}
             >
-              <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-current text-white' : ''}`} />
-              <span>{isBookmarked ? 'In Library' : 'Save to Library'}</span>
+              <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-current text-white' : 'text-zinc-400'}`} />
+              <span>{isBookmarked ? 'Saved' : 'Save'}</span>
+            </button>
+
+            {/* Tip Artist Button (Razorpay UPI / Cards) */}
+            <button
+              onClick={() => setIsTipModalOpen(true)}
+              className={`flex-1 sm:flex-initial px-4 py-3 rounded-xl border text-xs font-semibold uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
+                theme === 'dark'
+                  ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700'
+                  : 'bg-white border-zinc-300 text-zinc-700 hover:text-zinc-950 shadow-xs'
+              }`}
+              title={`Tip ${series.author}`}
+            >
+              <Coins className="w-4 h-4 text-zinc-400" />
+              <span>Tip Artist</span>
             </button>
 
             <button
               onClick={handleShare}
-              className={`p-3 rounded-xl border transition-all cursor-pointer ${
+              className={`p-3 rounded-xl border transition-all cursor-pointer shrink-0 ${
                 theme === 'dark'
-                  ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white'
+                  ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700'
                   : 'bg-white border-zinc-300 text-zinc-600 hover:text-zinc-950 hover:bg-zinc-50 shadow-xs'
               }`}
               title="Share link"
             >
-              {shareCopied ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
+              {shareCopied ? <Check className="w-4 h-4 text-white" /> : <Share2 className="w-4 h-4" />}
             </button>
           </div>
         </div>
@@ -402,10 +436,10 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
                 theme === 'dark' ? 'text-white' : 'text-zinc-900'
               }`}
             >
-              All Chapters ({chapters.length})
+              Chapters ({chapters.length})
             </h2>
             <span className="text-xs text-zinc-400 font-mono">
-              Updated regularly by verified creators
+              Latest releases
             </span>
           </div>
 
@@ -569,15 +603,72 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
         )}
       </div>
 
-      {/* 3. Manga Reader Comments & Discussion Section */}
+      {/* 3. Support Mangaka Tip Jar (Razorpay UPI & Cards) */}
+      <div className="pt-6 border-t border-zinc-200 dark:border-zinc-800 w-full max-w-full box-border">
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Coins className="w-4 h-4 text-white" />
+            <h3 className={`text-sm font-bold font-mono uppercase tracking-wider ${theme === 'dark' ? 'text-white' : 'text-zinc-900'}`}>
+              Support Mangaka ({series.author})
+            </h3>
+          </div>
+          <span className="text-[11px] text-zinc-500 font-mono">100% Direct Payout via Razorpay</span>
+        </div>
+        <CreatorTipJar
+          creatorId={creator?.id || series.creatorId}
+          creatorName={series.author}
+          seriesId={series.id}
+          seriesTitle={series.title}
+        />
+      </div>
+
+      {/* 4. Manga Reader Comments & Discussion Section */}
       <div className="pt-6 border-t border-zinc-200 dark:border-zinc-800">
         <MangaCommentsSection seriesId={series.id} />
       </div>
 
-      {/* 4. Community Reviews & Rating Component */}
+      {/* 5. Community Reviews & Rating Component */}
       <div className="pt-6 border-t border-zinc-200 dark:border-zinc-800">
         <RatingReviewSection seriesId={series.id} seriesTitle={series.title} />
       </div>
+
+      {/* Tip Artist Modal (Razorpay UPI & Cards) */}
+      {isTipModalOpen && (
+        <div
+          onClick={() => setIsTipModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-fade-in box-border"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-lg bg-zinc-950 border border-zinc-800 rounded-3xl p-6 shadow-2xl overflow-hidden box-border"
+          >
+            <button
+              onClick={() => setIsTipModalOpen(false)}
+              className="absolute top-5 right-5 p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors z-10 cursor-pointer"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="mb-4">
+              <h3 className="text-lg font-serif font-bold text-white">Tip Mangaka ({series.author})</h3>
+              <p className="text-xs text-zinc-400 font-mono">
+                Support the creator of &ldquo;{series.title}&rdquo; directly via Razorpay (UPI, GPay, Cards)
+              </p>
+            </div>
+
+            <CreatorTipJar
+              creatorId={creator?.id || series.creatorId}
+              creatorName={series.author}
+              seriesId={series.id}
+              seriesTitle={series.title}
+              onTipSent={() => {
+                setIsTipModalOpen(false);
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

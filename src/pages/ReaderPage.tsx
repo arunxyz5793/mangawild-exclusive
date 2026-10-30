@@ -30,6 +30,7 @@ import { Chapter, MangaSeries } from '../types/manga';
 import { MangaWildLogo } from '../components/MangaWildLogo';
 import { MangaCommentsSection } from '../components/MangaCommentsSection';
 import { BlurUpMangaImage } from '../components/BlurUpMangaImage';
+import { CreatorTipJar } from '../components/CreatorTipJar';
 
 interface ReaderPageProps {
   seriesId: string;
@@ -72,6 +73,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
   const [showChaptersDrawer, setShowChaptersDrawer] = useState<boolean>(false);
   const [chapterSearchQuery, setChapterSearchQuery] = useState<string>('');
   const [tipToast, setTipToast] = useState<string | null>(null);
+  const [refreshTipsKey, setRefreshTipsKey] = useState<number>(0);
 
   // Reading Progress & Firestore Database Cloud Sync States
   const [readingProgress, setReadingProgress] = useState<number>(1);
@@ -103,6 +105,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
   };
 
   const handleSendTip = (coins: number) => {
+    setRefreshTipsKey(k => k + 1);
     setTipToast(`Tipped +${coins} coins to ${series?.author || 'the mangaka'}! Thank you for supporting indie creators!`);
     setTimeout(() => setTipToast(null), 3500);
   };
@@ -878,15 +881,6 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
             )}
           </div>
 
-          {/* Cloud Sync Status Indicator */}
-          <div
-            className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-300"
-            title={isSavingProgress ? 'Syncing reading progress to Firestore...' : 'Reading progress synced across devices'}
-          >
-            <Cloud className={`w-3.5 h-3.5 ${isSavingProgress ? 'text-amber-400 animate-pulse' : 'text-emerald-400'}`} />
-            <span className="hidden sm:inline">{isSavingProgress ? 'Syncing' : 'Synced'}</span>
-          </div>
-
           <button
             onClick={toggleFullscreen}
             className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
@@ -913,7 +907,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
           <div className="bg-zinc-900/95 border border-zinc-700 shadow-2xl rounded-2xl p-3 sm:p-4 flex items-center justify-between gap-3 backdrop-blur-md">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0 text-white">
-                <Cloud className="w-4 h-4 text-emerald-400" />
+                <Cloud className="w-4 h-4 text-white" />
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-white truncate">
@@ -1045,42 +1039,21 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
               </div>
             ))}
 
-            {/* Creator Tipping / Support Jar Widget */}
+            {/* Creator Tipping / Support Jar */}
             {currentChapter.tippingEnabled !== false && (
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-xl mx-auto my-6 p-5 rounded-2xl bg-zinc-900/90 border border-zinc-800/80 text-center space-y-3 shadow-xl backdrop-blur-sm"
+                className="w-full max-w-xl mx-auto my-6"
               >
-                <div className="flex items-center justify-center gap-2 text-zinc-200 text-xs font-bold uppercase tracking-wider font-mono">
-                  <Coins className="w-4 h-4 text-white" />
-                  <span>Support Creator: {series.author}</span>
-                </div>
-                <p className="text-xs text-zinc-400 max-w-sm mx-auto">
-                  Enjoyed this chapter? Send coins directly to the creator to support future releases!
-                </p>
-                <div className="flex items-center justify-center gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => handleSendTip(10)}
-                    className="px-3.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-xs font-mono font-bold transition-transform active:scale-95 cursor-pointer"
-                  >
-                    🪙 10 Coins
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSendTip(50)}
-                    className="px-3.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-xs font-mono font-bold transition-transform active:scale-95 cursor-pointer"
-                  >
-                    🪙 50 Coins
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSendTip(100)}
-                    className="px-4 py-1.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-mono text-xs font-black shadow transition-transform active:scale-95 cursor-pointer"
-                  >
-                    ✨ 100 Coins
-                  </button>
-                </div>
+                <CreatorTipJar
+                  creatorId={series.creatorId || `creator_${series.author.toLowerCase().replace(/\s+/g, '_')}`}
+                  creatorName={series.author}
+                  seriesId={series.id}
+                  seriesTitle={series.title}
+                  chapterId={currentChapter.id}
+                  chapterNumber={currentChapter.chapterNumber}
+                  onTipSent={handleSendTip}
+                />
               </div>
             )}
 
@@ -1193,35 +1166,17 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                 {currentChapter.tippingEnabled !== false && (
                   <div
                     onClick={(e) => e.stopPropagation()}
-                    className="w-full p-4 rounded-2xl bg-zinc-800/80 border border-zinc-700/80 text-center space-y-2.5 shadow-md"
+                    className="w-full"
                   >
-                    <div className="flex items-center justify-center gap-1.5 text-zinc-200 text-xs font-bold uppercase tracking-wider font-mono">
-                      <Coins className="w-3.5 h-3.5 text-white" />
-                      <span>Tip Creator: {series.author}</span>
-                    </div>
-                    <div className="flex items-center justify-center gap-2 pt-0.5">
-                      <button
-                        type="button"
-                        onClick={() => handleSendTip(10)}
-                        className="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-xs font-mono font-bold transition-transform active:scale-95 cursor-pointer"
-                      >
-                        🪙 10 Coins
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleSendTip(50)}
-                        className="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-xs font-mono font-bold transition-transform active:scale-95 cursor-pointer"
-                      >
-                        🪙 50 Coins
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleSendTip(100)}
-                        className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-mono text-xs font-black shadow transition-transform active:scale-95 cursor-pointer"
-                      >
-                        ✨ 100 Coins
-                      </button>
-                    </div>
+                    <CreatorTipJar
+                      creatorId={series.creatorId || `creator_${series.author.toLowerCase().replace(/\s+/g, '_')}`}
+                      creatorName={series.author}
+                      seriesId={series.id}
+                      seriesTitle={series.title}
+                      chapterId={currentChapter.id}
+                      chapterNumber={currentChapter.chapterNumber}
+                      onTipSent={handleSendTip}
+                    />
                   </div>
                 )}
 
@@ -1386,7 +1341,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                 className="text-zinc-400 hover:text-white flex items-center gap-1 cursor-pointer bg-zinc-900/90 hover:bg-zinc-800 px-2 py-0.5 rounded-lg border border-zinc-800 hover:border-zinc-600 transition-colors"
                 title="View All Chapters"
               >
-                <List className="w-3.5 h-3.5 text-purple-400" />
+                <List className="w-3.5 h-3.5 text-zinc-300" />
                 <span>Chapters ({chapters.length})</span>
               </button>
             </div>
@@ -1403,28 +1358,12 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
         <div className="flex items-center gap-2.5 bg-zinc-900/90 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-zinc-700/80 shadow-2xl text-xs font-mono select-none">
           {/* Progress Percentage & Panel Count */}
           <span className="font-bold text-white flex items-center gap-1.5">
-            <span className="text-sky-400 font-black">{readingProgress}%</span>
+            <span className="text-white font-black">{readingProgress}%</span>
             <span className="text-zinc-500">•</span>
             <span className="text-zinc-300 text-[11px]">
               {readingMode === 'webtoon' ? 'Scroll Progress' : `Panel ${activePanelIndex + 1}/${currentChapter.panels.length}`}
             </span>
           </span>
-
-          <div className="w-[1px] h-3.5 bg-zinc-700 mx-0.5" />
-
-          {/* Firestore Real-Time Cloud Sync Badge */}
-          <div className="flex items-center gap-1.5 text-[11px] text-zinc-300">
-            <Cloud className="w-3.5 h-3.5 text-sky-400" />
-            <span className="text-zinc-400 hidden sm:inline">
-              {isSavingProgress ? 'Syncing...' : 'Synced with Firestore'}
-            </span>
-            <span
-              className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                isSavingProgress ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'
-              }`}
-              title={isSavingProgress ? 'Saving progress to Firestore...' : 'Saved to Firestore database'}
-            />
-          </div>
         </div>
       </div>
 

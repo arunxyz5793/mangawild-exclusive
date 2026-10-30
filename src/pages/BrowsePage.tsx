@@ -123,7 +123,7 @@ export const BrowsePage: React.FC<BrowsePageProps> = ({
 
         {/* Secondary Filters */}
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs pt-1">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <span className="text-zinc-400 uppercase tracking-wider font-semibold font-mono text-[10px]">
               Status:
             </span>
@@ -161,7 +161,7 @@ export const BrowsePage: React.FC<BrowsePageProps> = ({
           </div>
 
           {/* Sort By */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <span className="text-zinc-400 uppercase tracking-wider font-semibold font-mono text-[10px]">
               Sort By:
             </span>
@@ -226,14 +226,10 @@ export const BrowsePage: React.FC<BrowsePageProps> = ({
             <div
               key={series.id}
               onClick={() => onSelectSeries(series.id)}
-              className={`group p-3 rounded-2xl border card-interactive active:scale-98 cursor-pointer flex flex-col justify-between space-y-3 ${
-                theme === 'dark'
-                  ? 'bg-zinc-900/70 border-zinc-800 hover:border-zinc-700 shadow-sm'
-                  : 'bg-white border-zinc-200 hover:border-zinc-300 shadow-xs'
-              }`}
+              className="group p-2.5 rounded-2xl border border-white/[0.06] hover:border-white/20 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer flex flex-col justify-between space-y-2.5 bg-zinc-950/40"
             >
-              <div className="space-y-2.5">
-                <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-zinc-800">
+              <div className="space-y-2">
+                <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-zinc-900 border border-white/[0.04]">
                   <img
                     src={series.coverUrl}
                     alt={series.title}

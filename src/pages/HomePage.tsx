@@ -59,8 +59,8 @@ export const HomePage: React.FC<HomePageProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-black text-white pb-28 pt-2 select-none">
-      <div className="max-w-md sm:max-w-2xl lg:max-w-5xl mx-auto px-4 sm:px-6 space-y-7 sm:space-y-9">
+    <div className="min-h-screen bg-black text-white pb-28 pt-2 select-none w-full max-w-full overflow-x-hidden box-border">
+      <div className="w-full max-w-md sm:max-w-2xl lg:max-w-5xl mx-auto px-4 sm:px-6 space-y-7 sm:space-y-9 box-border">
 
         {/* ========================================================================= */}
         {/* 1. MINIMAL EDITORIAL SPOTLIGHT (Hero Card)                                */}
@@ -68,7 +68,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         {featuredSpotlight && (
           <div
             onClick={() => onSelectSeries(featuredSpotlight.id)}
-            className="group relative w-full h-[480px] sm:h-[540px] lg:h-[580px] rounded-2xl overflow-hidden bg-zinc-950 border border-white/[0.08] cursor-pointer shadow-xl transition-all duration-300 hover:border-white/20 flex flex-col justify-between"
+            className="hero-card group relative w-full max-w-full box-border min-h-[460px] sm:min-h-[500px] lg:h-[560px] rounded-2xl overflow-hidden bg-zinc-950 border border-white/[0.08] cursor-pointer shadow-xl transition-all duration-300 hover:border-white/20 flex flex-col justify-between p-4 sm:p-6"
           >
             {/* Ambient Background Gradient Glow */}
             <div
@@ -84,11 +84,11 @@ export const HomePage: React.FC<HomePageProps> = ({
             />
 
             {/* Seamless Vignette Overlay for Readability */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/30 sm:bg-gradient-to-r sm:from-black sm:via-black/80 sm:to-transparent z-10 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/75 to-black/30 sm:bg-gradient-to-r sm:from-black sm:via-black/80 sm:to-transparent z-10 pointer-events-none" />
 
             {/* Top Bar: Minimal Spotlight Pill + Quick Bookmark */}
-            <div className="relative top-4 left-4 right-4 z-20 flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="relative z-20 flex items-center justify-between w-full">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="px-2.5 py-1 rounded-md text-[10px] font-semibold tracking-widest uppercase bg-white/10 backdrop-blur-md text-zinc-300 border border-white/10">
                   Spotlight
                 </span>
@@ -112,7 +112,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                   e.stopPropagation();
                   toggleBookmark(featuredSpotlight.id);
                 }}
-                className={`p-2 rounded-xl backdrop-blur-md transition-all active:scale-90 cursor-pointer border ${
+                className={`p-2 rounded-xl backdrop-blur-md transition-all active:scale-90 cursor-pointer border shrink-0 ${
                   bookmarks.includes(featuredSpotlight.id)
                     ? 'bg-white text-black border-white shadow-sm'
                     : 'bg-black/40 text-zinc-300 hover:text-white border-white/10 hover:border-white/20'
@@ -123,10 +123,10 @@ export const HomePage: React.FC<HomePageProps> = ({
               </button>
             </div>
 
-            {/* Bottom Meta & Action Area */}
-            <div className="relative bottom-5 left-5 right-5 z-20 flex flex-col sm:flex-row sm:items-end justify-between gap-4 mt-auto">
-              <div className="max-w-lg space-y-2">
-                <div className="flex items-center gap-2 text-xs text-zinc-400 font-medium">
+            {/* Bottom Meta & Action Area (No overflow on mobile) */}
+            <div className="relative z-20 flex flex-col sm:flex-row sm:items-end justify-between gap-3 sm:gap-4 w-full mt-auto pt-6">
+              <div className="max-w-lg space-y-1.5 sm:space-y-2">
+                <div className="flex items-center gap-2 text-xs text-zinc-400 font-medium flex-wrap">
                   <span className="text-zinc-200 font-semibold">{featuredSpotlight.author}</span>
                   <span className="text-zinc-600">•</span>
                   <div className="flex items-center gap-1">
@@ -137,7 +137,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <span className="text-zinc-400 capitalize">{featuredSpotlight.status}</span>
                 </div>
 
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold uppercase tracking-tight text-white font-sans">
+                <h1 className="text-xl sm:text-3xl lg:text-4xl font-extrabold uppercase tracking-tight text-white font-sans break-words">
                   {featuredSpotlight.title}
                 </h1>
 
@@ -145,7 +145,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                   {featuredSpotlight.synopsis}
                 </p>
 
-                <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
                   {featuredSpotlight.genres.slice(0, 3).map((g) => (
                     <span
                       key={g}
@@ -157,8 +157,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                 </div>
               </div>
 
-              {/* Minimal Dual Buttons */}
-              <div className="shrink-0 flex items-center gap-2 pt-1 sm:pt-0">
+              {/* Minimal Dual Buttons with responsive wrap so nothing clips on mobile */}
+              <div className="flex items-center gap-2 pt-1 sm:pt-0 w-full sm:w-auto shrink-0 flex-wrap sm:flex-nowrap max-w-full box-border">
                 <button
                   type="button"
                   onClick={(e) => {
@@ -170,7 +170,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                       onSelectSeries(featuredSpotlight.id);
                     }
                   }}
-                  className="px-4 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs tracking-wider uppercase flex items-center gap-2 shadow-sm transition-all duration-150 active:scale-95 cursor-pointer"
+                  className="flex-1 sm:flex-initial justify-center px-4 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs tracking-wider uppercase flex items-center gap-2 shadow-sm transition-all duration-150 active:scale-95 cursor-pointer whitespace-nowrap max-w-full box-border"
                 >
                   <BookOpen className="w-3.5 h-3.5" />
                   <span>Start Reading</span>
@@ -182,7 +182,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                     e.stopPropagation();
                     onSelectSeries(featuredSpotlight.id);
                   }}
-                  className="px-3 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-zinc-200 hover:text-white font-medium text-xs tracking-wider uppercase flex items-center gap-1 backdrop-blur-md border border-white/10 transition-all duration-150 active:scale-95 cursor-pointer"
+                  className="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-zinc-200 hover:text-white font-medium text-xs tracking-wider uppercase flex items-center justify-center gap-1 backdrop-blur-md border border-white/10 transition-all duration-150 active:scale-95 cursor-pointer shrink-0 max-w-full box-border"
                 >
                   <span>Details</span>
                   <ChevronRight className="w-3.5 h-3.5" />
@@ -231,14 +231,14 @@ export const HomePage: React.FC<HomePageProps> = ({
               <div
                 key={series.id}
                 onClick={() => onSelectSeries(series.id)}
-                className="w-32 sm:w-40 shrink-0 cursor-pointer space-y-2 group"
+                className="w-32 sm:w-40 shrink-0 cursor-pointer space-y-2 group transition-transform duration-300 hover:-translate-y-1"
               >
                 {/* Poster Cover */}
-                <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-zinc-950 border border-white/[0.08] group-hover:border-white/20 transition-all duration-300 shadow-sm">
+                <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-zinc-950 border border-white/[0.06] group-hover:border-white/20 transition-all duration-300 shadow-sm group-hover:shadow-xl">
                   <img
                     src={series.coverUrl}
                     alt={series.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+                    className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-500 ease-out"
                   />
 
                   {/* Top-Left Rank Pill (#1, #2, #3, ...) */}
@@ -295,10 +295,10 @@ export const HomePage: React.FC<HomePageProps> = ({
               <div
                 key={series.id}
                 onClick={() => onSelectSeries(series.id)}
-                className="cursor-pointer space-y-2 group"
+                className="cursor-pointer space-y-2 group transition-transform duration-300 hover:-translate-y-1"
               >
                 {/* Poster Cover */}
-                <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800/80 shadow-md">
+                <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-zinc-900 border border-white/[0.06] group-hover:border-white/20 shadow-sm group-hover:shadow-xl transition-all duration-300">
                   <img
                     src={series.coverUrl}
                     alt={series.title}

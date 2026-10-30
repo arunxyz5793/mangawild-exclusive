@@ -23,10 +23,12 @@ import {
   Shield,
   Layers,
   Award,
+  Coins,
 } from 'lucide-react';
 import { StorageService } from '../services/storage';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { CreatorTipJar } from '../components/CreatorTipJar';
 import { CreatorProfile, MangaSeries, CreatorSocialLinks } from '../types/manga';
 
 interface CreatorProfilePageProps {
@@ -110,6 +112,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
   const [editBio, setEditBio] = useState(creator?.bio || '');
   const [editAvatarUrl, setEditAvatarUrl] = useState(creator?.avatarUrl || '');
   const [editSocial, setEditSocial] = useState<CreatorSocialLinks>(creator?.socialLinks || {});
+  const [isTipModalOpen, setIsTipModalOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -324,13 +327,22 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
               </div>
             </div>
 
-            {/* Action Buttons: Creator Edit/Switch Mode vs Reader Follow */}
-            <div className="flex flex-wrap items-center gap-2.5 self-stretch sm:self-auto justify-end">
+            {/* Action Buttons: Tip Artist, Creator Edit/Switch Mode vs Reader Follow */}
+            <div className="flex flex-wrap items-center gap-2.5 self-stretch sm:self-auto justify-end max-w-full box-border">
+              <button
+                type="button"
+                onClick={() => setIsTipModalOpen(true)}
+                className="px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-700 text-xs font-bold flex items-center gap-1.5 shadow-md transition-all active:scale-95 cursor-pointer max-w-full box-border"
+              >
+                <Coins className="w-4 h-4 text-zinc-300" />
+                <span>Tip Artist</span>
+              </button>
+
               {isOwner ? (
                 <>
                   <button
                     onClick={handleOpenEdit}
-                    className="px-4 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-bold flex items-center gap-1.5 shadow-md transition-all active:scale-95 cursor-pointer"
+                    className="px-4 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-bold flex items-center gap-1.5 shadow-md transition-all active:scale-95 cursor-pointer max-w-full box-border"
                   >
                     <Edit3 className="w-4 h-4" />
                     <span>Edit Profile</span>
@@ -341,7 +353,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                       showToast('Switched to Reader Mode');
                       onNavigate('home');
                     }}
-                    className="px-3.5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold border border-zinc-700 transition-all cursor-pointer"
+                    className="px-3.5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold border border-zinc-700 transition-all cursor-pointer max-w-full box-border"
                     title="Switch to Reader Mode"
                   >
                     Switch to Reader
@@ -353,7 +365,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                     toggleFollowCreator(creator.id);
                     setCreators(StorageService.getCreators());
                   }}
-                  className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-md cursor-pointer active:scale-95 ${
+                  className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-md cursor-pointer active:scale-95 max-w-full box-border ${
                     isFollowing
                       ? 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700'
                       : 'bg-white hover:bg-zinc-200 text-zinc-950'
@@ -361,7 +373,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                 >
                   {isFollowing ? (
                     <>
-                      <Check className="w-4 h-4 text-emerald-400" />
+                      <Check className="w-4 h-4 text-white" />
                       <span>Following</span>
                     </>
                   ) : (
@@ -401,9 +413,9 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                       href={social.instagram.startsWith('http') ? social.instagram : `https://instagram.com/${social.instagram.replace('@', '')}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-3.5 py-1.5 rounded-xl bg-pink-500/10 hover:bg-pink-500/20 text-pink-400 border border-pink-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs"
+                      className="px-3.5 py-1.5 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 hover:border-zinc-700 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs"
                     >
-                      <Instagram className="w-3.5 h-3.5" />
+                      <Instagram className="w-3.5 h-3.5 text-zinc-400" />
                       <span>Instagram</span>
                       <ExternalLink className="w-3 h-3 opacity-60" />
                     </a>
@@ -414,9 +426,9 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                       href={social.twitter.startsWith('http') ? social.twitter : `https://x.com/${social.twitter.replace('@', '')}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-3.5 py-1.5 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs"
+                      className="px-3.5 py-1.5 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 hover:border-zinc-700 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs"
                     >
-                      <Twitter className="w-3.5 h-3.5" />
+                      <Twitter className="w-3.5 h-3.5 text-zinc-400" />
                       <span>X / Twitter</span>
                       <ExternalLink className="w-3 h-3 opacity-60" />
                     </a>
@@ -427,9 +439,9 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                       href={social.facebook.startsWith('http') ? social.facebook : `https://facebook.com/${social.facebook}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-3.5 py-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs"
+                      className="px-3.5 py-1.5 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 hover:border-zinc-700 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs"
                     >
-                      <Facebook className="w-3.5 h-3.5" />
+                      <Facebook className="w-3.5 h-3.5 text-zinc-400" />
                       <span>Facebook</span>
                       <ExternalLink className="w-3 h-3 opacity-60" />
                     </a>
@@ -440,9 +452,9 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                       href={social.youtube.startsWith('http') ? social.youtube : `https://youtube.com/${social.youtube}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-3.5 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs"
+                      className="px-3.5 py-1.5 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 hover:border-zinc-700 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs"
                     >
-                      <Youtube className="w-3.5 h-3.5" />
+                      <Youtube className="w-3.5 h-3.5 text-zinc-400" />
                       <span>YouTube</span>
                       <ExternalLink className="w-3 h-3 opacity-60" />
                     </a>
@@ -453,9 +465,9 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                       href={social.discord.startsWith('http') ? social.discord : `https://discord.gg/${social.discord}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-3.5 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs"
+                      className="px-3.5 py-1.5 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 hover:border-zinc-700 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs"
                     >
-                      <MessageCircle className="w-3.5 h-3.5" />
+                      <MessageCircle className="w-3.5 h-3.5 text-zinc-400" />
                       <span>Discord</span>
                       <ExternalLink className="w-3 h-3 opacity-60" />
                     </a>
@@ -466,9 +478,9 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                       href={social.website.startsWith('http') ? social.website : `https://${social.website}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-3.5 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs"
+                      className="px-3.5 py-1.5 rounded-xl bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 hover:border-zinc-700 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs"
                     >
-                      <Globe className="w-3.5 h-3.5" />
+                      <Globe className="w-3.5 h-3.5 text-zinc-400" />
                       <span>Portfolio / Website</span>
                       <ExternalLink className="w-3 h-3 opacity-60" />
                     </a>
@@ -556,6 +568,17 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Tip Mangaka Section (Razorpay UPI & Cards) */}
+        <div id="tip-section" className="w-full max-w-full box-border">
+          <CreatorTipJar
+            creatorId={creator.id}
+            creatorName={creator.penName}
+            onTipSent={() => {
+              showToast(`Tip sent to ${creator.penName}! Thank you for your support.`);
+            }}
+          />
         </div>
 
         {/* Navigation Tabs (Only if owner) */}
@@ -924,7 +947,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
 
                       <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs text-white font-mono">
                         <span className="flex items-center gap-1 font-bold bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-lg border border-white/10">
-                          <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                          <Star className="w-3.5 h-3.5 text-white fill-white" />
                           <span>{series.rating.toFixed(1)}</span>
                         </span>
                         <span className="capitalize px-2 py-0.5 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-[10px] font-bold">
@@ -1240,6 +1263,41 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Tip Artist Modal (Direct Razorpay Flow) */}
+      {isTipModalOpen && (
+        <div
+          onClick={() => setIsTipModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-fade-in box-border"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-lg bg-zinc-950 border border-zinc-800 rounded-3xl p-6 shadow-2xl overflow-hidden box-border"
+          >
+            <button
+              onClick={() => setIsTipModalOpen(false)}
+              className="absolute top-5 right-5 p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors z-10 cursor-pointer"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="mb-4">
+              <h3 className="text-lg font-serif font-bold text-white">Support {creator.penName}</h3>
+              <p className="text-xs text-zinc-400 font-mono">100% Direct Mangaka Support via Razorpay (UPI & Cards)</p>
+            </div>
+
+            <CreatorTipJar
+              creatorId={creator.id}
+              creatorName={creator.penName}
+              onTipSent={() => {
+                showToast(`Tip sent to ${creator.penName}! Thank you for your support.`);
+                setIsTipModalOpen(false);
+              }}
+            />
           </div>
         </div>
       )}

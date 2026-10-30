@@ -58,19 +58,19 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-start sm:justify-end">
           {isVIP ? (
-            <div className="px-4 py-2 rounded-xl bg-zinc-800 text-zinc-200 border border-zinc-700 font-bold text-xs font-mono flex items-center gap-2 shadow-xs">
+            <div className="px-3.5 py-2 rounded-xl bg-zinc-800 text-zinc-200 border border-zinc-700 font-bold text-xs font-mono flex items-center gap-2 shadow-xs">
               <Crown className="w-4 h-4 text-zinc-300" />
-              <span>{user.subscription?.planId === 'yearly' ? 'VIP Annual Pass Active' : 'VIP Monthly Pass Active'}</span>
+              <span>{user.subscription?.planId === 'yearly' ? 'VIP Annual' : 'VIP Active'}</span>
             </div>
           ) : (
             <button
               onClick={() => onNavigate && onNavigate('membership')}
-              className="px-4 py-2 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-xs transition-all shadow-md active:scale-95 cursor-pointer flex items-center gap-1.5"
+              className="w-full sm:w-auto px-4 py-2 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-xs transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
             >
               <Sparkles className="w-3.5 h-3.5 text-zinc-900" />
-              <span>Upgrade to VIP Pass (From ₹199)</span>
+              <span>Get VIP Pass</span>
             </button>
           )}
         </div>
