@@ -11,22 +11,39 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const theme: Theme = 'dark';
+  const [theme, setThemeState] = useState<Theme>(() => {
+    try {
+      const saved = localStorage.getItem('mw_theme');
+      if (saved === 'light' || saved === 'dark') return saved;
+    } catch {
+      // ignore storage errors
+    }
+    return 'dark';
+  });
 
-  const setTheme = (_newTheme: Theme) => {
-    // Permanently locked to optimized dark theme per user request
+  const setTheme = (newTheme: Theme) => {
+    setThemeState(newTheme);
   };
 
   const toggleTheme = () => {
-    // Permanently locked to optimized dark theme per user request
+    setThemeState(prev => (prev === 'dark' ? 'light' : 'dark'));
   };
 
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.add('dark');
-    root.classList.remove('light');
-    localStorage.setItem('mw_theme', 'dark');
-  }, []);
+    if (theme === 'light') {
+      root.classList.add('light');
+      root.classList.remove('dark');
+    } else {
+      root.classList.add('dark');
+      root.classList.remove('light');
+    }
+    try {
+      localStorage.setItem('mw_theme', theme);
+    } catch {
+      // ignore storage errors
+    }
+  }, [theme]);
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>

@@ -4,6 +4,7 @@ import {
   Play,
   Bookmark,
   Crown,
+  ChevronLeft,
   ChevronRight,
   BookOpen,
 } from 'lucide-react';
@@ -31,11 +32,56 @@ export const HomePage: React.FC<HomePageProps> = ({
     []
   );
 
-  // 1. Featured Manga Spotlight (matching top card in screenshot: SILENT HEADS)
-  const featuredSpotlight = useMemo(() => {
-    const silentHeads = allSeries.find(s => s.slug === 'silent-heads' || s.id === 'series_silent_heads');
-    return silentHeads || allSeries[0];
+  // 1. Featured Manga Spotlight List: SILENT HEADS, Chitra Khatha Chintu, A Promise Never Broken, Randamu Boken
+  const spotlightSeriesList = useMemo(() => {
+    const targetIds = [
+      'series_silent_heads',
+      'series_chitrakatha_chintu',
+      'series_a_promise_never_broken',
+      'series_randamu_boken',
+    ];
+    const targetSlugs = [
+      'silent-heads',
+      'chitrakatha-chintu',
+      'a-promise-never-broken',
+      'randamu-boken',
+    ];
+
+    const matched: MangaSeries[] = [];
+    targetIds.forEach((id, idx) => {
+      const found = allSeries.find(
+        s => s.id === id || s.slug === targetSlugs[idx]
+      );
+      if (found) matched.push(found);
+    });
+
+    return matched.length > 0 ? matched : allSeries.slice(0, 4);
   }, [allSeries]);
+
+  const [spotlightIndex, setSpotlightIndex] = useState(0);
+  const [isSpotlightPaused, setIsSpotlightPaused] = useState(false);
+
+  useEffect(() => {
+    if (spotlightSeriesList.length <= 1 || isSpotlightPaused) return;
+    const timer = window.setInterval(() => {
+      setSpotlightIndex(prev => (prev + 1) % spotlightSeriesList.length);
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [spotlightSeriesList.length, isSpotlightPaused]);
+
+  const featuredSpotlight = spotlightSeriesList[spotlightIndex] || spotlightSeriesList[0];
+
+  const handlePrevSpotlight = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSpotlightIndex(prev =>
+      prev === 0 ? spotlightSeriesList.length - 1 : prev - 1
+    );
+  };
+
+  const handleNextSpotlight = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSpotlightIndex(prev => (prev + 1) % spotlightSeriesList.length);
+  };
 
   // Curated Genre discovery
   const [selectedGenre, setSelectedGenre] = useState<string>('All');
@@ -63,132 +109,190 @@ export const HomePage: React.FC<HomePageProps> = ({
       <div className="w-full max-w-md sm:max-w-2xl lg:max-w-5xl mx-auto px-4 sm:px-6 space-y-7 sm:space-y-9 box-border">
 
         {/* ========================================================================= */}
-        {/* 1. MINIMAL EDITORIAL SPOTLIGHT (Hero Card)                                */}
+        {/* 1. MINIMAL EDITORIAL SPOTLIGHT CAROUSEL (Hero Card)                       */}
         {/* ========================================================================= */}
         {featuredSpotlight && (
-          <div
-            onClick={() => onSelectSeries(featuredSpotlight.id)}
-            className="hero-card group relative w-full max-w-full box-border min-h-[460px] sm:min-h-[500px] lg:h-[560px] rounded-2xl overflow-hidden bg-zinc-950 border border-white/[0.08] cursor-pointer shadow-xl transition-all duration-300 hover:border-white/20 flex flex-col justify-between p-4 sm:p-6"
-          >
-            {/* Ambient Background Gradient Glow */}
+          <div className="space-y-2.5 w-full max-w-full box-border">
             <div
-              className="absolute inset-0 bg-cover bg-center blur-3xl opacity-20 scale-110 pointer-events-none transition-opacity duration-700 group-hover:opacity-30"
-              style={{ backgroundImage: `url(${featuredSpotlight.coverUrl || featuredSpotlight.bannerUrl})` }}
-            />
+              onClick={() => onSelectSeries(featuredSpotlight.id)}
+              onMouseEnter={() => setIsSpotlightPaused(true)}
+              onMouseLeave={() => setIsSpotlightPaused(false)}
+              className="hero-card group relative w-full max-w-full box-border min-h-[460px] sm:min-h-[500px] lg:h-[560px] rounded-2xl overflow-hidden bg-zinc-950 border border-white/[0.08] cursor-pointer shadow-xl transition-all duration-300 hover:border-white/20 flex flex-col justify-between p-4 sm:p-6"
+            >
+              {/* Ambient Background Gradient Glow */}
+              <div
+                key={`bg-${featuredSpotlight.id}`}
+                className="absolute inset-0 bg-cover bg-center blur-3xl opacity-20 scale-110 pointer-events-none transition-all duration-700 group-hover:opacity-30"
+                style={{ backgroundImage: `url(${featuredSpotlight.bannerUrl || featuredSpotlight.coverUrl})` }}
+              />
 
-            {/* Main Cover Artwork with Gentle Zoom */}
-            <img
-              src={featuredSpotlight.coverUrl || featuredSpotlight.bannerUrl}
-              alt={featuredSpotlight.title}
-              className="absolute inset-0 w-full h-full object-cover sm:object-contain sm:object-right-top transition-transform duration-700 ease-out group-hover:scale-[1.02] z-0 opacity-80 sm:opacity-95"
-            />
+              {/* Main Cover Artwork with Gentle Zoom */}
+              <img
+                key={`img-${featuredSpotlight.id}`}
+                src={featuredSpotlight.coverUrl || featuredSpotlight.bannerUrl}
+                alt={featuredSpotlight.title}
+                className="absolute inset-0 w-full h-full object-cover sm:object-contain sm:object-right-top transition-all duration-700 ease-out group-hover:scale-[1.02] z-0 opacity-80 sm:opacity-95"
+              />
 
-            {/* Seamless Vignette Overlay for Readability */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/75 to-black/30 sm:bg-gradient-to-r sm:from-black sm:via-black/80 sm:to-transparent z-10 pointer-events-none" />
+              {/* Seamless Vignette Overlay for Readability */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/75 to-black/30 sm:bg-gradient-to-r sm:from-black sm:via-black/80 sm:to-transparent z-10 pointer-events-none" />
 
-            {/* Top Bar: Minimal Spotlight Pill + Quick Bookmark */}
-            <div className="relative z-20 flex items-center justify-between w-full">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="px-2.5 py-1 rounded-md text-[10px] font-semibold tracking-widest uppercase bg-white/10 backdrop-blur-md text-zinc-300 border border-white/10">
-                  Spotlight
-                </span>
-                {featuredSpotlight.ageRating && (
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-medium tracking-wide bg-zinc-900/80 backdrop-blur-sm text-zinc-400 border border-zinc-800">
-                    {featuredSpotlight.ageRating}
+              {/* Top Bar: Minimal Spotlight Pill + Slide Counter + Quick Bookmark */}
+              <div className="relative z-20 flex items-center justify-between w-full gap-2">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="px-2.5 py-1 rounded-md text-[10px] font-semibold tracking-widest uppercase bg-white/10 backdrop-blur-md text-zinc-200 border border-white/15">
+                    Spotlight {spotlightIndex + 1}/{spotlightSeriesList.length}
                   </span>
-                )}
-                {featuredSpotlight.isExclusive && (
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold tracking-wide bg-white/10 text-white border border-white/20 flex items-center gap-1">
-                    <Crown className="w-2.5 h-2.5" />
-                    <span>VIP</span>
-                  </span>
-                )}
-              </div>
-
-              {/* Minimal Bookmark Action */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleBookmark(featuredSpotlight.id);
-                }}
-                className={`p-2 rounded-xl backdrop-blur-md transition-all active:scale-90 cursor-pointer border shrink-0 ${
-                  bookmarks.includes(featuredSpotlight.id)
-                    ? 'bg-white text-black border-white shadow-sm'
-                    : 'bg-black/40 text-zinc-300 hover:text-white border-white/10 hover:border-white/20'
-                }`}
-                title={bookmarks.includes(featuredSpotlight.id) ? 'Remove Bookmark' : 'Bookmark Series'}
-              >
-                <Bookmark className="w-3.5 h-3.5 fill-current" />
-              </button>
-            </div>
-
-            {/* Bottom Meta & Action Area (No overflow on mobile) */}
-            <div className="relative z-20 flex flex-col sm:flex-row sm:items-end justify-between gap-3 sm:gap-4 w-full mt-auto pt-6">
-              <div className="max-w-lg space-y-1.5 sm:space-y-2">
-                <div className="flex items-center gap-2 text-xs text-zinc-400 font-medium flex-wrap">
-                  <span className="text-zinc-200 font-semibold">{featuredSpotlight.author}</span>
-                  <span className="text-zinc-600">•</span>
-                  <div className="flex items-center gap-1">
-                    <Star className="w-3 h-3 fill-white text-white" />
-                    <span className="text-zinc-200 font-semibold">{featuredSpotlight.rating.toFixed(1)}</span>
-                  </div>
-                  <span className="text-zinc-600">•</span>
-                  <span className="text-zinc-400 capitalize">{featuredSpotlight.status}</span>
-                </div>
-
-                <h1 className="text-xl sm:text-3xl lg:text-4xl font-extrabold uppercase tracking-tight text-white font-sans break-words">
-                  {featuredSpotlight.title}
-                </h1>
-
-                <p className="text-xs sm:text-sm text-zinc-400 line-clamp-2 leading-relaxed max-w-md">
-                  {featuredSpotlight.synopsis}
-                </p>
-
-                <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                  {featuredSpotlight.genres.slice(0, 3).map((g) => (
-                    <span
-                      key={g}
-                      className="px-2 py-0.5 rounded text-[10px] font-medium tracking-wide bg-white/[0.06] text-zinc-300 border border-white/[0.06]"
-                    >
-                      {g}
+                  {featuredSpotlight.ageRating && (
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-medium tracking-wide bg-zinc-900/80 backdrop-blur-sm text-zinc-400 border border-zinc-800">
+                      {featuredSpotlight.ageRating}
                     </span>
-                  ))}
+                  )}
+                  {featuredSpotlight.isExclusive && (
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold tracking-wide bg-white/10 text-white border border-white/20 flex items-center gap-1">
+                      <Crown className="w-2.5 h-2.5" />
+                      <span>VIP</span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {/* Prev / Next Spotlight Controls */}
+                  {spotlightSeriesList.length > 1 && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={handlePrevSpotlight}
+                        className="p-2 rounded-xl bg-black/50 hover:bg-white/15 text-zinc-300 hover:text-white border border-white/10 hover:border-white/25 backdrop-blur-md transition-all active:scale-90 cursor-pointer"
+                        title="Previous Spotlight"
+                        aria-label="Previous Spotlight"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleNextSpotlight}
+                        className="p-2 rounded-xl bg-black/50 hover:bg-white/15 text-zinc-300 hover:text-white border border-white/10 hover:border-white/25 backdrop-blur-md transition-all active:scale-90 cursor-pointer"
+                        title="Next Spotlight"
+                        aria-label="Next Spotlight"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Minimal Bookmark Action */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleBookmark(featuredSpotlight.id);
+                    }}
+                    className={`p-2 rounded-xl backdrop-blur-md transition-all active:scale-90 cursor-pointer border shrink-0 ${
+                      bookmarks.includes(featuredSpotlight.id)
+                        ? 'bg-white text-black border-white shadow-sm'
+                        : 'bg-black/40 text-zinc-300 hover:text-white border-white/10 hover:border-white/20'
+                    }`}
+                    title={bookmarks.includes(featuredSpotlight.id) ? 'Remove Bookmark' : 'Bookmark Series'}
+                  >
+                    <Bookmark className="w-3.5 h-3.5 fill-current" />
+                  </button>
                 </div>
               </div>
 
-              {/* Minimal Dual Buttons with responsive wrap so nothing clips on mobile */}
-              <div className="flex items-center gap-2 pt-1 sm:pt-0 w-full sm:w-auto shrink-0 flex-wrap sm:flex-nowrap max-w-full box-border">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const firstCh = getFirstChapter(featuredSpotlight.id);
-                    if (firstCh) {
-                      onReadChapter(featuredSpotlight.id, firstCh.id);
-                    } else {
-                      onSelectSeries(featuredSpotlight.id);
-                    }
-                  }}
-                  className="flex-1 sm:flex-initial justify-center px-4 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs tracking-wider uppercase flex items-center gap-2 shadow-sm transition-all duration-150 active:scale-95 cursor-pointer whitespace-nowrap max-w-full box-border"
-                >
-                  <BookOpen className="w-3.5 h-3.5" />
-                  <span>Start Reading</span>
-                </button>
+              {/* Bottom Meta & Action Area (No overflow on mobile) */}
+              <div className="relative z-20 flex flex-col sm:flex-row sm:items-end justify-between gap-3 sm:gap-4 w-full mt-auto pt-6">
+                <div className="max-w-lg space-y-1.5 sm:space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-zinc-400 font-medium flex-wrap">
+                    <span className="text-zinc-200 font-semibold">{featuredSpotlight.author}</span>
+                    <span className="text-zinc-600">•</span>
+                    <div className="flex items-center gap-1">
+                      <Star className="w-3 h-3 fill-white text-white" />
+                      <span className="text-zinc-200 font-semibold">{featuredSpotlight.rating.toFixed(1)}</span>
+                    </div>
+                    <span className="text-zinc-600">•</span>
+                    <span className="text-zinc-400 capitalize">{featuredSpotlight.status}</span>
+                  </div>
 
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelectSeries(featuredSpotlight.id);
-                  }}
-                  className="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-zinc-200 hover:text-white font-medium text-xs tracking-wider uppercase flex items-center justify-center gap-1 backdrop-blur-md border border-white/10 transition-all duration-150 active:scale-95 cursor-pointer shrink-0 max-w-full box-border"
-                >
-                  <span>Details</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </button>
+                  <h1 className="text-xl sm:text-3xl lg:text-4xl font-extrabold uppercase tracking-tight text-white font-sans break-words">
+                    {featuredSpotlight.title}
+                  </h1>
+
+                  <p className="text-xs sm:text-sm text-zinc-400 line-clamp-2 leading-relaxed max-w-md">
+                    {featuredSpotlight.synopsis}
+                  </p>
+
+                  <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                    {featuredSpotlight.genres.slice(0, 3).map((g) => (
+                      <span
+                        key={g}
+                        className="px-2 py-0.5 rounded text-[10px] font-medium tracking-wide bg-white/[0.06] text-zinc-300 border border-white/[0.06]"
+                      >
+                        {g}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Minimal Dual Buttons with responsive wrap so nothing clips on mobile */}
+                <div className="flex items-center gap-2 pt-1 sm:pt-0 w-full sm:w-auto shrink-0 flex-wrap sm:flex-nowrap max-w-full box-border">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const firstCh = getFirstChapter(featuredSpotlight.id);
+                      if (firstCh) {
+                        onReadChapter(featuredSpotlight.id, firstCh.id);
+                      } else {
+                        onSelectSeries(featuredSpotlight.id);
+                      }
+                    }}
+                    className="flex-1 sm:flex-initial justify-center px-4 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs tracking-wider uppercase flex items-center gap-2 shadow-sm transition-all duration-150 active:scale-95 cursor-pointer whitespace-nowrap max-w-full box-border"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    <span>Start Reading</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectSeries(featuredSpotlight.id);
+                    }}
+                    className="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-zinc-200 hover:text-white font-medium text-xs tracking-wider uppercase flex items-center justify-center gap-1 backdrop-blur-md border border-white/10 transition-all duration-150 active:scale-95 cursor-pointer shrink-0 max-w-full box-border"
+                  >
+                    <span>Details</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
+
+            {/* Quick Spotlight Selector Bar (Clickable Manga Pills + Progress Dots) */}
+            {spotlightSeriesList.length > 1 && (
+              <div className="flex items-center justify-between gap-2 overflow-x-auto scrollbar-none pb-0.5 max-w-full box-border">
+                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+                  {spotlightSeriesList.map((item, idx) => {
+                    const isActive = idx === spotlightIndex;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setSpotlightIndex(idx)}
+                        className={`px-3 py-1.5 rounded-xl text-[11px] font-semibold tracking-tight transition-all cursor-pointer shrink-0 border flex items-center gap-1.5 ${
+                          isActive
+                            ? 'bg-white text-black border-white shadow-xs'
+                            : 'bg-zinc-950 text-zinc-400 hover:text-white border-white/[0.08] hover:border-white/20'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-black' : 'bg-zinc-600'}`} />
+                        <span className="truncate max-w-[130px] sm:max-w-[180px]">{item.title}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

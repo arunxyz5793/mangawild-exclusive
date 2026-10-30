@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Search,
-  Bell,
   Shield,
   PenTool,
   Sparkles,
@@ -10,22 +9,21 @@ import {
   X,
   BookOpen,
   Crown,
-  UserCheck,
   Edit2,
   Check,
   User as UserIcon,
   Flame,
   Newspaper,
-  Users,
   Compass,
   Calculator,
   ChevronRight,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { StorageService } from '../services/storage';
 import { MangaWildLogo } from './MangaWildLogo';
-import { UserRole } from '../types/auth';
 import { AuthModal } from './AuthModal';
 
 interface HeaderProps {
@@ -39,7 +37,6 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   currentView,
   onNavigate,
-  onOpenVIPModal,
   onOpenSearch,
   onOpenCancelCalc,
 }) => {
@@ -47,54 +44,54 @@ export const Header: React.FC<HeaderProps> = ({
     user,
     isAuthenticated,
     isVIP,
-    role,
     signOut,
-    unreadNotifsCount,
-    markNotificationsAsRead,
-    notifications,
     updateUsername,
     updateUser,
     toggleCreatorMode,
   } = useAuth();
-  const { theme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
 
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
-  const [isScrolledDown, setIsScrolledDown] = useState(false);
   const [isMenuDrawerOpen, setIsMenuDrawerOpen] = useState(false);
+  const scrollTimeoutRef = useRef<number | null>(null);
   const lastScrollYRef = useRef(0);
 
-  // Direction-aware scroll listener:
-  // - Scrolls down: slides header out with animation, blur removed, buttons hidden
-  // - Scrolls up slightly: slides header down immediately with blur and buttons restored
-  // - At top: always visible
+  // Synchronized scroll listener:
+  // Hides header while actively scrolling (up or down) so it never blocks viewport content,
+  // and immediately reveals header as soon as scrolling stops.
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-      const lastScrollY = lastScrollYRef.current;
-      const delta = currentScrollY - lastScrollY;
+      const delta = Math.abs(currentScrollY - lastScrollYRef.current);
+      lastScrollYRef.current = currentScrollY;
 
-      if (currentScrollY <= 20) {
+      if (currentScrollY <= 10) {
         setIsHeaderVisible(true);
-        setIsScrolledDown(false);
-      } else {
-        setIsScrolledDown(true);
-
-        // User scrolling DOWN past 60px: hide header
-        if (delta > 6 && currentScrollY > 60) {
-          setIsHeaderVisible(false);
-          setIsNotifOpen(false);
+        if (scrollTimeoutRef.current) {
+          window.clearTimeout(scrollTimeoutRef.current);
         }
-        // User scrolling UP: immediately reveal header
-        else if (delta < -4) {
-          setIsHeaderVisible(true);
-        }
+        return;
       }
 
-      lastScrollYRef.current = currentScrollY;
+      if (delta > 2) {
+        setIsHeaderVisible(false);
+      }
+
+      if (scrollTimeoutRef.current) {
+        window.clearTimeout(scrollTimeoutRef.current);
+      }
+      scrollTimeoutRef.current = window.setTimeout(() => {
+        setIsHeaderVisible(true);
+      }, 130);
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (scrollTimeoutRef.current) {
+        window.clearTimeout(scrollTimeoutRef.current);
+      }
+    };
   }, []);
 
   // Listen for bottom nav Profile / Menu trigger
@@ -104,7 +101,6 @@ export const Header: React.FC<HeaderProps> = ({
     return () => window.removeEventListener('mw-toggle-menu', handleToggleMenu);
   }, []);
 
-  const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authDefaultRole, setAuthDefaultRole] = useState<'reader' | 'creator' | 'admin'>('reader');
   const [authDefaultMode, setAuthDefaultMode] = useState<'signin' | 'signup'>('signin');
@@ -163,18 +159,24 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <>
       {/* Static layout spacer to maintain top margin for page content */}
-      <div className="h-16 sm:h-20 w-full shrink-0 pointer-events-none" aria-hidden="true" />
+      <div className="h-14 sm:h-16 w-full shrink-0 pointer-events-none" aria-hidden="true" />
 
-      {/* Floating Island Header Bar with Curved Bezels and Frosted Glass Effect */}
+      {/* Flush Top Header Bar with ONLY Bottom Corners Curved (Merged with Top Website Edge per User Screenshot) */}
       <header
-        className={`fixed top-2.5 sm:top-3.5 left-3 right-3 sm:left-6 sm:right-6 max-w-6xl mx-auto z-40 transition-all duration-300 ease-out pointer-events-auto ${
+        className={`fixed top-0 left-0 right-0 w-full z-40 transition-all duration-250 ease-out pointer-events-auto ${
           isHeaderVisible
             ? 'translate-y-0 opacity-100'
-            : '-translate-y-24 opacity-0 pointer-events-none'
+            : '-translate-y-full opacity-0 pointer-events-none'
         }`}
       >
-        <div className="relative bg-black/75 backdrop-blur-2xl border border-white/15 rounded-2xl sm:rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.85)] px-2.5 sm:px-5 py-2 sm:py-2.5 flex items-center justify-between gap-1.5 sm:gap-6 max-w-full box-border">
-          {/* Left: MangaWild Logo inside curved island bar */}
+        <div
+          className={`relative w-full max-w-7xl mx-auto backdrop-blur-2xl border-b border-x rounded-b-[1.75rem] sm:rounded-b-[2.5rem] px-3.5 sm:px-7 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-6 max-w-full box-border transition-colors duration-200 ${
+            theme === 'light'
+              ? 'bg-white/95 border-zinc-300 shadow-[0_6px_24px_rgba(0,0,0,0.08)]'
+              : 'bg-black/95 border-white/15 shadow-[0_8px_30px_rgba(0,0,0,0.85)]'
+          }`}
+        >
+          {/* Left: MangaWild Logo */}
           <button
             onClick={() => onNavigate('home')}
             className="focus:outline-none flex items-center cursor-pointer transition-transform duration-150 active:scale-95 shrink-0"
@@ -183,8 +185,8 @@ export const Header: React.FC<HeaderProps> = ({
             <MangaWildLogo size="sm" />
           </button>
 
-          {/* Menu Buttons & Actions - Clickable when header is in view */}
-          <div className="flex items-center justify-between flex-1 gap-2 sm:gap-8 pointer-events-auto min-w-0">
+          {/* Menu Buttons & Actions */}
+          <div className="flex items-center justify-between flex-1 gap-2 sm:gap-6 pointer-events-auto min-w-0">
             {/* Center: Minimalist Uniform Line-Art Navigation Icons */}
             <nav className="hidden md:flex items-center gap-1 sm:gap-1.5" aria-label="Main Navigation">
               {navLinks.map(link => {
@@ -198,20 +200,29 @@ export const Header: React.FC<HeaderProps> = ({
                     aria-label={link.label}
                     className={`group relative p-2 rounded-xl transition-all duration-150 cursor-pointer active:scale-95 flex items-center justify-center border ${
                       isActive
-                        ? 'text-white bg-white/15 border-white/25 shadow-xs'
+                        ? theme === 'light'
+                          ? 'text-black bg-zinc-200 border-zinc-400 shadow-xs'
+                          : 'text-white bg-white/15 border-white/25 shadow-xs'
                         : link.highlight
-                        ? 'text-zinc-200 hover:text-white hover:bg-white/[0.08] border-white/10'
+                        ? theme === 'light'
+                          ? 'text-zinc-800 hover:text-black hover:bg-zinc-100 border-zinc-300'
+                          : 'text-zinc-200 hover:text-white hover:bg-white/[0.08] border-white/10'
+                        : theme === 'light'
+                        ? 'text-zinc-600 hover:text-black hover:bg-zinc-100 border-transparent'
                         : 'text-zinc-400 hover:text-white hover:bg-white/[0.06] border-transparent'
                     }`}
                   >
                     <IconComponent
                       className={`w-4 h-4 shrink-0 transition-transform duration-150 group-hover:scale-110 ${
-                        isActive ? 'stroke-[2.25px] text-white' : 'stroke-[1.75px]'
+                        isActive ? 'stroke-[2.25px]' : 'stroke-[1.75px]'
                       }`}
                     />
-                    {/* Active subtle bottom dot indicator */}
                     {isActive && (
-                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white shadow-xs" />
+                      <span
+                        className={`absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${
+                          theme === 'light' ? 'bg-black' : 'bg-white'
+                        }`}
+                      />
                     )}
                   </button>
                 );
@@ -224,157 +235,128 @@ export const Header: React.FC<HeaderProps> = ({
                   aria-label="Admin Suite"
                   className={`group relative p-2 rounded-xl transition-all duration-150 cursor-pointer active:scale-95 flex items-center justify-center border ${
                     currentView === 'admin'
-                      ? 'text-white bg-white/15 border-white/25 shadow-xs'
+                      ? theme === 'light'
+                        ? 'text-black bg-zinc-200 border-zinc-400 shadow-xs'
+                        : 'text-white bg-white/15 border-white/25 shadow-xs'
+                      : theme === 'light'
+                      ? 'text-zinc-600 hover:text-black hover:bg-zinc-100 border-transparent'
                       : 'text-zinc-400 hover:text-white hover:bg-white/[0.06] border-transparent'
                   }`}
                 >
                   <Shield
                     className={`w-4 h-4 shrink-0 transition-transform duration-150 group-hover:scale-110 ${
-                      currentView === 'admin' ? 'stroke-[2.25px] text-white' : 'stroke-[1.75px]'
+                      currentView === 'admin' ? 'stroke-[2.25px]' : 'stroke-[1.75px]'
                     }`}
                   />
                   {currentView === 'admin' && (
-                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white shadow-xs" />
+                    <span
+                      className={`absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${
+                        theme === 'light' ? 'bg-black' : 'bg-white'
+                      }`}
+                    />
                   )}
                 </button>
               )}
             </nav>
 
-          {/* Right: Search, Theme Toggle, Notifications, VIP & Menu */}
-          <div className="flex items-center gap-1 sm:gap-2.5 shrink-0 ml-auto max-w-full box-border">
-            {/* Search Button (Minimalist pill with ⌘K badge) */}
-            <button
-              onClick={onOpenSearch}
-              className="p-1.5 sm:px-3 sm:py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 hover:text-zinc-200 transition-all duration-150 active:scale-95 cursor-pointer shrink-0"
-              title="Search Manga Catalog (Ctrl+K)"
-            >
-              <Search className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-              <span className="hidden md:inline text-xs text-zinc-400">Search</span>
-              <kbd className="hidden md:inline-block px-1 py-0.2 rounded text-[9px] font-mono font-medium text-zinc-500 bg-white/[0.06] border border-white/[0.06]">
-                ⌘K
-              </kbd>
-            </button>
-
-            {/* Notifications Dropdown */}
-            <div className="relative shrink-0">
+            {/* Right: Search, Theme Toggle, VIP, Log In & Menu (Notification Bell Removed per Request) */}
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto max-w-full box-border">
+              {/* Search Button */}
               <button
-                onClick={() => {
-                  setIsNotifOpen(!isNotifOpen);
-                  if (!isNotifOpen) markNotificationsAsRead();
-                }}
-                className={`relative p-1.5 sm:p-2 rounded-xl transition-all duration-150 active:scale-95 cursor-pointer border border-transparent ${
-                  theme === 'dark'
-                    ? 'text-zinc-400 hover:text-white hover:bg-white/[0.06] hover:border-white/[0.08]'
-                    : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100'
+                onClick={onOpenSearch}
+                className={`p-1.5 sm:px-3 sm:py-1.5 rounded-xl border transition-all duration-150 active:scale-95 cursor-pointer shrink-0 flex items-center gap-1.5 ${
+                  theme === 'light'
+                    ? 'border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 hover:text-black'
+                    : 'border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white'
                 }`}
-                title="Notifications"
+                title="Search Manga Catalog (Ctrl+K)"
               >
-                <Bell className="w-4 h-4" />
-                {unreadNotifsCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                <Search className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden md:inline text-xs font-semibold">Search</span>
+              </button>
+
+              {/* Black / White Theme Switcher */}
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className={`p-1.5 sm:p-2 rounded-xl border transition-all duration-150 active:scale-95 cursor-pointer shrink-0 flex items-center justify-center ${
+                  theme === 'light'
+                    ? 'border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-zinc-900'
+                    : 'border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white'
+                }`}
+                title={theme === 'dark' ? 'Switch to White Theme' : 'Switch to Black Theme'}
+                aria-label="Toggle Theme"
+              >
+                {theme === 'dark' ? (
+                  <Sun className="w-3.5 h-3.5 shrink-0" />
+                ) : (
+                  <Moon className="w-3.5 h-3.5 shrink-0" />
                 )}
               </button>
 
-              {isNotifOpen && (
-                <div
-                  className={`absolute right-0 mt-2 w-72 sm:w-80 rounded-2xl shadow-2xl p-4 z-50 animate-fade-in-up border ${
-                    theme === 'dark'
-                      ? 'bg-zinc-950/95 backdrop-blur-xl border-white/10 text-white'
-                      : 'bg-white border-zinc-200 text-zinc-900'
-                  }`}
+              {/* VIP Button */}
+              <button
+                type="button"
+                onClick={() => onNavigate('membership')}
+                className={`flex items-center gap-1 p-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer active:scale-95 border shrink-0 ${
+                  theme === 'light'
+                    ? 'border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-zinc-900'
+                    : 'border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] text-zinc-200 hover:text-white'
+                }`}
+                title="MangaWild VIP Pass & Membership"
+              >
+                <Crown className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden sm:inline tracking-wide">VIP</span>
+                {isVIP && (
+                  <span className="hidden sm:inline text-[8px] tracking-wider uppercase bg-white/15 px-1 py-0.2 rounded font-bold">
+                    PRO
+                  </span>
+                )}
+              </button>
+
+              {/* Log In Button */}
+              {!isAuthenticated && (
+                <button
+                  onClick={() => handleOpenAuth('reader')}
+                  className="flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-1.5 text-xs font-bold text-black bg-white hover:bg-zinc-200 rounded-xl transition-all whitespace-nowrap cursor-pointer active:scale-95 shadow-xs shrink-0"
                 >
-                  <div className="flex items-center justify-between pb-2 border-b border-white/[0.06] mb-2">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
-                      Notifications
-                    </span>
-                    <span className="text-[10px] text-zinc-500 font-mono">
-                      {notifications.length} updates
-                    </span>
-                  </div>
-                  <div className="max-h-60 overflow-y-auto space-y-2">
-                    {notifications.length === 0 ? (
-                      <p className="text-xs text-zinc-500 py-3 text-center">No notifications</p>
-                    ) : (
-                      notifications.map(n => (
-                        <div
-                          key={n.id}
-                          className={`p-2.5 rounded-xl text-xs space-y-1 transition-all border border-white/[0.04] ${
-                            theme === 'dark' ? 'bg-white/[0.03]' : 'bg-zinc-100'
-                          }`}
-                        >
-                          <p className="font-semibold text-zinc-200">{n.title}</p>
-                          <p
-                            className={`text-[11px] leading-tight ${
-                              theme === 'dark' ? 'text-zinc-400' : 'text-zinc-600'
-                            }`}
-                          >
-                            {n.message}
-                          </p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
+                  <UserIcon className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Log In</span>
+                </button>
               )}
+
+              {/* Sign Out Button */}
+              {isAuthenticated && (
+                <button
+                  onClick={signOut}
+                  className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-zinc-400 hover:text-white bg-transparent hover:bg-white/[0.06] border border-transparent hover:border-white/10 rounded-xl transition-all whitespace-nowrap cursor-pointer active:scale-95"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Sign Out</span>
+                </button>
+              )}
+
+              {/* Menu Button */}
+              <button
+                onClick={() => {
+                  setIsMenuDrawerOpen(!isMenuDrawerOpen);
+                  setNewUsernameInput(user.username || '');
+                  setIsEditingUsername(false);
+                }}
+                className={`p-1.5 sm:p-2 rounded-xl border transition-all duration-150 active:scale-95 cursor-pointer shrink-0 ${
+                  isMenuDrawerOpen
+                    ? 'bg-white text-black border-white shadow-sm'
+                    : theme === 'light'
+                    ? 'border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-zinc-900'
+                    : 'border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] text-zinc-200 hover:text-white'
+                }`}
+                title="Open Menu & Profile"
+                aria-label="Open Menu & Profile"
+              >
+                <Menu className="w-4 h-4 text-current" />
+              </button>
             </div>
-
-            {/* VIP Button (Minimalist refined badge) */}
-            <button
-              type="button"
-              onClick={() => onNavigate('membership')}
-              className="flex items-center gap-1 p-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer active:scale-95 border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white shrink-0"
-              title="MangaWild VIP Pass & Membership"
-            >
-              <Crown className="w-3.5 h-3.5 text-zinc-200" />
-              <span className="hidden sm:inline tracking-wide">VIP</span>
-              {isVIP && (
-                <span className="hidden sm:inline text-[8px] tracking-wider uppercase bg-white/10 text-white border border-white/20 px-1 py-0.2 rounded font-mono font-semibold">
-                  PRO
-                </span>
-              )}
-            </button>
-
-            {/* Log In Button - Minimal monochrome pill */}
-            {!isAuthenticated && (
-              <button
-                onClick={() => handleOpenAuth('reader')}
-                className="flex items-center gap-1 p-1.5 sm:px-3 sm:py-1.5 text-xs font-semibold text-black bg-white hover:bg-zinc-200 rounded-xl transition-all whitespace-nowrap cursor-pointer active:scale-95 shadow-xs shrink-0"
-              >
-                <UserIcon className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Log In</span>
-              </button>
-            )}
-
-            {/* Sign Out Button */}
-            {isAuthenticated && (
-              <button
-                onClick={signOut}
-                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-zinc-400 hover:text-white bg-transparent hover:bg-white/[0.06] border border-transparent hover:border-white/10 rounded-xl transition-all whitespace-nowrap cursor-pointer active:scale-95"
-                title="Sign Out"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Sign Out</span>
-              </button>
-            )}
-
-            {/* Menu Button (Minimal icon-first button) */}
-            <button
-              onClick={() => {
-                setIsMenuDrawerOpen(!isMenuDrawerOpen);
-                setNewUsernameInput(user.username || '');
-                setIsEditingUsername(false);
-              }}
-              className={`p-2 rounded-xl border transition-all duration-150 active:scale-95 cursor-pointer ${
-                isMenuDrawerOpen
-                  ? 'bg-white text-black border-white shadow-sm'
-                  : 'border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] hover:border-white/20 text-zinc-300 hover:text-white'
-              }`}
-              title="Open Menu & Profile"
-              aria-label="Open Menu & Profile"
-            >
-              <Menu className="w-4 h-4 text-current" />
-            </button>
-          </div>
           </div>
         </div>
       </header>

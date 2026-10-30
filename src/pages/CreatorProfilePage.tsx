@@ -77,26 +77,24 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
     return creators[0];
   }, [creatorId, authorName, creators, user]);
 
-  // All series by this creator
-  const allSeries = useMemo(() => StorageService.getSeries(), []);
+  // All series strictly owned by this creator
+  const allSeries = useMemo(() => StorageService.getSeries(), [creators]);
   const creatorSeries = useMemo(() => {
     if (!creator) return [];
+    const penClean = creator.penName.trim().toLowerCase();
     return allSeries.filter(
       s =>
         s.creatorId === creator.id ||
         s.creatorId === creator.userId ||
-        s.author.toLowerCase() === creator.penName.toLowerCase() ||
-        s.author.toLowerCase().includes(creator.penName.toLowerCase())
+        s.author.trim().toLowerCase() === penClean
     );
   }, [allSeries, creator]);
 
-  // Is current user the creator of this profile or admin?
-  // Only creators or admins who own this profile can edit it! Pure readers can NEVER edit it.
+  // Strictly verify if current user is the owner of this creator profile
   const isOwner = useMemo(() => {
     if (!creator || !user) return false;
     if (user.role !== 'creator' && user.role !== 'admin') return false;
     return (
-      user.role === 'admin' ||
       user.creatorProfileId === creator.id ||
       user.id === creator.userId
     );
@@ -216,8 +214,8 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
     <div className={`min-h-screen ${theme === 'dark' ? 'bg-[#09090b] text-[#fafafa]' : 'bg-[#fafafa] text-[#09090b]'}`}>
       {/* Toast */}
       {toastMsg && (
-        <div className="fixed bottom-6 right-6 z-50 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 border border-zinc-700 px-4 py-2.5 rounded-xl shadow-2xl text-xs font-bold flex items-center gap-2 animate-fade-in font-mono">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+        <div className="fixed bottom-6 right-6 z-50 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 border border-zinc-700 px-4 py-2.5 rounded-xl shadow-2xl text-xs font-bold flex items-center gap-2 animate-fade-in">
+          <CheckCircle2 className="w-4 h-4 text-current" />
           <span>{toastMsg}</span>
         </div>
       )}
@@ -755,8 +753,8 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Instagram */}
-                  <div className="space-y-1.5 p-3 rounded-2xl border border-pink-500/20 bg-pink-500/5">
-                    <label className="text-xs font-bold text-pink-400 flex items-center gap-1.5">
+                  <div className="space-y-1.5 p-3 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+                    <label className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
                       <Instagram className="w-3.5 h-3.5" /> Instagram Link or @handle
                     </label>
                     <input
@@ -764,15 +762,15 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                       value={editSocial.instagram || ''}
                       onChange={e => setEditSocial({ ...editSocial, instagram: e.target.value })}
                       placeholder="https://instagram.com/yourname or @yourname"
-                      className={`w-full p-2.5 rounded-xl border text-xs focus:outline-none focus:border-pink-500 ${
+                      className={`w-full p-2.5 rounded-xl border text-xs focus:outline-none focus:border-white ${
                         theme === 'dark' ? 'bg-black border-zinc-800 text-white' : 'bg-white border-zinc-300 text-zinc-900'
                       }`}
                     />
                   </div>
 
                   {/* Facebook */}
-                  <div className="space-y-1.5 p-3 rounded-2xl border border-blue-500/20 bg-blue-500/5">
-                    <label className="text-xs font-bold text-blue-400 flex items-center gap-1.5">
+                  <div className="space-y-1.5 p-3 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+                    <label className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
                       <Facebook className="w-3.5 h-3.5" /> Facebook Page or Profile
                     </label>
                     <input
@@ -780,15 +778,15 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                       value={editSocial.facebook || ''}
                       onChange={e => setEditSocial({ ...editSocial, facebook: e.target.value })}
                       placeholder="https://facebook.com/yourpage"
-                      className={`w-full p-2.5 rounded-xl border text-xs focus:outline-none focus:border-blue-500 ${
+                      className={`w-full p-2.5 rounded-xl border text-xs focus:outline-none focus:border-white ${
                         theme === 'dark' ? 'bg-black border-zinc-800 text-white' : 'bg-white border-zinc-300 text-zinc-900'
                       }`}
                     />
                   </div>
 
                   {/* Twitter / X */}
-                  <div className="space-y-1.5 p-3 rounded-2xl border border-sky-500/20 bg-sky-500/5">
-                    <label className="text-xs font-bold text-sky-400 flex items-center gap-1.5">
+                  <div className="space-y-1.5 p-3 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+                    <label className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
                       <Twitter className="w-3.5 h-3.5" /> X / Twitter Link or @handle
                     </label>
                     <input
@@ -796,15 +794,15 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                       value={editSocial.twitter || ''}
                       onChange={e => setEditSocial({ ...editSocial, twitter: e.target.value })}
                       placeholder="https://x.com/yourname or @yourname"
-                      className={`w-full p-2.5 rounded-xl border text-xs focus:outline-none focus:border-sky-500 ${
+                      className={`w-full p-2.5 rounded-xl border text-xs focus:outline-none focus:border-white ${
                         theme === 'dark' ? 'bg-black border-zinc-800 text-white' : 'bg-white border-zinc-300 text-zinc-900'
                       }`}
                     />
                   </div>
 
                   {/* YouTube */}
-                  <div className="space-y-1.5 p-3 rounded-2xl border border-red-500/20 bg-red-500/5">
-                    <label className="text-xs font-bold text-red-400 flex items-center gap-1.5">
+                  <div className="space-y-1.5 p-3 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+                    <label className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
                       <Youtube className="w-3.5 h-3.5" /> YouTube Channel Link
                     </label>
                     <input
@@ -812,15 +810,15 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                       value={editSocial.youtube || ''}
                       onChange={e => setEditSocial({ ...editSocial, youtube: e.target.value })}
                       placeholder="https://youtube.com/@yourchannel"
-                      className={`w-full p-2.5 rounded-xl border text-xs focus:outline-none focus:border-red-500 ${
+                      className={`w-full p-2.5 rounded-xl border text-xs focus:outline-none focus:border-white ${
                         theme === 'dark' ? 'bg-black border-zinc-800 text-white' : 'bg-white border-zinc-300 text-zinc-900'
                       }`}
                     />
                   </div>
 
                   {/* Discord */}
-                  <div className="space-y-1.5 p-3 rounded-2xl border border-indigo-500/20 bg-indigo-500/5">
-                    <label className="text-xs font-bold text-indigo-400 flex items-center gap-1.5">
+                  <div className="space-y-1.5 p-3 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+                    <label className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
                       <MessageCircle className="w-3.5 h-3.5" /> Discord Community / Username
                     </label>
                     <input
@@ -828,15 +826,15 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                       value={editSocial.discord || ''}
                       onChange={e => setEditSocial({ ...editSocial, discord: e.target.value })}
                       placeholder="https://discord.gg/yourserver or username#0000"
-                      className={`w-full p-2.5 rounded-xl border text-xs focus:outline-none focus:border-indigo-500 ${
+                      className={`w-full p-2.5 rounded-xl border text-xs focus:outline-none focus:border-white ${
                         theme === 'dark' ? 'bg-black border-zinc-800 text-white' : 'bg-white border-zinc-300 text-zinc-900'
                       }`}
                     />
                   </div>
 
                   {/* Portfolio / Website */}
-                  <div className="space-y-1.5 p-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5">
-                    <label className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                  <div className="space-y-1.5 p-3 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+                    <label className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
                       <Globe className="w-3.5 h-3.5" /> Portfolio / Website URL
                     </label>
                     <input
@@ -844,7 +842,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                       value={editSocial.website || ''}
                       onChange={e => setEditSocial({ ...editSocial, website: e.target.value })}
                       placeholder="https://yourwebsite.com or ArtStation"
-                      className={`w-full p-2.5 rounded-xl border text-xs focus:outline-none focus:border-emerald-500 ${
+                      className={`w-full p-2.5 rounded-xl border text-xs focus:outline-none focus:border-white ${
                         theme === 'dark' ? 'bg-black border-zinc-800 text-white' : 'bg-white border-zinc-300 text-zinc-900'
                       }`}
                     />
@@ -877,137 +875,149 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
           </div>
         )}
 
-        {/* SECTION 2: PUBLISHED WORKS (When activeTab === 'works') */}
+        {/* SECTION 2: PUBLISHED WORKS / OFFICIAL MANGA GRID (When activeTab === 'works') */}
         {(!isOwner || activeTab === 'works') && (
-        <div className="space-y-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2
-                className={`text-xl sm:text-2xl font-black tracking-tight ${
-                  theme === 'dark' ? 'text-white' : 'text-zinc-900'
-                }`}
-              >
-                Published Works by {creator.penName}
-              </h2>
-              <p className="text-xs text-zinc-400">
-                Official manga and webtoons written or illustrated by this creator.
-              </p>
-            </div>
-            <span className="text-xs font-mono font-bold text-zinc-500">
-              {creatorSeries.length} Titles
-            </span>
-          </div>
-
-          {creatorSeries.length === 0 ? (
-            <div
-              className={`p-12 text-center rounded-3xl border space-y-3 ${
-                theme === 'dark' ? 'bg-zinc-900/30 border-zinc-800' : 'bg-white border-zinc-200'
-              }`}
-            >
-              <BookOpen className="w-10 h-10 mx-auto text-zinc-500" />
-              <p className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-zinc-900'}`}>
-                No published series listed yet.
-              </p>
-              <p className="text-xs text-zinc-400">
-                New chapters and series by this artist will appear here as soon as they pass editorial review.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {creatorSeries.map(series => (
-                <div
-                  key={series.id}
-                  onClick={() => onSelectSeries(series.id)}
-                  className={`group rounded-2xl overflow-hidden border transition-all cursor-pointer flex flex-col justify-between hover:scale-[1.01] ${
-                    theme === 'dark'
-                      ? 'bg-zinc-900/60 border-zinc-800 hover:border-zinc-600 shadow-xl'
-                      : 'bg-white border-zinc-200 hover:border-zinc-400 shadow-md'
+          <div className="space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 pb-3 border-b border-zinc-800/80">
+              <div>
+                <span className="inline-block text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-md bg-zinc-800 text-zinc-300 border border-zinc-700 mb-1.5">
+                  Official Manga Catalog
+                </span>
+                <h2
+                  className={`text-xl sm:text-2xl font-black tracking-tight ${
+                    theme === 'dark' ? 'text-white' : 'text-zinc-900'
                   }`}
                 >
-                  <div className="space-y-3">
-                    {/* Cover Art with Aspect Ratio */}
-                    <div className="relative aspect-[16/10] overflow-hidden bg-zinc-950">
-                      <img
-                        src={series.coverUrl}
-                        alt={series.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                  Published Works by {creator.penName}
+                </h2>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  Official serialized manga and webtoons written &amp; illustrated by {creator.penName}.
+                </p>
+              </div>
+              <span className="text-xs font-bold px-3 py-1 rounded-xl border border-zinc-800 bg-zinc-900/60 text-zinc-300 self-start sm:self-auto">
+                {creatorSeries.length} {creatorSeries.length === 1 ? 'Manga Series' : 'Manga Series'}
+              </span>
+            </div>
 
-                      <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs text-white font-mono">
-                        <span className="flex items-center gap-1 font-bold bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-lg border border-white/10">
-                          <Star className="w-3.5 h-3.5 text-white fill-white" />
-                          <span>{series.rating.toFixed(1)}</span>
-                        </span>
-                        <span className="capitalize px-2 py-0.5 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-[10px] font-bold">
-                          {series.status}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Meta Body */}
-                    <div className="p-4 space-y-2">
-                      <div className="flex flex-wrap gap-1">
-                        {series.genres.slice(0, 3).map(g => (
-                          <span
-                            key={g}
-                            className={`text-[10px] font-mono px-2 py-0.5 rounded-md border ${
-                              theme === 'dark'
-                                ? 'bg-zinc-800/80 text-zinc-300 border-zinc-700'
-                                : 'bg-zinc-100 text-zinc-700 border-zinc-200'
-                            }`}
-                          >
-                            {g}
-                          </span>
-                        ))}
-                      </div>
-
-                      <h3
-                        className={`text-base font-black tracking-tight line-clamp-1 group-hover:text-zinc-200 transition-colors ${
-                          theme === 'dark' ? 'text-white' : 'text-zinc-900'
-                        }`}
-                      >
-                        {series.title}
-                      </h3>
-
-                      <p
-                        className={`text-xs line-clamp-2 leading-relaxed ${
-                          theme === 'dark' ? 'text-zinc-400' : 'text-zinc-600'
-                        }`}
-                      >
-                        {series.synopsis}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Footer with Views & Likes */}
+            {creatorSeries.length === 0 ? (
+              <div
+                className={`p-12 text-center rounded-3xl border space-y-3 ${
+                  theme === 'dark' ? 'bg-zinc-900/30 border-zinc-800' : 'bg-white border-zinc-200'
+                }`}
+              >
+                <BookOpen className="w-10 h-10 mx-auto text-zinc-500" />
+                <p className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-zinc-900'}`}>
+                  No published series listed yet.
+                </p>
+                <p className="text-xs text-zinc-400">
+                  New chapters and series by this artist will appear here as soon as they are published.
+                </p>
+              </div>
+            ) : (
+              /* Clean Vertical 3:4 Manga Poster Grid */
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6">
+                {creatorSeries.map(series => (
                   <div
-                    className={`px-4 py-3 border-t flex items-center justify-between text-xs font-mono ${
+                    key={series.id}
+                    onClick={() => onSelectSeries(series.id)}
+                    className={`group rounded-2xl overflow-hidden border transition-all duration-200 cursor-pointer flex flex-col justify-between hover:-translate-y-1 ${
                       theme === 'dark'
-                        ? 'border-zinc-800 bg-zinc-950/60 text-zinc-400'
-                        : 'border-zinc-100 bg-zinc-50 text-zinc-600'
+                        ? 'bg-zinc-900/60 border-zinc-800 hover:border-zinc-500 shadow-lg'
+                        : 'bg-white border-zinc-200 hover:border-zinc-400 shadow-md'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="flex items-center gap-1">
-                        <Eye className="w-3.5 h-3.5 text-zinc-400" />
-                        <span>{(series.totalViews ?? 0).toLocaleString()}</span>
-                      </span>
+                    <div>
+                      {/* Full Vertical 3:4 Manga Cover Art (Never Cropped Horizontally) */}
+                      <div className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-950">
+                        <img
+                          src={series.coverUrl}
+                          alt={series.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
+
+                        {/* Top Badges */}
+                        <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-1">
+                          <span className="px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-md border border-white/15 text-[10px] font-bold text-white uppercase">
+                            {series.status}
+                          </span>
+                          {series.isExclusive && (
+                            <span className="px-2 py-0.5 rounded-md bg-white text-black text-[10px] font-black uppercase">
+                              VIP
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Bottom Rating & Stats Overlay */}
+                        <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between text-[11px] text-white font-semibold">
+                          <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md px-2 py-0.5 rounded-md border border-white/10">
+                            <Star className="w-3 h-3 text-white fill-white" />
+                            <span>{series.rating.toFixed(1)}</span>
+                          </span>
+                          <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md px-2 py-0.5 rounded-md border border-white/10">
+                            <Eye className="w-3 h-3 text-zinc-300" />
+                            <span>{(series.totalViews ?? 0).toLocaleString()}</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Card Body */}
+                      <div className="p-3.5 space-y-1.5">
+                        <div className="flex flex-wrap gap-1">
+                          {series.genres.slice(0, 2).map(g => (
+                            <span
+                              key={g}
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
+                                theme === 'dark'
+                                  ? 'bg-zinc-800/80 text-zinc-300 border-zinc-700'
+                                  : 'bg-zinc-100 text-zinc-700 border-zinc-200'
+                              }`}
+                            >
+                              {g}
+                            </span>
+                          ))}
+                        </div>
+
+                        <h3
+                          className={`text-sm sm:text-base font-bold tracking-tight line-clamp-1 ${
+                            theme === 'dark' ? 'text-white' : 'text-zinc-900'
+                          }`}
+                        >
+                          {series.title}
+                        </h3>
+
+                        <p
+                          className={`text-xs line-clamp-2 leading-relaxed ${
+                            theme === 'dark' ? 'text-zinc-400' : 'text-zinc-600'
+                          }`}
+                        >
+                          {series.synopsis}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Footer Action */}
+                    <div
+                      className={`px-3.5 py-2.5 border-t flex items-center justify-between text-xs font-semibold ${
+                        theme === 'dark'
+                          ? 'border-zinc-800 bg-zinc-950/60 text-zinc-300'
+                          : 'border-zinc-100 bg-zinc-50 text-zinc-700'
+                      }`}
+                    >
                       <span className="flex items-center gap-1">
                         <Heart className="w-3.5 h-3.5 text-zinc-400" />
                         <span>{(series.likesCount ?? 0).toLocaleString()}</span>
                       </span>
-                    </div>
 
-                    <span className="font-bold text-zinc-200 group-hover:underline">
-                      Read Series →
-                    </span>
+                      <span className="font-bold group-hover:underline">
+                        Read Manga →
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
       {/* EDIT CREATOR PROFILE MODAL */}
@@ -1138,7 +1148,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Instagram */}
                   <div className="space-y-1">
-                    <label className="text-[11px] font-mono text-pink-400 flex items-center gap-1">
+                    <label className="text-[11px] font-semibold text-zinc-300 flex items-center gap-1">
                       <Instagram className="w-3 h-3" /> Instagram URL or @handle
                     </label>
                     <input
@@ -1154,7 +1164,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
 
                   {/* Twitter / X */}
                   <div className="space-y-1">
-                    <label className="text-[11px] font-mono text-sky-400 flex items-center gap-1">
+                    <label className="text-[11px] font-semibold text-zinc-300 flex items-center gap-1">
                       <Twitter className="w-3 h-3" /> X / Twitter URL or @handle
                     </label>
                     <input
@@ -1170,7 +1180,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
 
                   {/* Facebook */}
                   <div className="space-y-1">
-                    <label className="text-[11px] font-mono text-blue-400 flex items-center gap-1">
+                    <label className="text-[11px] font-semibold text-zinc-300 flex items-center gap-1">
                       <Facebook className="w-3 h-3" /> Facebook Page / Profile
                     </label>
                     <input
@@ -1186,7 +1196,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
 
                   {/* YouTube */}
                   <div className="space-y-1">
-                    <label className="text-[11px] font-mono text-red-400 flex items-center gap-1">
+                    <label className="text-[11px] font-semibold text-zinc-300 flex items-center gap-1">
                       <Youtube className="w-3 h-3" /> YouTube Channel
                     </label>
                     <input
@@ -1202,7 +1212,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
 
                   {/* Discord */}
                   <div className="space-y-1">
-                    <label className="text-[11px] font-mono text-indigo-400 flex items-center gap-1">
+                    <label className="text-[11px] font-semibold text-zinc-300 flex items-center gap-1">
                       <MessageCircle className="w-3 h-3" /> Discord Server / ID
                     </label>
                     <input
@@ -1218,7 +1228,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
 
                   {/* Website / Portfolio */}
                   <div className="space-y-1">
-                    <label className="text-[11px] font-mono text-emerald-400 flex items-center gap-1">
+                    <label className="text-[11px] font-semibold text-zinc-300 flex items-center gap-1">
                       <Globe className="w-3 h-3" /> Website / Portfolio
                     </label>
                     <input

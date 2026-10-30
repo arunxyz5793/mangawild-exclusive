@@ -932,25 +932,34 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
         )}
 
         {/* TAB 6: FINANCIALS & ANALYTICS */}
-        {activeTab === 'analytics' && (
+        {activeTab === 'analytics' && (() => {
+          const allPayments = StorageService.getPayments();
+          const allTips = StorageService.getTips();
+          const totalSubVolume = allPayments.reduce((sum, p) => sum + (p.amountInr || 0), 0);
+          const totalTipVolume = allTips.reduce((sum, t) => sum + (t.amountInr || 0), 0);
+          const grossVolume = totalSubVolume + totalTipVolume;
+          const creatorRoyalties = Math.round(grossVolume * 0.7);
+          const platformNet = grossVolume - creatorRoyalties;
+
+          return (
           <div className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/40">
                 <p className="text-[11px] font-mono text-zinc-400 uppercase">Gross Platform Volume</p>
-                <p className="text-3xl font-black text-white mt-1">₹4,28,000</p>
-                <p className="text-[10px] text-zinc-500 font-mono mt-1">VIP All-Access Subscriptions</p>
+                <p className="text-3xl font-black text-white mt-1">₹{grossVolume.toLocaleString('en-IN')}</p>
+                <p className="text-[10px] text-zinc-500 font-mono mt-1">VIP All-Access Subscriptions &amp; Tips</p>
               </div>
 
               <div className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/40">
                 <p className="text-[11px] font-mono text-zinc-400 uppercase">Creator 70% Royalties</p>
-                <p className="text-3xl font-black text-emerald-400 mt-1">₹2,99,600</p>
+                <p className="text-3xl font-black text-white mt-1">₹{creatorRoyalties.toLocaleString('en-IN')}</p>
                 <p className="text-[10px] text-zinc-500 font-mono mt-1">Paid directly to mangakas</p>
               </div>
 
               <div className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/40">
                 <p className="text-[11px] font-mono text-zinc-400 uppercase">Platform Net (30%)</p>
-                <p className="text-3xl font-black text-white mt-1">₹1,28,400</p>
-                <p className="text-[10px] text-zinc-500 font-mono mt-1">Infrastructure & servers</p>
+                <p className="text-3xl font-black text-white mt-1">₹{platformNet.toLocaleString('en-IN')}</p>
+                <p className="text-[10px] text-zinc-500 font-mono mt-1">Infrastructure &amp; servers</p>
               </div>
             </div>
 
@@ -959,7 +968,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-bold bg-emerald-950/80 px-2.5 py-0.5 rounded-full border border-emerald-800">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-white font-bold bg-zinc-800 px-2.5 py-0.5 rounded-full border border-zinc-700">
                       Production Ready
                     </span>
                     <span className="text-xs text-zinc-400 font-mono">
@@ -967,7 +976,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                     </span>
                   </div>
                   <h3 className="text-lg font-bold text-white mt-1">
-                    Public Launch Metrics & Views Control
+                    Public Launch Metrics &amp; Views Control
                   </h3>
                   <p className="text-xs text-zinc-400 max-w-xl leading-relaxed mt-0.5">
                     Before publishing or sharing the platform with real users, ensure that all views, chapter reads, and likes are reset to a clean baseline so organic reader engagement starts at zero.
@@ -981,12 +990,12 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                     setSeriesList(StorageService.getSeries());
                     setChaptersList(StorageService.getChapters());
                     setCreatorsList(StorageService.getCreators());
-                    showToast('Success: All series views, chapter reads, and likes have been reset to 0 for public launch!');
+                    showToast('Success: All series views, chapter reads, likes, and payouts have been reset to 0!');
                   }}
                   className="px-5 py-2.5 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-xs flex items-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer shrink-0"
                 >
                   <RotateCcw className="w-3.5 h-3.5 text-zinc-950" />
-                  <span>Reset All Views & Likes to 0</span>
+                  <span>Reset All Views &amp; Likes to 0</span>
                 </button>
               </div>
 
@@ -1006,13 +1015,14 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* TAB 7: ANDROID APP & SOURCE KIT */}
         {activeTab === 'export' && (
           <div className="space-y-8 animate-fade-in">
             {/* Header Card */}
-            <div className="p-6 rounded-3xl border border-zinc-700/60 bg-gradient-to-br from-purple-950/40 via-zinc-900 to-black space-y-4">
+            <div className="p-6 rounded-3xl border border-zinc-700/60 bg-zinc-900/60 space-y-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-200">
                   <Smartphone className="w-6 h-6" />

@@ -45,14 +45,18 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenVIPModal }) =>
           : 'bg-zinc-100 border-zinc-200 text-zinc-600'
       }`}
     >
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 space-y-8 max-w-full box-border">
-        {/* Minimalist Quick Navigation Line-Art Icon Strip */}
-        <div className="flex items-center justify-between flex-wrap gap-2 pb-6 border-b border-zinc-800/60 max-w-full box-border">
-          <div className="flex items-center gap-2 shrink-0">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8 max-w-full box-border">
+        {/* Top Brand & Quick Navigation Strip Stacked Below Logo with Visible Labels */}
+        <div className="flex flex-col items-start gap-4 pb-6 border-b border-zinc-800/60 max-w-full box-border">
+          <div className="flex flex-col gap-2">
             <MangaWildLogo size="sm" />
+            <p className="text-xs sm:text-sm font-medium leading-relaxed max-w-xl text-zinc-400">
+              MangaWild is India&apos;s premier platform for original serialized manga, webtoons, and graphic novels — featuring weekly direct UPI payouts and a 70% creator revenue share.
+            </p>
           </div>
 
-          <nav aria-label="Footer Quick Navigation" className="flex items-center gap-1 sm:gap-2 flex-wrap">
+          {/* Quick Navigation Icons BELOW the MangaWild Logo with Icon + Label always visible */}
+          <nav aria-label="Footer Quick Navigation" className="flex items-center gap-2 flex-wrap pt-1">
             {quickNav.map(item => {
               const IconComp = item.icon;
               return (
@@ -62,39 +66,43 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenVIPModal }) =>
                   onClick={() => onNavigate(item.id)}
                   title={item.label}
                   aria-label={item.label}
-                  className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/[0.06] border border-transparent hover:border-white/10 transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+                  className={`px-3 py-1.5 rounded-xl border transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 text-xs font-semibold ${
+                    theme === 'light'
+                      ? 'bg-white border-zinc-300 text-zinc-800 hover:bg-zinc-200 hover:text-black'
+                      : 'bg-zinc-900/80 border-white/10 text-zinc-300 hover:text-white hover:bg-white/10'
+                  }`}
                 >
-                  <IconComp className="w-4 h-4 shrink-0 stroke-[1.75px]" />
-                  <span className="hidden sm:inline text-xs font-medium">{item.label}</span>
+                  <IconComp className="w-3.5 h-3.5 shrink-0 stroke-[1.75px]" />
+                  <span>{item.label}</span>
                 </button>
               );
             })}
           </nav>
         </div>
 
-        {/* Minimalist Multi-Column Navigation with Uniform Line-Art Icons */}
+        {/* Multi-Column Navigation with Uniform Line-Art Icons and Full Readable Labels */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 pb-8 border-b border-zinc-800/40 max-w-full box-border">
           {/* Brand Info & Core Badges */}
           <div className="lg:col-span-2 space-y-3.5 max-w-full box-border">
-            <p className="text-xs leading-relaxed max-w-sm text-zinc-400">
-              Original serialized manga, webtoons, and graphic novels with weekly direct UPI payouts and 70% creator revenue share.
+            <p className="text-xs font-medium leading-relaxed max-w-sm text-zinc-400">
+              Read high-definition chapters directly from independent mangaka and studios, support creators with instant tips, and unlock unlimited reading with the MangaWild VIP Pass.
             </p>
             <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs">
               <span
-                className={`px-2 py-1 rounded-lg border flex items-center gap-1.5 font-mono text-[11px] ${
-                  theme === 'dark' ? 'bg-zinc-900 border-zinc-800 text-zinc-300' : 'bg-white border-zinc-200 text-zinc-700'
+                className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 font-semibold text-[11px] ${
+                  theme === 'dark' ? 'bg-zinc-900 border-zinc-800 text-zinc-300' : 'bg-white border-zinc-300 text-zinc-800'
                 }`}
               >
-                <Shield className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                <span>70% Share</span>
+                <Shield className="w-3.5 h-3.5 shrink-0" />
+                <span>70% Creator Revenue Share</span>
               </span>
               <span
-                className={`px-2 py-1 rounded-lg border flex items-center gap-1.5 font-mono text-[11px] ${
-                  theme === 'dark' ? 'bg-zinc-900 border-zinc-800 text-zinc-300' : 'bg-white border-zinc-200 text-zinc-700'
+                className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 font-semibold text-[11px] ${
+                  theme === 'dark' ? 'bg-zinc-900 border-zinc-800 text-zinc-300' : 'bg-white border-zinc-300 text-zinc-800'
                 }`}
               >
-                <Wallet className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                <span>Direct UPI</span>
+                <Wallet className="w-3.5 h-3.5 shrink-0" />
+                <span>Direct Weekly UPI Payouts</span>
               </span>
             </div>
           </div>

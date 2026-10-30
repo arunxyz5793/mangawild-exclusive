@@ -84,19 +84,25 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
   const [seriesList, setSeriesList] = useState<MangaSeries[]>(() => {
     const profile = StorageService.getOrCreateCreatorProfile(user);
     const all = StorageService.getSeries();
+    const penClean = profile.penName.trim().toLowerCase();
     return all.filter(
-      s => s.creatorId === profile.id ||
-           s.creatorId === `creator_${user.id}` ||
-           s.author.toLowerCase() === user.name.toLowerCase()
+      s =>
+        s.creatorId === profile.id ||
+        s.creatorId === user.creatorProfileId ||
+        s.creatorId === `creator_${user.id}` ||
+        s.author.trim().toLowerCase() === penClean
     );
   });
 
   const [selectedSeries, setSelectedSeries] = useState<MangaSeries | null>(() => {
     const profile = StorageService.getOrCreateCreatorProfile(user);
+    const penClean = profile.penName.trim().toLowerCase();
     const mySeries = StorageService.getSeries().filter(
-      s => s.creatorId === profile.id ||
-           s.creatorId === `creator_${user.id}` ||
-           s.author.toLowerCase() === user.name.toLowerCase()
+      s =>
+        s.creatorId === profile.id ||
+        s.creatorId === user.creatorProfileId ||
+        s.creatorId === `creator_${user.id}` ||
+        s.author.trim().toLowerCase() === penClean
     );
     return mySeries[0] || null;
   });
@@ -192,16 +198,22 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
     setTimeout(() => setFeedbackToast(null), 4000);
   };
 
+  const isSeriesOwnedByMe = (s: MangaSeries, profile = creatorProfile): boolean => {
+    const penClean = (profile?.penName || user.name || '').trim().toLowerCase();
+    return (
+      s.creatorId === profile?.id ||
+      s.creatorId === user.creatorProfileId ||
+      s.creatorId === `creator_${user.id}` ||
+      s.author.trim().toLowerCase() === penClean
+    );
+  };
+
   const refreshCreatorData = () => {
     const cur = StorageService.getOrCreateCreatorProfile(user);
     setCreatorProfile(cur);
 
     const all = StorageService.getSeries();
-    const mySeries = all.filter(
-      s => s.creatorId === cur.id ||
-           s.creatorId === `creator_${user.id}` ||
-           s.author.toLowerCase() === user.name.toLowerCase()
-    );
+    const mySeries = all.filter(s => isSeriesOwnedByMe(s, cur));
     setSeriesList(mySeries);
     if (mySeries.length > 0) {
       setSelectedSeries(prev => {
@@ -213,9 +225,33 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
     }
   };
 
+  const handleDeleteOwnedSeries = (series: MangaSeries) => {
+    if (!isSeriesOwnedByMe(series)) {
+      showToast('Permission denied: You can only delete your own manga series.');
+      return;
+    }
+    StorageService.deleteSeries(series.id);
+    // Also remove its chapters
+    const remainingChapters = StorageService.getChapters().filter(c => c.seriesId !== series.id);
+    StorageService.saveChapters(remainingChapters);
+    refreshCreatorData();
+    showToast(`Deleted "${series.title}" from your catalog.`);
+  };
+
+  const handleDeleteOwnedChapter = (chapter: Chapter) => {
+    const parent = StorageService.getSeriesById(chapter.seriesId);
+    if (!parent || !isSeriesOwnedByMe(parent)) {
+      showToast('Permission denied: You can only delete chapters from your own manga series.');
+      return;
+    }
+    StorageService.deleteChapter(chapter.id);
+    refreshCreatorData();
+    showToast(`Deleted Chapter ${chapter.chapterNumber}: "${chapter.title}".`);
+  };
+
   useEffect(() => {
     refreshCreatorData();
-  }, [user.id, user.name]);
+  }, [user.id, user.name, user.creatorProfileId]);
 
   // Genre toggle
   const toggleGenre = (genre: MangaGenre) => {
@@ -1017,7 +1053,7 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
                       <span
                         className={`text-[9px] font-mono px-1.5 py-0.5 rounded uppercase font-bold ${
                           s.moderationStatus === 'approved'
-                            ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                            ? 'bg-white text-black border border-white'
                             : 'bg-zinc-800 text-zinc-300 border border-zinc-700'
                         }`}
                       >
@@ -1089,14 +1125,25 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
                           </p>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => openEditSeriesModal(selectedSeries)}
-                        className="px-3 py-1.5 rounded-xl bg-white text-zinc-950 font-semibold text-xs shrink-0 hover:bg-zinc-200 transition-colors cursor-pointer shadow-sm flex items-center gap-1.5 active:scale-95"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                        <span>Edit Info</span>
-                      </button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => openEditSeriesModal(selectedSeries)}
+                          className="px-3 py-1.5 rounded-xl bg-white text-zinc-950 font-semibold text-xs shrink-0 hover:bg-zinc-200 transition-colors cursor-pointer shadow-sm flex items-center gap-1.5 active:scale-95"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>Edit Info</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteOwnedSeries(selectedSeries)}
+                          className="px-3 py-1.5 rounded-xl border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white font-semibold text-xs shrink-0 transition-colors cursor-pointer flex items-center gap-1.5 active:scale-95"
+                          title="Delete this manga series"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete</span>
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div className="p-3.5 rounded-xl bg-zinc-900/90 border border-zinc-700 text-zinc-300 text-xs flex items-center justify-between gap-2">
@@ -1106,13 +1153,24 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
                           Pending editorial review. You can still edit info or add chapter pages.
                         </span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => openEditSeriesModal(selectedSeries)}
-                        className="px-3 py-1 rounded-lg border border-zinc-700 hover:bg-zinc-800 text-white text-xs font-semibold shrink-0 cursor-pointer"
-                      >
-                        Edit Details
-                      </button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => openEditSeriesModal(selectedSeries)}
+                          className="px-3 py-1 rounded-lg border border-zinc-700 hover:bg-zinc-800 text-white text-xs font-semibold shrink-0 cursor-pointer"
+                        >
+                          Edit Details
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteOwnedSeries(selectedSeries)}
+                          className="px-2.5 py-1 rounded-lg border border-zinc-700 hover:bg-zinc-800 text-zinc-300 hover:text-white text-xs font-semibold shrink-0 cursor-pointer flex items-center gap-1"
+                          title="Delete this manga series"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete</span>
+                        </button>
+                      </div>
                     </div>
                   )}
 
@@ -1179,7 +1237,7 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
                               </p>
                             </div>
 
-                            <div className="flex items-center gap-2 shrink-0">
+                            <div className="flex items-center gap-2 shrink-0 flex-wrap">
                               <button
                                 type="button"
                                 onClick={() => openEditChapterModal(ch)}
@@ -1188,6 +1246,14 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
                               >
                                 <SlidersHorizontal className="w-3.5 h-3.5" />
                                 <span>Edit Panels</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteOwnedChapter(ch)}
+                                className="p-1.5 rounded-xl border border-zinc-700 hover:border-zinc-500 bg-zinc-900 text-zinc-400 hover:text-white cursor-pointer transition-colors"
+                                title="Delete Chapter"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 onClick={() => onPreviewChapter(selectedSeries.id, ch.id)}

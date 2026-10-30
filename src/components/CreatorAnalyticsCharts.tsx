@@ -33,13 +33,9 @@ export const CreatorAnalyticsCharts: React.FC<CreatorAnalyticsChartsProps> = ({
   // Timeframe: 30d by default per user requirement
   const [timeframe, setTimeframe] = useState<'7d' | '30d' | '90d'>('30d');
 
-  // Load series either from props or from StorageService
+  // Strictly use the series list belonging to this creator (no fallback to other creators' series)
   const allSeries = useMemo(() => {
-    if (propSeriesList && propSeriesList.length > 0) {
-      return propSeriesList;
-    }
-    const stored = StorageService.getSeries();
-    return stored.slice(0, 8); // Top series if creator hasn't published own
+    return propSeriesList || [];
   }, [propSeriesList]);
 
   // Multiplier to scale metrics cleanly based on timeframe (30d = base 1.0, 7d = ~0.28, 90d = ~2.6)

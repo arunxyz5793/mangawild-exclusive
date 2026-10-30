@@ -23,22 +23,22 @@ import {
 import { generateMangaCoverSvg, generateChapterPanelSvg } from '../utils/mangaAssets';
 
 const STORAGE_KEYS = {
-  USERS: 'mw_users_v4',
-  CURRENT_USER: 'mw_current_user_v4',
-  SERIES: 'mw_series_v4',
-  CHAPTERS: 'mw_chapters_v4',
-  CREATORS: 'mw_creators_v4',
-  COMMENTS: 'mw_comments_v5',
-  REVIEWS: 'mw_reviews_v5',
-  READING_HISTORY: 'mw_history_v4',
-  BOOKMARKS: 'mw_bookmarks_v4',
-  LIKED_SERIES: 'mw_liked_series_v4',
-  PAYMENTS: 'mw_payments_v4',
-  NOTIFICATIONS: 'mw_notifications_v4',
-  FOLLOWED_CREATORS: 'mw_followed_creators_v4',
-  REPORTS: 'mw_user_reports_v1',
-  PASSWORD_RESETS: 'mw_password_resets_v1',
-  TIPS: 'mw_creator_tips_v1',
+  USERS: 'mw_users_v6_fresh',
+  CURRENT_USER: 'mw_current_user_v6_fresh',
+  SERIES: 'mw_series_v6_fresh',
+  CHAPTERS: 'mw_chapters_v6_fresh',
+  CREATORS: 'mw_creators_v6_fresh',
+  COMMENTS: 'mw_comments_v6_fresh',
+  REVIEWS: 'mw_reviews_v6_fresh',
+  READING_HISTORY: 'mw_history_v6_fresh',
+  BOOKMARKS: 'mw_bookmarks_v6_fresh',
+  LIKED_SERIES: 'mw_liked_series_v6_fresh',
+  PAYMENTS: 'mw_payments_v6_fresh',
+  NOTIFICATIONS: 'mw_notifications_v6_fresh',
+  FOLLOWED_CREATORS: 'mw_followed_creators_v6_fresh',
+  REPORTS: 'mw_user_reports_v6_fresh',
+  PASSWORD_RESETS: 'mw_password_resets_v6_fresh',
+  TIPS: 'mw_creator_tips_v6_fresh',
 };
 
 // Official System Administrator Configuration
@@ -2229,10 +2229,14 @@ export const StorageService = {
   },
 
   getCreatorByUserId(userId: string): CreatorProfile | undefined {
-    return this.getCreators().find(c => c.userId === userId);
+    return this.getCreators().find(c => c.userId === userId || c.id === userId);
   },
 
   getOrCreateCreatorProfile(user: User): CreatorProfile {
+    if (user.creatorProfileId) {
+      const byProfileId = this.getCreatorById(user.creatorProfileId);
+      if (byProfileId) return byProfileId;
+    }
     const existing = this.getCreatorByUserId(user.id);
     if (existing) return existing;
     const creators = this.getCreators();
@@ -2491,6 +2495,12 @@ export const StorageService = {
     all[idx].panels = panels;
     this.saveChapters(all);
     return all[idx];
+  },
+
+  deleteChapter(chapterId: string): boolean {
+    const all = this.getChapters().filter(c => c.id !== chapterId);
+    this.saveChapters(all);
+    return true;
   },
 
   // Creators
@@ -2995,10 +3005,7 @@ export const StorageService = {
 
   // Series Likes & Reactions
   getLikedSeries(userId: string): string[] {
-    const map = getStored<Record<string, string[]>>(STORAGE_KEYS.LIKED_SERIES, {
-      user_vip_01: ['series_silent_heads', 'series_randamu_boken'],
-      user_free_01: ['series_chitrakatha_chintu'],
-    });
+    const map = getStored<Record<string, string[]>>(STORAGE_KEYS.LIKED_SERIES, {});
     return map[userId] || [];
   },
 
@@ -3187,9 +3194,7 @@ export const StorageService = {
 
   // Followed Creators
   getFollowedCreators(userId: string): string[] {
-    const map = getStored<Record<string, string[]>>(STORAGE_KEYS.FOLLOWED_CREATORS, {
-      user_vip_01: ['creator_deep_mangaka', 'creator_flad_z'],
-    });
+    const map = getStored<Record<string, string[]>>(STORAGE_KEYS.FOLLOWED_CREATORS, {});
     return map[userId] || [];
   },
 
@@ -3219,24 +3224,9 @@ export const StorageService = {
     return !isFollowing;
   },
 
-  // Payments & Razorpay Record Log
+  // Payments & Razorpay Record Log (Starts at 0 for fresh launch)
   getPayments(): PaymentRecord[] {
-    return getStored<PaymentRecord[]>(STORAGE_KEYS.PAYMENTS, [
-      {
-        id: 'pay_rec_001',
-        razorpayOrderId: 'order_MW_VIP_99812',
-        razorpayPaymentId: 'pay_MW_VIP_SAMPLE_998',
-        userId: 'user_vip_01',
-        userEmail: 'vip.reader@mangawild.online',
-        planId: 'monthly',
-        amountInr: 199,
-        currency: 'INR',
-        status: 'captured',
-        paymentMethod: 'UPI',
-        createdAt: '2026-09-01T08:14:00Z',
-        invoiceNumber: 'INV-MW-2026-09-001',
-      },
-    ]);
+    return getStored<PaymentRecord[]>(STORAGE_KEYS.PAYMENTS, []);
   },
 
   recordPayment(record: Omit<PaymentRecord, 'id' | 'createdAt' | 'invoiceNumber'>): PaymentRecord {
@@ -3382,91 +3372,52 @@ export const StorageService = {
     return true;
   },
 
-  // Complete Reset of Views and Likes for Public Launch
+  // Complete Reset of Views, Likes, Followers, Tips & Payouts for Public Launch
   resetAllViewsAndLikes(): void {
     try {
-      // 1. Reset all series views, reads, and likes to 0
+      // 1. Reset all series views, reads, likes, and bookmarks to 0
       const seriesList = this.getSeries().map(s => ({
         ...s,
         totalViews: 0,
         totalReads: 0,
         likesCount: 0,
+        bookmarkedCount: 0,
       }));
       this.saveSeries(seriesList);
 
-      // 2. Reset all chapter views to 0
+      // 2. Reset all chapter views and likes to 0
       const chapters = this.getChapters().map(ch => ({
         ...ch,
         viewsCount: 0,
+        likesCount: 0,
       }));
       this.saveChapters(chapters);
 
-      // 3. Reset all creator totalReads and monthly earnings to 0
+      // 3. Reset all creator totalReads, followersCount, and monthly earnings to 0
       const creators = this.getCreators().map(c => ({
         ...c,
+        followersCount: 0,
         totalReads: 0,
         monthlyEarningsInr: 0,
       }));
       this.saveCreators(creators);
 
-      // 4. Clear user liked series, daily views log, and old reading history
+      // 4. Clear user liked series, followed creators, payments, tips, daily views log, and reading history
       localStorage.removeItem(STORAGE_KEYS.LIKED_SERIES);
+      localStorage.removeItem(STORAGE_KEYS.FOLLOWED_CREATORS);
+      localStorage.removeItem(STORAGE_KEYS.PAYMENTS);
+      localStorage.removeItem(STORAGE_KEYS.TIPS);
       localStorage.removeItem('mw_daily_views_log');
       localStorage.removeItem(STORAGE_KEYS.READING_HISTORY);
-      localStorage.setItem('mw_publish_clean_slate_v5_prod', 'true');
+      localStorage.setItem('mw_publish_clean_slate_v7_launch', 'true');
     } catch (e) {
       console.warn('Metrics reset notice:', e);
     }
   },
 
-  // Creator Tipping & Top Supporters Leaderboard
+  // Creator Tipping (Starts at 0 for fresh launch)
   getTips(creatorId?: string): CreatorTip[] {
-    const defaultTips: CreatorTip[] = [
-      {
-        id: 'tip_seed_1',
-        creatorId: 'creator_deep_mangaka',
-        seriesId: 'series_chintu_01',
-        supporterName: 'rahul_otaku',
-        supporterAvatar: '/avatars/avatar-1.svg',
-        coins: 500,
-        amountInr: 250,
-        message: 'Masterpiece storytelling! Cannot wait for the next chapter!',
-        createdAt: '2026-10-25T14:32:00Z',
-      },
-      {
-        id: 'tip_seed_2',
-        creatorId: 'creator_deep_mangaka',
-        seriesId: 'series_chintu_01',
-        supporterName: 'aarav_sharma',
-        supporterAvatar: '/avatars/avatar-3.svg',
-        coins: 300,
-        amountInr: 150,
-        message: 'The artwork in the climax was insane.',
-        createdAt: '2026-10-26T18:10:00Z',
-      },
-      {
-        id: 'tip_seed_3',
-        creatorId: 'creator_deep_mangaka',
-        supporterName: 'manga_samurai',
-        supporterAvatar: '/avatars/avatar-5.svg',
-        coins: 150,
-        amountInr: 75,
-        message: 'Keep going, full support from India!',
-        createdAt: '2026-10-27T09:45:00Z',
-      },
-      {
-        id: 'tip_seed_4',
-        creatorId: 'creator_deep_mangaka',
-        supporterName: 'priya_k',
-        supporterAvatar: '/avatars/avatar-4.svg',
-        coins: 100,
-        amountInr: 50,
-        message: 'Proud to support indie creators.',
-        createdAt: '2026-10-28T12:00:00Z',
-      },
-    ];
-
-    const tips = getStored<CreatorTip[]>(STORAGE_KEYS.TIPS, defaultTips);
+    const tips = getStored<CreatorTip[]>(STORAGE_KEYS.TIPS, []);
     if (!creatorId) return tips;
     return tips.filter(t => t.creatorId === creatorId);
   },
@@ -3562,7 +3513,7 @@ export const StorageService = {
 // Automatic clean slate initialization for publication launch
 if (typeof window !== 'undefined') {
   try {
-    if (localStorage.getItem('mw_publish_clean_slate_v5_prod') !== 'true') {
+    if (localStorage.getItem('mw_publish_clean_slate_v7_launch') !== 'true') {
       StorageService.resetAllViewsAndLikes();
     }
   } catch {
