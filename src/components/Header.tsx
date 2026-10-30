@@ -18,6 +18,8 @@ import {
   Newspaper,
   Users,
   Compass,
+  Calculator,
+  ChevronRight,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -31,6 +33,7 @@ interface HeaderProps {
   onNavigate: (view: string, params?: Record<string, string>) => void;
   onOpenVIPModal: () => void;
   onOpenSearch: () => void;
+  onOpenCancelCalc?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -38,6 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigate,
   onOpenVIPModal,
   onOpenSearch,
+  onOpenCancelCalc,
 }) => {
   const {
     user,
@@ -92,6 +96,14 @@ export const Header: React.FC<HeaderProps> = ({
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Listen for bottom nav Profile / Menu trigger
+  useEffect(() => {
+    const handleToggleMenu = () => setIsMenuDrawerOpen(prev => !prev);
+    window.addEventListener('mw-toggle-menu', handleToggleMenu);
+    return () => window.removeEventListener('mw-toggle-menu', handleToggleMenu);
+  }, []);
+
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authDefaultRole, setAuthDefaultRole] = useState<'reader' | 'creator' | 'admin'>('reader');
@@ -150,40 +162,26 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      {/* 1. Permanent Fixed MangaWild Logo & Typography - Pinned at top-left across entire website (just like Instagram in screenshot) */}
-      <div className="fixed top-3 sm:top-4 left-4 sm:left-6 z-50 pointer-events-auto">
-        <button
-          onClick={() => onNavigate('home')}
-          className="focus:outline-none flex items-center cursor-pointer transition-transform duration-150 active:scale-95 drop-shadow-[0_2px_12px_rgba(0,0,0,0.65)] hover:opacity-90"
-          title="MangaWild Home"
-        >
-          <MangaWildLogo size="md" />
-        </button>
-      </div>
-
       {/* Static layout spacer to maintain top margin for page content */}
       <div className="h-16 sm:h-20 w-full shrink-0 pointer-events-none" aria-hidden="true" />
 
-      {/* 2. Smart Direction-Aware Header Bar: slides out on scroll-down, slides down on scroll-up */}
+      {/* Floating Island Header Bar with Curved Bezels and Frosted Glass Effect */}
       <header
-        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ease-out pointer-events-none ${
+        className={`fixed top-2.5 sm:top-3.5 left-3 right-3 sm:left-6 sm:right-6 max-w-6xl mx-auto z-40 transition-all duration-300 ease-out pointer-events-auto ${
           isHeaderVisible
             ? 'translate-y-0 opacity-100'
-            : '-translate-y-full opacity-0'
+            : '-translate-y-24 opacity-0 pointer-events-none'
         }`}
       >
-        {/* Blurry header background that is present whenever header is shown */}
-        <div
-          className={`absolute inset-0 transition-opacity duration-300 pointer-events-auto ${
-            theme === 'dark'
-              ? 'bg-[#09090b]/85 border-b border-zinc-800/80 backdrop-blur-md shadow-xs'
-              : 'bg-white/85 border-b border-zinc-200/80 backdrop-blur-md shadow-xs'
-          }`}
-        />
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between gap-4 sm:gap-8 relative z-10">
-          {/* Left spacer so navigation and action buttons align cleanly beside the fixed logo */}
-          <div className="w-[160px] sm:w-[195px] shrink-0 pointer-events-none" aria-hidden="true" />
+        <div className="relative bg-black/75 backdrop-blur-2xl border border-white/15 rounded-2xl sm:rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.85)] px-3 sm:px-5 py-2 sm:py-2.5 flex items-center justify-between gap-3 sm:gap-6">
+          {/* Left: MangaWild Logo inside curved island bar */}
+          <button
+            onClick={() => onNavigate('home')}
+            className="focus:outline-none flex items-center cursor-pointer transition-transform duration-150 active:scale-95 shrink-0"
+            title="MangaWild Home"
+          >
+            <MangaWildLogo size="sm" />
+          </button>
 
           {/* Menu Buttons & Actions - Clickable when header is in view */}
           <div className="flex items-center justify-between flex-1 gap-4 sm:gap-8 pointer-events-auto">
@@ -229,22 +227,18 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Right: Search, Theme Toggle, Notifications, VIP & Menu */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 ml-auto">
-            {/* Search Button */}
+            {/* Search Button (Minimalist pill with ⌘K badge) */}
             <button
               onClick={onOpenSearch}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl border transition-all duration-200 active:scale-95 cursor-pointer shadow-xs ${
-                theme === 'dark'
-                  ? 'bg-zinc-900/90 hover:bg-zinc-800 border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white'
-                  : 'bg-zinc-100 hover:bg-zinc-200 border-zinc-200 hover:border-zinc-300 text-zinc-700 hover:text-zinc-950'
-              }`}
+              className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 hover:text-zinc-200 transition-all duration-150 active:scale-95 cursor-pointer"
               title="Search Manga Catalog (Ctrl+K)"
             >
-              <Search className="w-4 h-4 text-zinc-400 shrink-0" />
-              <span className="hidden md:inline text-xs font-medium text-zinc-400">Search...</span>
+              <Search className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+              <span className="hidden md:inline text-xs text-zinc-400">Search</span>
+              <kbd className="hidden md:inline-block px-1 py-0.2 rounded text-[9px] font-mono font-medium text-zinc-500 bg-white/[0.06] border border-white/[0.06]">
+                ⌘K
+              </kbd>
             </button>
-
-
-
 
             {/* Notifications Dropdown */}
             <div className="relative">
@@ -253,16 +247,16 @@ export const Header: React.FC<HeaderProps> = ({
                   setIsNotifOpen(!isNotifOpen);
                   if (!isNotifOpen) markNotificationsAsRead();
                 }}
-                className={`relative p-1.5 sm:p-2 rounded-xl transition-all duration-150 active:scale-95 cursor-pointer ${
+                className={`relative p-2 rounded-xl transition-all duration-150 active:scale-95 cursor-pointer border border-transparent ${
                   theme === 'dark'
-                    ? 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                    ? 'text-zinc-400 hover:text-white hover:bg-white/[0.06] hover:border-white/[0.08]'
                     : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100'
                 }`}
                 title="Notifications"
               >
-                <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
+                <Bell className="w-4 h-4" />
                 {unreadNotifsCount > 0 && (
-                  <span className="absolute top-1 sm:top-1.5 right-1 sm:right-1.5 w-2 h-2 rounded-full bg-white dark:bg-zinc-200 animate-pulse" />
+                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                 )}
               </button>
 
@@ -270,12 +264,12 @@ export const Header: React.FC<HeaderProps> = ({
                 <div
                   className={`absolute right-0 mt-2 w-72 sm:w-80 rounded-2xl shadow-2xl p-4 z-50 animate-fade-in-up border ${
                     theme === 'dark'
-                      ? 'bg-zinc-900 border-zinc-800 text-white'
+                      ? 'bg-zinc-950/95 backdrop-blur-xl border-white/10 text-white'
                       : 'bg-white border-zinc-200 text-zinc-900'
                   }`}
                 >
-                  <div className="flex items-center justify-between pb-2 border-b border-zinc-800 mb-2">
-                    <span className="text-xs font-bold uppercase tracking-wider font-mono">
+                  <div className="flex items-center justify-between pb-2 border-b border-white/[0.06] mb-2">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
                       Notifications
                     </span>
                     <span className="text-[10px] text-zinc-500 font-mono">
@@ -289,11 +283,11 @@ export const Header: React.FC<HeaderProps> = ({
                       notifications.map(n => (
                         <div
                           key={n.id}
-                          className={`p-2.5 rounded-xl text-xs space-y-1 transition-all ${
-                            theme === 'dark' ? 'bg-zinc-800/60' : 'bg-zinc-100'
+                          className={`p-2.5 rounded-xl text-xs space-y-1 transition-all border border-white/[0.04] ${
+                            theme === 'dark' ? 'bg-white/[0.03]' : 'bg-zinc-100'
                           }`}
                         >
-                          <p className="font-bold">{n.title}</p>
+                          <p className="font-semibold text-zinc-200">{n.title}</p>
                           <p
                             className={`text-[11px] leading-tight ${
                               theme === 'dark' ? 'text-zinc-400' : 'text-zinc-600'
@@ -309,35 +303,38 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </div>
 
-            {/* Active VIP Member Badge - visible on md screens */}
-            {isAuthenticated && isVIP && (
-              <button
-                type="button"
-                onClick={() => onNavigate('membership')}
-                className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-xs font-bold font-mono transition-all cursor-pointer shadow-xs active:scale-95"
-                title="Active VIP Pass"
-              >
-                <Crown className="w-3.5 h-3.5 text-zinc-300" />
-                <span>VIP ACTIVE</span>
-              </button>
-            )}
+            {/* VIP Button (Minimalist refined badge) */}
+            <button
+              type="button"
+              onClick={() => onNavigate('membership')}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer active:scale-95 border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white"
+              title="MangaWild VIP Pass & Membership"
+            >
+              <Crown className="w-3.5 h-3.5 text-zinc-200" />
+              <span className="tracking-wide">VIP</span>
+              {isVIP && (
+                <span className="text-[8px] tracking-wider uppercase bg-white/10 text-white border border-white/20 px-1 py-0.2 rounded font-mono font-semibold">
+                  PRO
+                </span>
+              )}
+            </button>
 
-            {/* Log In Button - Only visible when not authenticated */}
+            {/* Log In Button - Minimal monochrome pill */}
             {!isAuthenticated && (
               <button
                 onClick={() => handleOpenAuth('reader')}
-                className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[11px] sm:text-xs font-bold text-zinc-950 bg-white hover:bg-zinc-200 rounded-xl shadow-xs transition-all uppercase tracking-wide whitespace-nowrap cursor-pointer active:scale-95"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-black bg-white hover:bg-zinc-200 rounded-xl transition-all whitespace-nowrap cursor-pointer active:scale-95 shadow-xs"
               >
                 <UserIcon className="w-3.5 h-3.5" />
                 <span>Log In</span>
               </button>
             )}
 
-            {/* Sign Out Button - Direct visible action when authenticated */}
+            {/* Sign Out Button */}
             {isAuthenticated && (
               <button
                 onClick={signOut}
-                className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 sm:py-2 text-xs font-bold text-red-300 hover:text-white bg-red-950/40 hover:bg-red-900/60 border border-red-800/60 rounded-xl transition-all uppercase tracking-wide whitespace-nowrap cursor-pointer active:scale-95"
+                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-zinc-400 hover:text-white bg-transparent hover:bg-white/[0.06] border border-transparent hover:border-white/10 rounded-xl transition-all whitespace-nowrap cursor-pointer active:scale-95"
                 title="Sign Out"
               >
                 <LogOut className="w-3.5 h-3.5" />
@@ -345,25 +342,22 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Prominent Three-Lines Menu Button */}
+            {/* Menu Button (Minimal icon-first button) */}
             <button
               onClick={() => {
                 setIsMenuDrawerOpen(!isMenuDrawerOpen);
                 setNewUsernameInput(user.username || '');
                 setIsEditingUsername(false);
               }}
-              className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border transition-all duration-150 active:scale-95 cursor-pointer font-bold text-xs ${
+              className={`p-2 rounded-xl border transition-all duration-150 active:scale-95 cursor-pointer ${
                 isMenuDrawerOpen
-                  ? 'bg-white text-zinc-950 border-white shadow-md'
-                  : theme === 'dark'
-                  ? 'border-zinc-800 bg-zinc-900/90 text-white hover:bg-zinc-800 hover:border-zinc-700'
-                  : 'border-zinc-300 bg-zinc-50 text-zinc-900 hover:bg-zinc-100 hover:border-zinc-400'
+                  ? 'bg-white text-black border-white shadow-sm'
+                  : 'border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] hover:border-white/20 text-zinc-300 hover:text-white'
               }`}
               title="Open Menu & Profile"
               aria-label="Open Menu & Profile"
             >
-              <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-current" />
-              <span className="hidden sm:inline font-mono uppercase tracking-wider">Menu</span>
+              <Menu className="w-4 h-4 text-current" />
             </button>
           </div>
           </div>
@@ -758,24 +752,66 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
               )}
 
-              {/* Subscription Membership */}
-              <button
-                onClick={() => {
-                  onNavigate('membership');
-                  setIsMenuDrawerOpen(false);
-                }}
-                className={`w-full text-left px-3.5 py-2.5 rounded-xl font-medium text-xs flex items-center justify-between transition-all cursor-pointer ${
-                  currentView === 'membership'
-                    ? 'bg-zinc-800 text-white font-bold'
-                    : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Crown className="w-4 h-4 text-white" />
-                  <span>Subscription Plans</span>
-                </div>
-                <span className="text-[10px] font-mono text-zinc-500">Plans</span>
-              </button>
+              {/* Prominent VIP Button in Menu */}
+              <div className="pt-1 pb-1 space-y-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onNavigate('membership');
+                    setIsMenuDrawerOpen(false);
+                  }}
+                  className={`w-full p-3.5 rounded-2xl border text-left transition-all cursor-pointer shadow-md group ${
+                    isVIP
+                      ? 'bg-zinc-900 border-white/30 text-white'
+                      : 'bg-zinc-900/90 hover:bg-zinc-800 border-zinc-800 hover:border-zinc-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-zinc-800 text-white border border-white/20 flex items-center justify-center shrink-0">
+                        <Crown className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-black text-white group-hover:text-zinc-200">
+                            VIP Pass & Membership
+                          </span>
+                          <span className="text-[9px] bg-white text-black px-1.5 py-0.5 rounded font-black font-mono uppercase">
+                            VIP
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
+                          {isVIP ? 'Perks active & unlocked' : 'Unlimited 4K manga & ad-free'}
+                        </p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+                  </div>
+                </button>
+
+                {/* Dedicated Subscription Cancellation & Calculation Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuDrawerOpen(false);
+                    if (onOpenCancelCalc) {
+                      onOpenCancelCalc();
+                    } else {
+                      onNavigate('membership');
+                    }
+                  }}
+                  className="w-full text-left px-3.5 py-2.5 rounded-xl font-medium text-xs flex items-center justify-between transition-all cursor-pointer bg-zinc-900/70 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800"
+                  title="Subscription Cancellation & Refund Calculator"
+                >
+                  <div className="flex items-center gap-3">
+                    <Calculator className="w-4 h-4 text-zinc-300" />
+                    <span>Cancellation & Calculator</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded border border-zinc-700">
+                    Proration
+                  </span>
+                </button>
+              </div>
 
 
               <div className="border-t border-zinc-800/80 my-2 pt-2">
@@ -826,7 +862,7 @@ export const Header: React.FC<HeaderProps> = ({
                     signOut();
                     setIsMenuDrawerOpen(false);
                   }}
-                  className="w-full py-2.5 px-3 rounded-xl bg-red-950/40 border border-red-800/60 text-red-300 hover:bg-red-900/60 hover:text-white text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm active:scale-98"
+                  className="w-full py-2.5 px-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 text-zinc-300 hover:text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm active:scale-98"
                 >
                   <LogOut className="w-4 h-4" />
                   <span>Sign Out</span>

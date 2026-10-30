@@ -42,28 +42,17 @@ export const MangaWildLogo: React.FC<MangaWildLogoProps> = ({
         <div className="absolute inset-0 rounded-xl ring-1 ring-white/10 pointer-events-none" />
       </div>
 
-      {/* MangaWild Wordmark Typography in custom MangaWild font */}
+      {/* MangaWild Wordmark Typography in custom MangaWild font - Clean and minimal */}
       {showWordmark && (
-        <div className="flex flex-col justify-center min-w-0">
-          <div className="flex items-center gap-2">
-            <span
-              className={`font-rockidz-3d tracking-wider leading-none text-white ${textSizes[size]}`}
-              style={{
-                fontFamily: "'Rockidz 3D', 'Rockidz', cursive, system-ui, sans-serif",
-                letterSpacing: '0.04em',
-              }}
-            >
-              MANGAWILD
-            </span>
-
-            {showExclusiveBadge && (
-              <span className="hidden sm:inline-block bg-slate-800/90 text-slate-200 border border-slate-700 text-[10px] font-bold tracking-widest px-2 py-0.5 rounded font-mono uppercase shadow-xs">
-                EXCLUSIVE
-              </span>
-            )}
-          </div>
-          <span className="hidden sm:block text-[10px] uppercase font-mono tracking-widest text-zinc-400 mt-0.5 truncate">
-            Official Digital Manga
+        <div className="flex items-center justify-center min-w-0">
+          <span
+            className={`font-rockidz-3d tracking-wider leading-none text-white ${textSizes[size]}`}
+            style={{
+              fontFamily: "'Rockidz 3D', 'Rockidz', cursive, system-ui, sans-serif",
+              letterSpacing: '0.04em',
+            }}
+          >
+            MANGAWILD
           </span>
         </div>
       )}

@@ -22,6 +22,8 @@ import { NewsPage } from './pages/NewsPage';
 import { RazorpayCheckoutModal } from './components/RazorpayCheckoutModal';
 import { SearchModal } from './components/SearchModal';
 import { AuthModal } from './components/AuthModal';
+import { BottomNavBar } from './components/BottomNavBar';
+import { SubscriptionCancellationCalculatorModal } from './components/SubscriptionCancellationCalculatorModal';
 import { StorageService } from './services/storage';
 import { MangaSeries, Chapter } from './types/manga';
 
@@ -225,6 +227,7 @@ function AppContent() {
   const [isVIPModalOpen, setIsVIPModalOpen] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<'monthly' | 'yearly'>('monthly');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isCancelCalcOpen, setIsCancelCalcOpen] = useState(false);
 
   // Check if visitor arrived from an official Firebase Password Reset email link
   useEffect(() => {
@@ -478,6 +481,7 @@ function AppContent() {
         onNavigate={handleNavigate}
         onOpenVIPModal={() => handleOpenVIPModal('monthly')}
         onOpenSearch={() => setIsSearchOpen(true)}
+        onOpenCancelCalc={() => setIsCancelCalcOpen(true)}
       />
 
       {/* Main Dynamic View */}
@@ -604,6 +608,19 @@ function AppContent() {
           }
           closeAuthModal();
         }}
+      />
+
+      {/* Global Subscription Cancellation & Refund Calculation Modal */}
+      <SubscriptionCancellationCalculatorModal
+        isOpen={isCancelCalcOpen}
+        onClose={() => setIsCancelCalcOpen(false)}
+      />
+
+      {/* Minimal Bottom Navigation Bar Dock (matches screenshot) */}
+      <BottomNavBar
+        currentView={currentView}
+        onNavigate={handleNavigate}
+        onOpenProfileMenu={() => window.dispatchEvent(new CustomEvent('mw-toggle-menu'))}
       />
 
     </div>

@@ -100,6 +100,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     const s = seriesList.find(item => item.id === seriesId);
     StorageService.updateSeries(seriesId, {
       moderationStatus: 'approved',
+      isApprovedByAdmin: true,
       reviewerNotes: 'Approved by MangaWild Chief Editorial Board. Live on platform.',
     });
 
@@ -390,13 +391,13 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
           }`}
         >
           {[
-            { id: 'moderation', label: 'Approval Desk', count: totalPendingModeration },
-            { id: 'reviews', label: 'Reviews & Flags', count: flaggedCount },
-            { id: 'catalog', label: 'Catalog & Ranks' },
-            { id: 'creators', label: 'Creators & Payouts' },
-            { id: 'users', label: 'User Management' },
-            { id: 'analytics', label: 'Financials & Metrics' },
-            { id: 'export', label: 'Android App & Source Kit' },
+            { id: 'moderation', label: 'Approvals', count: totalPendingModeration },
+            { id: 'reviews', label: 'Reviews', count: flaggedCount },
+            { id: 'catalog', label: 'Catalog' },
+            { id: 'creators', label: 'Creators' },
+            { id: 'users', label: 'Users' },
+            { id: 'analytics', label: 'Financials' },
+            { id: 'export', label: 'Export' },
           ].map(tab => (
             <button
               key={tab.id}
@@ -409,7 +410,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
             >
               <span>{tab.label}</span>
               {tab.count !== undefined && tab.count > 0 && (
-                <span className="w-4 h-4 rounded-full bg-amber-500 text-zinc-950 text-[10px] flex items-center justify-center font-mono font-bold">
+                <span className="w-4 h-4 rounded-full bg-white text-zinc-950 text-[10px] flex items-center justify-center font-mono font-bold">
                   {tab.count}
                 </span>
               )}
@@ -436,7 +437,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
 
               <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40">
                 <span className="text-[10px] font-mono uppercase text-zinc-400">Total Approved Manga</span>
-                <p className="text-2xl font-black mt-1 text-emerald-400">
+                <p className="text-2xl font-black mt-1 text-white font-medium">
                   {seriesList.filter(s => s.moderationStatus === 'approved').length}
                 </p>
                 <p className="text-[10px] text-zinc-500 font-mono mt-0.5">Live on public website</p>
@@ -461,7 +462,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
 
               {pendingSeries.length === 0 ? (
                 <div className="p-8 text-center rounded-2xl border border-zinc-800 bg-zinc-900/20">
-                  <CheckCircle className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                  <CheckCircle className="w-8 h-8 text-white mx-auto mb-2" />
                   <p className="text-xs font-semibold text-zinc-400">
                     All submitted manga series have been reviewed! No pending series in queue.
                   </p>
@@ -473,7 +474,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                     return (
                       <div
                         key={s.id}
-                        className="p-5 rounded-2xl border border-amber-900/40 bg-zinc-900/60 flex flex-col md:flex-row gap-5 items-start justify-between"
+                        className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/60 flex flex-col md:flex-row gap-5 items-start justify-between"
                       >
                         <div className="flex gap-4">
                           <img
@@ -483,7 +484,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                           />
                           <div className="space-y-1.5">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold uppercase bg-amber-950 text-amber-300 border border-amber-800">
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold uppercase bg-zinc-800 text-zinc-300 border border-zinc-700">
                                 Pending Approval
                               </span>
                               {s.isExclusive && (
@@ -689,7 +690,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                               className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold uppercase ${
                                 ch.moderationStatus === 'approved'
                                   ? 'bg-zinc-800 text-zinc-200'
-                                  : 'bg-amber-950 text-amber-300'
+                                  : 'bg-zinc-800 text-zinc-300 border border-zinc-700'
                               }`}
                             >
                               {ch.moderationStatus}
@@ -746,7 +747,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
 
               <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/60">
                 <span className="text-[10px] font-mono uppercase text-zinc-400">Hidden / Violations</span>
-                <p className="text-2xl font-black font-mono mt-1 text-red-400">
+                <p className="text-2xl font-black font-mono mt-1 text-zinc-400">
                   {reviewsList.filter(r => r.status === 'hidden').length}
                 </p>
               </div>
@@ -763,7 +764,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-white">{review.userName}</span>
                       <span className="text-[10px] font-mono text-zinc-500">on {review.seriesTitle}</span>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-amber-300">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-white font-bold">
                         ★ {review.rating}/5
                       </span>
                     </div>

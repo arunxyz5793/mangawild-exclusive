@@ -1,26 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Star,
+  Play,
+  Bookmark,
+  Crown,
   ChevronRight,
   BookOpen,
-  Bookmark,
-  Calendar,
-  Sparkles,
-  TrendingUp,
-  Crown,
-  Play,
-  ArrowRight,
-  PenTool,
-  Shield,
-  MessageSquare,
-  Clock,
-  Compass,
-  Heart,
-  Eye,
-  Lock,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
 import { StorageService } from '../services/storage';
 import { MangaSeries, Chapter } from '../types/manga';
 
@@ -37,577 +24,321 @@ export const HomePage: React.FC<HomePageProps> = ({
   onNavigate,
   onOpenVIPModal,
 }) => {
-  const { theme } = useTheme();
-  const { isVIP, bookmarks, toggleBookmark, canAccessCreator, toggleCreatorMode, isAuthenticated, openAuthModal } = useAuth();
+  const { bookmarks, toggleBookmark } = useAuth();
 
-  const allSeries = useMemo(() => StorageService.getSeries().filter(s => s.moderationStatus === 'approved'), []);
-  const allChapters = useMemo(() => StorageService.getChapters(), []);
-  const allReviews = useMemo(() => StorageService.getReviews(), []);
+  const allSeries = useMemo(
+    () => StorageService.getSeries().filter(s => s.moderationStatus === 'approved'),
+    []
+  );
 
-  // 1. Featured Spotlight Carousel State
-  const featuredSeriesList = useMemo(() => allSeries.slice(0, 3), [allSeries]);
-  const [activeSpotlightIdx, setActiveSpotlightIdx] = useState(0);
-  const currentSpotlight = featuredSeriesList[activeSpotlightIdx] || featuredSeriesList[0];
-
-  // Auto-rotate spotlight
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setActiveSpotlightIdx(prev => (prev + 1) % featuredSeriesList.length);
-    }, 8000);
-    return () => clearInterval(timer);
-  }, [featuredSeriesList.length]);
-
-  // 2. New Series Releases (Sorted by newest createdAt)
-  const newSeriesList = useMemo(() => {
-    return [...allSeries]
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 5);
+  // 1. Featured Manga Spotlight (matching top card in screenshot: SILENT HEADS)
+  const featuredSpotlight = useMemo(() => {
+    const silentHeads = allSeries.find(s => s.slug === 'silent-heads' || s.id === 'series_silent_heads');
+    return silentHeads || allSeries[0];
   }, [allSeries]);
 
-  // 4. Curated Genre Discovery
+  // Curated Genre discovery
   const [selectedGenre, setSelectedGenre] = useState<string>('All');
-  const genres = ['All', 'Mystery', 'Dark Comedy', 'Sci-Fi', 'Horror', 'Slice of Life', 'Adventure', 'Dark Fantasy', 'Thriller', 'Adult'];
+  const genres = ['All', 'Mystery', 'Dark Comedy', 'Sci-Fi', 'Horror', 'Slice of Life', 'Adventure', 'Dark Fantasy'];
 
+  // Trending / Ranked Manga list (Ranked #1, #2, #3, ...)
+  const trendingSeries = useMemo(() => {
+    return [...allSeries]
+      .sort((a, b) => (a.rankNumber ?? 99) - (b.rankNumber ?? 99));
+  }, [allSeries]);
+
+  // Filtered All Manga catalog
   const filteredCatalog = useMemo(() => {
     if (selectedGenre === 'All') return allSeries;
     return allSeries.filter(s => s.genres.includes(selectedGenre as any));
   }, [allSeries, selectedGenre]);
-
-  // 5. Community Reviews Spotlight
-  const highlightedReviews = useMemo(() => {
-    return allReviews.filter(r => r.status === 'approved' && r.rating >= 4).slice(0, 3);
-  }, [allReviews]);
 
   const getFirstChapter = (seriesId: string): Chapter | undefined => {
     const chs = StorageService.getChapters(seriesId);
     return chs[0];
   };
 
-  const firstChapterOfSpotlight = currentSpotlight ? getFirstChapter(currentSpotlight.id) : undefined;
-  const isSpotlightBookmarked = currentSpotlight ? bookmarks.includes(currentSpotlight.id) : false;
-
   return (
-    <div className="space-y-16 pb-20 select-none">
-      {/* ========================================================================= */}
-      {/* 1. EDITORIAL SPOTLIGHT (Hero Section - Monochrome Elegance)                */}
-      {/* ========================================================================= */}
-      <section
-        className={`relative overflow-hidden border-b transition-colors ${
-          theme === 'dark'
-            ? 'bg-[#09090b] border-zinc-800'
-            : 'bg-zinc-50 border-zinc-200'
-        }`}
-      >
-        {/* Ambient Subtle Backdrop */}
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-10 blur-3xl scale-110 pointer-events-none transition-all duration-1000"
-          style={{ backgroundImage: `url(${currentSpotlight?.coverUrl})` }}
-        />
+    <div className="min-h-screen bg-black text-white pb-28 pt-2 select-none">
+      <div className="max-w-md sm:max-w-2xl lg:max-w-5xl mx-auto px-4 sm:px-6 space-y-7 sm:space-y-9">
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-10 pb-16 lg:py-16">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-            {/* Left: Metadata & Presentation */}
-            <div className="lg:col-span-7 space-y-6">
-              <div className="flex items-center gap-3 text-xs">
-                <span className="bg-zinc-800 text-zinc-100 dark:bg-white dark:text-zinc-950 text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded font-mono shadow-xs">
-                  FLAGSHIP SPOTLIGHT
+        {/* ========================================================================= */}
+        {/* 1. MINIMAL EDITORIAL SPOTLIGHT (Hero Card)                                */}
+        {/* ========================================================================= */}
+        {featuredSpotlight && (
+          <div
+            onClick={() => onSelectSeries(featuredSpotlight.id)}
+            className="group relative w-full h-[480px] sm:h-[540px] lg:h-[580px] rounded-2xl overflow-hidden bg-zinc-950 border border-white/[0.08] cursor-pointer shadow-xl transition-all duration-300 hover:border-white/20 flex flex-col justify-between"
+          >
+            {/* Ambient Background Gradient Glow */}
+            <div
+              className="absolute inset-0 bg-cover bg-center blur-3xl opacity-20 scale-110 pointer-events-none transition-opacity duration-700 group-hover:opacity-30"
+              style={{ backgroundImage: `url(${featuredSpotlight.coverUrl || featuredSpotlight.bannerUrl})` }}
+            />
+
+            {/* Main Cover Artwork with Gentle Zoom */}
+            <img
+              src={featuredSpotlight.coverUrl || featuredSpotlight.bannerUrl}
+              alt={featuredSpotlight.title}
+              className="absolute inset-0 w-full h-full object-cover sm:object-contain sm:object-right-top transition-transform duration-700 ease-out group-hover:scale-[1.02] z-0 opacity-80 sm:opacity-95"
+            />
+
+            {/* Seamless Vignette Overlay for Readability */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/30 sm:bg-gradient-to-r sm:from-black sm:via-black/80 sm:to-transparent z-10 pointer-events-none" />
+
+            {/* Top Bar: Minimal Spotlight Pill + Quick Bookmark */}
+            <div className="relative top-4 left-4 right-4 z-20 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 rounded-md text-[10px] font-semibold tracking-widest uppercase bg-white/10 backdrop-blur-md text-zinc-300 border border-white/10">
+                  Spotlight
                 </span>
-                <span className="text-zinc-400 font-mono">Original Series</span>
-                <span className="text-zinc-500">·</span>
-                <span className={`font-mono flex items-center gap-1 font-bold ${theme === 'dark' ? 'text-zinc-200' : 'text-zinc-800'}`}>
-                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                  {currentSpotlight?.rating.toFixed(1)} / 5.0 Rating
-                </span>
+                {featuredSpotlight.ageRating && (
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-medium tracking-wide bg-zinc-900/80 backdrop-blur-sm text-zinc-400 border border-zinc-800">
+                    {featuredSpotlight.ageRating}
+                  </span>
+                )}
+                {featuredSpotlight.isExclusive && (
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold tracking-wide bg-white/10 text-white border border-white/20 flex items-center gap-1">
+                    <Crown className="w-2.5 h-2.5" />
+                    <span>VIP</span>
+                  </span>
+                )}
               </div>
 
-              {/* Title & Unboxed Metadata */}
-              <div className="space-y-3">
-                <h1
-                  className={`text-4xl sm:text-5xl lg:text-6xl font-black font-serif tracking-tight leading-tight ${
-                    theme === 'dark' ? 'text-white' : 'text-zinc-900'
-                  }`}
-                >
-                  {currentSpotlight?.title}
+              {/* Minimal Bookmark Action */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleBookmark(featuredSpotlight.id);
+                }}
+                className={`p-2 rounded-xl backdrop-blur-md transition-all active:scale-90 cursor-pointer border ${
+                  bookmarks.includes(featuredSpotlight.id)
+                    ? 'bg-white text-black border-white shadow-sm'
+                    : 'bg-black/40 text-zinc-300 hover:text-white border-white/10 hover:border-white/20'
+                }`}
+                title={bookmarks.includes(featuredSpotlight.id) ? 'Remove Bookmark' : 'Bookmark Series'}
+              >
+                <Bookmark className="w-3.5 h-3.5 fill-current" />
+              </button>
+            </div>
+
+            {/* Bottom Meta & Action Area */}
+            <div className="relative bottom-5 left-5 right-5 z-20 flex flex-col sm:flex-row sm:items-end justify-between gap-4 mt-auto">
+              <div className="max-w-lg space-y-2">
+                <div className="flex items-center gap-2 text-xs text-zinc-400 font-medium">
+                  <span className="text-zinc-200 font-semibold">{featuredSpotlight.author}</span>
+                  <span className="text-zinc-600">•</span>
+                  <div className="flex items-center gap-1">
+                    <Star className="w-3 h-3 fill-white text-white" />
+                    <span className="text-zinc-200 font-semibold">{featuredSpotlight.rating.toFixed(1)}</span>
+                  </div>
+                  <span className="text-zinc-600">•</span>
+                  <span className="text-zinc-400 capitalize">{featuredSpotlight.status}</span>
+                </div>
+
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold uppercase tracking-tight text-white font-sans">
+                  {featuredSpotlight.title}
                 </h1>
 
-                <div className={`flex flex-wrap items-center gap-2 text-xs ${theme === 'dark' ? 'text-zinc-400' : 'text-zinc-600'}`}>
-                  <span>
-                    Written by{' '}
-                    <button
-                      type="button"
-                      onClick={() => onNavigate('creator-profile', { id: currentSpotlight?.creatorId, author: currentSpotlight?.author })}
-                      className={`font-black underline decoration-zinc-500/50 underline-offset-4 hover:text-white transition-colors cursor-pointer ${
-                        theme === 'dark' ? 'text-zinc-200' : 'text-zinc-900'
-                      }`}
-                      title={`View ${currentSpotlight?.author}'s Creator Profile`}
+                <p className="text-xs sm:text-sm text-zinc-400 line-clamp-2 leading-relaxed max-w-md">
+                  {featuredSpotlight.synopsis}
+                </p>
+
+                <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                  {featuredSpotlight.genres.slice(0, 3).map((g) => (
+                    <span
+                      key={g}
+                      className="px-2 py-0.5 rounded text-[10px] font-medium tracking-wide bg-white/[0.06] text-zinc-300 border border-white/[0.06]"
                     >
-                      {currentSpotlight?.author}
-                    </button>
-                  </span>
-                  <span>·</span>
-                  <span className={theme === 'dark' ? 'text-zinc-300' : 'text-zinc-700'}>{currentSpotlight?.genres.join(' · ')}</span>
-                  <span>·</span>
-                  <span className="font-mono">
-                    {(currentSpotlight?.totalReads ?? 0).toLocaleString()} readers
-                  </span>
-                  {currentSpotlight?.isExclusive && (
-                    <>
-                      <span>·</span>
-                      <span className="font-semibold uppercase flex items-center gap-1 font-mono text-zinc-300 bg-zinc-800/80 px-2 py-0.5 rounded text-[11px] border border-zinc-700">
-                        <Lock className="w-3 h-3" /> VIP Exclusive
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Synopsis */}
-              <p
-                className={`text-sm sm:text-base leading-relaxed max-w-2xl line-clamp-3 ${
-                  theme === 'dark' ? 'text-zinc-300' : 'text-zinc-600'
-                }`}
-              >
-                {currentSpotlight?.synopsis}
-              </p>
-
-              {/* High-Contrast Action Buttons */}
-              <div className="flex flex-wrap items-center gap-3 pt-2">
-                {firstChapterOfSpotlight && (
-                  <button
-                    onClick={() => onReadChapter(currentSpotlight.id, firstChapterOfSpotlight.id)}
-                    className="px-6 py-3 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-95 duration-150 flex items-center gap-2 hover:scale-[1.02] cursor-pointer"
-                  >
-                    <BookOpen className="w-4 h-4" />
-                    <span>Read First Chapter</span>
-                  </button>
-                )}
-
-                <button
-                  onClick={() => onSelectSeries(currentSpotlight.id)}
-                  className={`px-5 py-3 rounded-xl font-semibold text-xs uppercase tracking-wider transition-all active:scale-95 duration-150 flex items-center gap-2 cursor-pointer border ${
-                    theme === 'dark'
-                      ? 'bg-zinc-900 hover:bg-zinc-800 text-white border-zinc-700'
-                      : 'bg-white hover:bg-zinc-100 text-zinc-900 border-zinc-300 shadow-xs'
-                  }`}
-                >
-                  <span>Series Overview</span>
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-
-                <button
-                  onClick={() => toggleBookmark(currentSpotlight.id)}
-                  className={`p-3 rounded-xl border transition-all active:scale-95 duration-150 cursor-pointer ${
-                    isSpotlightBookmarked
-                      ? 'bg-zinc-800 text-white border-zinc-600'
-                      : theme === 'dark'
-                      ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white'
-                      : 'bg-white border-zinc-200 text-zinc-600 hover:text-zinc-950'
-                  }`}
-                  title={isSpotlightBookmarked ? 'Remove from Library' : 'Add to Library'}
-                >
-                  <Bookmark className={`w-4 h-4 ${isSpotlightBookmarked ? 'fill-current' : ''}`} />
-                </button>
-              </div>
-            </div>
-
-            {/* Right: Poster & Thumbnails */}
-            <div className="lg:col-span-5 flex flex-col sm:flex-row lg:flex-col items-center gap-6">
-              <div
-                onClick={() => onSelectSeries(currentSpotlight.id)}
-                className={`group relative w-60 sm:w-68 aspect-[3/4] rounded-2xl overflow-hidden cursor-pointer transform transition-all duration-300 hover:scale-[1.02] shadow-2xl border ${
-                  theme === 'dark'
-                    ? 'bg-zinc-900 border-zinc-800 shadow-black/80'
-                    : 'bg-zinc-100 border-zinc-300 shadow-zinc-300'
-                }`}
-              >
-                <img
-                  src={currentSpotlight?.coverUrl}
-                  alt={currentSpotlight?.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-                  <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5 font-mono">
-                    <Play className="w-3.5 h-3.5 fill-white text-white" /> Open Reader
-                  </span>
-                </div>
-              </div>
-
-              {/* Thumbnails */}
-              <div className="flex sm:flex-col lg:flex-row items-center gap-2">
-                {featuredSeriesList.map((series, idx) => (
-                  <button
-                    key={series.id}
-                    onClick={() => setActiveSpotlightIdx(idx)}
-                    className={`flex items-center gap-2 p-1.5 rounded-xl border text-left transition-all cursor-pointer ${
-                      activeSpotlightIdx === idx
-                        ? 'border-white bg-zinc-800 dark:bg-zinc-800 shadow-xs'
-                        : theme === 'dark'
-                        ? 'border-zinc-800 bg-zinc-900/60 opacity-60 hover:opacity-100'
-                        : 'border-zinc-200 bg-white opacity-70 hover:opacity-100'
-                    }`}
-                  >
-                    <img
-                      src={series.coverUrl}
-                      alt={series.title}
-                      className="w-8 h-10 object-cover rounded-md bg-zinc-800"
-                    />
-                    <div className="hidden sm:block pr-2">
-                      <span
-                        className={`text-[11px] font-bold block truncate max-w-[110px] ${
-                          theme === 'dark' ? 'text-white' : 'text-zinc-900'
-                        }`}
-                      >
-                        {series.title}
-                      </span>
-                      <span className="text-[9px] text-zinc-400 font-mono block">
-                        {series.genres[0]}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ========================================================================= */}
-      {/* 2. NEW SERIES RELEASES                                                    */}
-      {/* ========================================================================= */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
-        <div className="flex items-center justify-between border-b pb-4 border-zinc-200 dark:border-zinc-800">
-          <div>
-            <div className="flex items-center gap-2 text-xs text-zinc-300 font-bold uppercase tracking-wider font-mono">
-              <Sparkles className="w-4 h-4 text-zinc-300" />
-              <span>Fresh Releases &bull; New Series</span>
-            </div>
-            <h2
-              className={`text-2xl font-bold font-serif tracking-tight mt-0.5 ${
-                theme === 'dark' ? 'text-white' : 'text-zinc-900'
-              }`}
-            >
-              New Series Releases
-            </h2>
-          </div>
-          <button
-            onClick={() => onNavigate('new_series')}
-            className="text-xs font-semibold text-zinc-400 hover:text-white flex items-center gap-1 cursor-pointer"
-          >
-            <span>View All New Series</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          {newSeriesList.map((series) => (
-            <div
-              key={series.id}
-              onClick={() => onSelectSeries(series.id)}
-              className={`group relative p-3 rounded-2xl border card-interactive active:scale-98 cursor-pointer flex flex-col justify-between ${
-                theme === 'dark'
-                  ? 'bg-zinc-900/70 border-zinc-800 hover:border-zinc-700 shadow-sm'
-                  : 'bg-white border-zinc-200 hover:border-zinc-300 shadow-xs'
-              }`}
-            >
-              {/* New Badge */}
-              <div className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-lg bg-white text-zinc-950 font-mono font-black text-[10px] flex items-center gap-1 shadow-md uppercase tracking-wider">
-                <Sparkles className="w-3 h-3 text-zinc-950" />
-                <span>NEW</span>
-              </div>
-
-              <div className="space-y-3">
-                <div className="aspect-[3/4] rounded-xl overflow-hidden bg-zinc-800">
-                  <img
-                    src={series.coverUrl}
-                    alt={series.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <h3
-                    className={`text-sm font-bold truncate group-hover:text-zinc-300 transition-colors ${
-                      theme === 'dark' ? 'text-white' : 'text-zinc-900'
-                    }`}
-                  >
-                    {series.title}
-                  </h3>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNavigate('creator-profile', { id: series.creatorId, author: series.author });
-                    }}
-                    className="text-[11px] text-zinc-400 hover:text-white hover:underline font-mono truncate text-left block w-full cursor-pointer"
-                  >
-                    by {series.author}
-                  </button>
-                  <div className="flex items-center gap-2 text-[11px] text-zinc-400 font-mono">
-                    <span>{series.genres[0]}</span>
-                    <span>·</span>
-                    <span className="flex items-center gap-0.5 text-amber-400 font-bold">
-                      <Star className="w-3 h-3 fill-current" />
-                      {series.rating.toFixed(1)}
+                      {g}
                     </span>
-                  </div>
+                  ))}
                 </div>
               </div>
 
-              <div className="pt-2.5 border-t border-zinc-200 dark:border-zinc-800/60 flex items-center justify-between text-[11px] font-mono text-zinc-400">
-                <div className="flex items-center gap-2">
-                  <span className="flex items-center gap-0.5" title="Total Views">
-                    <Eye className="w-3 h-3 text-zinc-400" />
-                    <span>{(series.totalViews ?? 0).toLocaleString()}</span>
-                  </span>
-                  <span className="flex items-center gap-0.5 text-zinc-400" title="Likes">
-                    <Heart className="w-3 h-3" />
-                    <span>{(series.likesCount ?? 0).toLocaleString()}</span>
-                  </span>
-                </div>
-                <span className="text-zinc-300 font-bold group-hover:text-white group-hover:translate-x-0.5 transition-all">
-                  Read →
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ========================================================================= */}
-      {/* 4. CURATED GENRE EXPLORER                                                  */}
-      {/* ========================================================================= */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4 border-zinc-200 dark:border-zinc-800">
-          <div>
-            <div className="flex items-center gap-2 text-xs text-zinc-400 font-bold uppercase tracking-wider font-mono">
-              <Compass className="w-4 h-4" />
-              <span>Catalog Diversity</span>
-            </div>
-            <h2
-              className={`text-2xl font-bold font-serif tracking-tight mt-0.5 ${
-                theme === 'dark' ? 'text-white' : 'text-zinc-900'
-              }`}
-            >
-              Curated by Genre
-            </h2>
-          </div>
-
-          {/* Interactive Genre Filter Tabs */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-            {genres.map(genre => (
-              <button
-                key={genre}
-                onClick={() => setSelectedGenre(genre)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-150 active:scale-95 cursor-pointer ${
-                  selectedGenre === genre
-                    ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-bold shadow-xs'
-                    : theme === 'dark'
-                    ? 'bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800'
-                    : 'bg-zinc-100 text-zinc-600 hover:text-zinc-900'
-                }`}
-              >
-                {genre}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          {filteredCatalog.slice(0, 6).map(series => (
-            <div
-              key={series.id}
-              onClick={() => onSelectSeries(series.id)}
-              className={`group p-2.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-2 ${
-                theme === 'dark'
-                  ? 'bg-zinc-900/70 border-zinc-800 hover:border-zinc-700'
-                  : 'bg-white border-zinc-200 hover:border-zinc-300 shadow-xs'
-              }`}
-            >
-              <div className="aspect-[3/4] rounded-xl overflow-hidden bg-zinc-800">
-                <img
-                  src={series.coverUrl}
-                  alt={series.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                />
-              </div>
-
-              <div className="space-y-0.5">
-                <h3
-                  className={`text-xs font-bold truncate group-hover:text-zinc-300 transition-colors ${
-                    theme === 'dark' ? 'text-white' : 'text-zinc-900'
-                  }`}
-                >
-                  {series.title}
-                </h3>
+              {/* Minimal Dual Buttons */}
+              <div className="shrink-0 flex items-center gap-2 pt-1 sm:pt-0">
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onNavigate('creator-profile', { id: series.creatorId, author: series.author });
+                    const firstCh = getFirstChapter(featuredSpotlight.id);
+                    if (firstCh) {
+                      onReadChapter(featuredSpotlight.id, firstCh.id);
+                    } else {
+                      onSelectSeries(featuredSpotlight.id);
+                    }
                   }}
-                  className="text-[10px] text-zinc-400 hover:text-white hover:underline font-mono truncate text-left block w-full cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs tracking-wider uppercase flex items-center gap-2 shadow-sm transition-all duration-150 active:scale-95 cursor-pointer"
                 >
-                  {series.author}
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>Start Reading</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectSeries(featuredSpotlight.id);
+                  }}
+                  className="px-3 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-zinc-200 hover:text-white font-medium text-xs tracking-wider uppercase flex items-center gap-1 backdrop-blur-md border border-white/10 transition-all duration-150 active:scale-95 cursor-pointer"
+                >
+                  <span>Details</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
-          ))}
-        </div>
-      </section>
+          </div>
+        )}
 
-      {/* ========================================================================= */}
-      {/* 5. BECOME A CREATOR BANNER (Ultra-Clean Monochrome)                        */}
-      {/* ========================================================================= */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div
-          className={`relative rounded-3xl p-8 sm:p-12 overflow-hidden border ${
-            theme === 'dark'
-              ? 'bg-zinc-900 border-zinc-800 text-white'
-              : 'bg-zinc-950 text-white border-zinc-900'
-          }`}
-        >
-          <div className="max-w-2xl space-y-5">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-zinc-400 font-mono">
-              <PenTool className="w-4 h-4" />
-              <span>Open Submissions</span>
-            </div>
-
-            <h2 className="text-3xl sm:text-4xl font-extrabold font-serif tracking-tight text-white">
-              Become a MangaWild Creator
-            </h2>
-
-            <p className="text-sm sm:text-base leading-relaxed text-zinc-300">
-              Publish original manga, webtoons, and graphic stories to hundreds of thousands of readers.
-              Keep 100% intellectual property ownership, earn 70% net revenue split, and receive weekly payouts via direct UPI or bank transfer.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 text-xs">
-              <div className="p-3 rounded-xl border border-zinc-800 bg-zinc-950/60">
-                <p className="font-bold text-white text-lg font-mono">70%</p>
-                <p className="text-zinc-400">Creator revenue split</p>
-              </div>
-
-              <div className="p-3 rounded-xl border border-zinc-800 bg-zinc-950/60">
-                <p className="font-bold text-white text-lg font-mono">Weekly</p>
-                <p className="text-zinc-400">Direct UPI & Bank payouts</p>
-              </div>
-
-              <div className="p-3 rounded-xl border border-zinc-800 bg-zinc-950/60">
-                <p className="font-bold text-white text-lg font-mono">100%</p>
-                <p className="text-zinc-400">Your copyright & IP</p>
-              </div>
-            </div>
-
-            <div className="pt-2 flex flex-wrap items-center gap-3">
+        {/* ========================================================================= */}
+        {/* 2. MINIMAL GENRE FILTER                                                   */}
+        {/* ========================================================================= */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0">
+          {genres.map(genre => {
+            const isSelected = selectedGenre === genre;
+            return (
               <button
+                key={genre}
                 type="button"
-                onClick={() => {
-                  if (!isAuthenticated) {
-                    openAuthModal({
-                      title: 'Creator Account Sign In',
-                      subtitle: 'Sign in to access your MangaWild Creator Studio and publish your original stories.',
-                      defaultRole: 'creator',
-                      defaultMode: 'signup',
-                      onSuccess: () => {
-                        toggleCreatorMode();
-                        onNavigate('creator');
-                      },
-                    });
-                  } else {
-                    if (!canAccessCreator) {
-                      toggleCreatorMode();
-                    }
-                    onNavigate('creator');
-                  }
-                }}
-                className="px-6 py-3 bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center gap-2 hover:scale-[1.02] cursor-pointer"
+                onClick={() => setSelectedGenre(genre)}
+                className={`px-3.5 py-1.5 rounded-full text-xs transition-all duration-150 active:scale-95 cursor-pointer shrink-0 border ${
+                  isSelected
+                    ? 'bg-white text-black font-semibold border-white shadow-xs'
+                    : 'bg-white/[0.03] text-zinc-400 hover:text-white border-white/[0.06] hover:border-white/15 hover:bg-white/[0.06]'
+                }`}
               >
-                <PenTool className="w-4 h-4 text-zinc-950" />
-                <span>{canAccessCreator ? 'Go to Creator Studio' : 'Switch to Creator Profile'}</span>
-                <ArrowRight className="w-4 h-4" />
+                <span className="tracking-tight">{genre}</span>
               </button>
-            </div>
-          </div>
+            );
+          })}
         </div>
-      </section>
 
-      {/* ========================================================================= */}
-      {/* 6. VERIFIED COMMUNITY CRITIQUES                                           */}
-      {/* ========================================================================= */}
-      {highlightedReviews.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
-          <div className="flex items-center justify-between border-b pb-4 border-zinc-200 dark:border-zinc-800">
-            <div>
-              <div className="flex items-center gap-2 text-xs text-zinc-400 font-bold uppercase tracking-wider font-mono">
-                <MessageSquare className="w-4 h-4" />
-                <span>Reader Community</span>
-              </div>
-              <h2
-                className={`text-2xl font-bold font-serif tracking-tight mt-0.5 ${
-                  theme === 'dark' ? 'text-white' : 'text-zinc-900'
-                }`}
-              >
-                Verified Reader Critiques
-              </h2>
-            </div>
+        {/* ========================================================================= */}
+        {/* 3. TRENDING TITLES (Minimalist Ranked Carousel)                           */}
+        {/* ========================================================================= */}
+        <section className="space-y-3.5">
+          <div className="flex items-center justify-between border-b border-white/[0.06] pb-2">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-300 font-sans">
+              Trending Titles
+            </h2>
+            <span className="text-[11px] text-zinc-500 font-mono uppercase tracking-wider">Top Ranked</span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {highlightedReviews.map(rev => (
+          <div className="flex items-start gap-3.5 sm:gap-4 overflow-x-auto pb-2 scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0">
+            {trendingSeries.slice(0, 8).map((series, idx) => (
               <div
-                key={rev.id}
-                onClick={() => onSelectSeries(rev.seriesId)}
-                className={`p-5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-4 ${
-                  theme === 'dark'
-                    ? 'bg-zinc-900/70 border-zinc-800 hover:border-zinc-700'
-                    : 'bg-white border-zinc-200 hover:border-zinc-300 shadow-xs'
-                }`}
+                key={series.id}
+                onClick={() => onSelectSeries(series.id)}
+                className="w-32 sm:w-40 shrink-0 cursor-pointer space-y-2 group"
               >
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className={`text-xs font-bold truncate ${theme === 'dark' ? 'text-zinc-300' : 'text-zinc-700'}`}>
-                      {rev.seriesTitle}
+                {/* Poster Cover */}
+                <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-zinc-950 border border-white/[0.08] group-hover:border-white/20 transition-all duration-300 shadow-sm">
+                  <img
+                    src={series.coverUrl}
+                    alt={series.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+                  />
+
+                  {/* Top-Left Rank Pill (#1, #2, #3, ...) */}
+                  <div className="absolute top-2 left-2 z-10">
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-mono tracking-tight font-bold shadow-xs ${
+                        idx === 0
+                          ? 'bg-white text-black font-black'
+                          : 'bg-black/60 backdrop-blur-md text-zinc-200 border border-white/10'
+                      }`}
+                    >
+                      #{idx + 1}
                     </span>
-                    <div className="flex items-center gap-0.5 text-amber-400">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-3.5 h-3.5 ${
-                            i < rev.rating ? 'fill-amber-400 text-amber-400' : 'text-zinc-600'
-                          }`}
-                        />
-                      ))}
-                    </div>
                   </div>
 
-                  <h4
-                    className={`text-sm font-bold leading-snug ${
-                      theme === 'dark' ? 'text-white' : 'text-zinc-900'
-                    }`}
-                  >
-                    &ldquo;{rev.reviewTitle}&rdquo;
-                  </h4>
-
-                  <p
-                    className={`text-xs leading-relaxed line-clamp-3 ${
-                      theme === 'dark' ? 'text-zinc-300' : 'text-zinc-600'
-                    }`}
-                  >
-                    {rev.reviewText}
-                  </p>
+                  {/* Bottom-Right Rating Badge */}
+                  <div className="absolute bottom-2 right-2 z-10">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium font-mono bg-black/60 backdrop-blur-md text-zinc-200 border border-white/10 flex items-center gap-1 shadow-xs">
+                      <Star className="w-2.5 h-2.5 fill-white text-white" />
+                      <span>{series.rating.toFixed(1)}</span>
+                    </span>
+                  </div>
                 </div>
 
-                <div className={`pt-3 border-t flex items-center justify-between text-xs ${
-                  theme === 'dark' ? 'border-zinc-800/40 text-zinc-400' : 'border-zinc-100 text-zinc-600'
-                }`}>
-                  <span className={`font-semibold truncate ${theme === 'dark' ? 'text-zinc-300' : 'text-zinc-900'}`}>{rev.userName}</span>
-                  <span className="font-mono text-[11px]">{rev.likesCount} helpful</span>
+                {/* Title & Author */}
+                <div className="space-y-0.5">
+                  <h3 className="text-xs sm:text-sm font-semibold text-zinc-100 truncate group-hover:text-white transition-colors">
+                    {series.title}
+                  </h3>
+                  <p className="text-[11px] text-zinc-500 truncate">
+                    {series.author}
+                  </p>
                 </div>
               </div>
             ))}
           </div>
         </section>
-      )}
+
+        {/* ========================================================================= */}
+        {/* 4. ALL MANGA (Minimal Catalog Grid)                                       */}
+        {/* ========================================================================= */}
+        <section className="space-y-3.5 pt-2">
+          <div className="flex items-center justify-between border-b border-white/[0.06] pb-2">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-300 font-sans">
+              All Manga
+            </h2>
+            <span className="text-[11px] text-zinc-500 font-mono">
+              {filteredCatalog.length} Titles
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-3.5 sm:gap-4">
+            {filteredCatalog.map(series => (
+              <div
+                key={series.id}
+                onClick={() => onSelectSeries(series.id)}
+                className="cursor-pointer space-y-2 group"
+              >
+                {/* Poster Cover */}
+                <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800/80 shadow-md">
+                  <img
+                    src={series.coverUrl}
+                    alt={series.title}
+                    className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-300"
+                  />
+
+                  {/* Top-Left VIP Badge (Minimal Plain White & Black) */}
+                  {series.isExclusive && (
+                    <div className="absolute top-2 left-2 z-10">
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-black font-mono bg-white text-black uppercase tracking-wider shadow-sm flex items-center gap-1">
+                        <Crown className="w-2.5 h-2.5 text-black fill-black" />
+                        <span>VIP</span>
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Bottom-Right Rating Badge (clean white) */}
+                  <div className="absolute bottom-2 right-2 z-10">
+                    <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold font-mono bg-black/80 backdrop-blur-md text-white border border-white/10 flex items-center gap-1 shadow-sm">
+                      <Star className="w-2.5 h-2.5 fill-white text-white" />
+                      <span className="text-white font-bold">{series.rating.toFixed(1)}</span>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Title & Author */}
+                <div className="space-y-0.5">
+                  <h3 className="text-xs sm:text-sm font-bold text-white truncate group-hover:text-zinc-300 transition-colors">
+                    {series.title}
+                  </h3>
+                  <p className="text-[11px] text-zinc-400 truncate">
+                    {series.author}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+      </div>
     </div>
   );
 };

@@ -1,189 +1,120 @@
-# MangaWild Minimal Redesign & Feature Modernization Plan
+# Implementation Plan: Creator Manga Upload Studio & Minimalist Glassmorphic Polish
 
-Streamlines the MangaWild creator dashboard with minimal 30-day ranked views and likes metrics, locks the website into a permanent high-performance dark slate theme, modernizes authentication with auto-clearing error states and email OTP password recovery, eliminates the points system and harsh gold accents in favor of subtle monochrome styling, and adds in-app subscription cancellation with dedicated support.
+Implement an end-to-end Creator Manga Upload Studio, panel sequencer, post-approval instant editor, reader orientation switcher, and minimalist glassmorphic navigation bar as requested.
 
 ---
 
-## User Review & Critical Decisions
+## User Review & Critical Decisions Summary
 
 > [!IMPORTANT]
-> The following decisions were confirmed directly through the Phase 1 questionnaire and will govern the implementation:
+> The following requirements have been synthesized from user clarifications and aesthetic guidelines:
 
-- **Confirmed Decision 1 (Dashboard Analytics)**: Replace cluttered multi-chart widgets with a clean ranked list for manga series featuring an intuitive toggle between **Views** and **Likes**, defaulting to a **30-Day** rolling window with tabular numerals.
-- **Confirmed Decision 2 (Subscription Cancellation & Support)**: Provide an in-app "Cancel Subscription" flow featuring a reason-selection modal, clear billing period end messaging, and a dedicated support contact section (`support@mangawild.online`).
-- **Confirmed Decision 3 (Forgot Password & Recovery)**: Implement a direct email confirmation screen with a 6-digit OTP code entry interface for seamless account password recovery.
-- **Confirmed Decision 4 (Permanent Dark Theme)**: Lock the app permanently into the refined dark slate/charcoal palette. Remove light mode and the header/drawer theme toggle button to prevent accidental switching.
-- **Confirmed Decision 5 (Points Removal & Anti-Gold Styling)**: Completely eliminate the points currency system across the site (navigation, packs, unlocking), remove all gold/amber colors in favor of cool slate/monochrome, and soften completion checkmarks into minimal graphite/slate icons.
-- **Confirmed Decision 6 (Login Validation UX)**: Automatically clear the red credentials warning message the moment the user begins modifying (typing or clearing) the email or password fields.
-
----
-
-## 1. Overview & Core Concept
-
-### What It Delivers
-This modernization eliminates visual clutter, cognitive fatigue, and heavy client-side processing across MangaWild. It transforms the creator dashboard from a noisy analytics hub into an actionable, minimal performance leaderboard; strips out distracting gamification (points, gold badges, garish completion ticks); speeds up rendering for budget mobile devices; and refines core user journeys (frictionless login, OTP password reset, effortless subscription management).
-
-### Target Audience
-- **Manga Readers**: Value deep reading immersion, minimal distraction, zero blinding light shifts, and straightforward VIP membership management.
-- **Indie Manga Creators**: Want immediate, clean clarity on how their manga chapters are performing (views and reader likes over 30 days) without complex data visualization overhead.
-
-### Key Value
-- **Zero Performance Lag**: Removing dynamic theme recalculations, heavy charts, and gratuitous animations ensures sub-second rendering even on low-end mobile hardware.
-- **Calm, Premium Aesthetic**: Monochromatic slate with intentional micro-contrasts replaces loud yellow/amber badges and harsh green highlights.
-- **Transparent Control**: Readers can manage, cancel, or seek support for their subscriptions without hidden menus or dark patterns.
+- **Monetization & Creator Support**: Multi-model support including **Free with reader tipping**, **VIP Exclusive**, **Coin Unlock** per chapter, and transparent creator revenue analytics.
+- **Reading Orientation & Preferences**:
+  - Creators select default reading format during upload: **Vertical Webtoon** (continuous gapless flow) or **Horizontal Manga** (paged RTL/LTR).
+  - Reader automatically launches in the creator's chosen preferred format by default, but readers have a 1-click toolbar toggle to switch anytime between Vertical and Horizontal modes.
+- **Moderation & Post-Approval Creator Freedom**:
+  - New series and newly submitted chapters undergo an initial Admin Review (`pending_review` -> `approved` or `rejected` with editorial feedback).
+  - **Once approved**, the creator has full direct editing control in their Creator Dashboard to update title, synopsis, hero cover art, genre tags, and chapter panel ordering/replacements without requiring repeat admin re-approval.
+- **Minimalist Aesthetic & Glassmorphic UI**:
+  - Eliminate loud/garish colors (bright yellow stars, saturated VIP gold, bright red signout, neon green points) in favor of crisp, elegant monochrome/zinc/white styling.
+  - Floating rounded bezel bars with backdrop blur (`backdrop-blur-xl bg-zinc-900/85 border border-white/10`) for the top header and bottom mobile navigation dock.
+  - Interactive hover/press micro-animations (smooth scale/bounce) on navigation tabs and buttons.
 
 ---
 
-## 2. User Experience & Visual Design
-
-### Key User Flows
-
-#### A. Streamlined 30-Day Analytics Flow (Dashboard)
-1. Creator or Admin opens the Dashboard (`CreatorDashboardPage.tsx` / `AdminDashboardPage.tsx`).
-2. Immediate view of the **30-Day Performance Leaderboard**:
-   - Timeframe pill: `30 Days (Default)` · `7 Days` · `90 Days`.
-   - Segmented metric switch: `[ Views Ranking ]` | `[ Likes Ranking ]`.
-3. High-density, minimal ranked rows:
-   - Numerical rank index (`#01`, `#02`, `#03`...).
-   - Manga cover thumbnail with title and genre.
-   - Clean tabular figure metric (e.g., `148,290 views` or `12,450 likes`).
-   - Clean delta indicator (`+14.2% this month` in muted slate, no loud badges).
-4. No noisy multi-line SVG charts, canvas overhead, or nested card wrappers.
-
-#### B. Frictionless Login & Auto-Clearing Error State
-1. User enters invalid email or password in `AuthModal.tsx` and clicks "Sign In".
-2. Error message banner appears cleanly above inputs: `"Invalid email address or password"`.
-3. The moment the user types a new character or backspaces either field, the error state instantly vanishes (`setError(null)`).
-4. The error will only reappear if the user submits the form again and authentication fails.
-
-#### C. Forgot Password OTP Verification Flow
-1. User clicks `"Forgot password?"` on the login dialog.
-2. Step 1: User enters email and clicks `"Send Verification Code"`.
-3. Step 2: Screen transitions cleanly to `"Enter 6-Digit Code"`:
-   - Confirmation notice: `"We sent a 6-digit verification code to your email."`
-   - Individual 6-box OTP input with auto-advance and backspace navigation.
-   - Resend code timer (`Resend in 30s`).
-4. Step 3: Once verified, user enters and confirms their new password, receives an instant success toast, and is logged in.
-
-#### D. Minimal Membership & In-App Cancellation Flow
-1. User visits `MembershipPage.tsx`:
-   - All points packs, point counters, and gold badges removed.
-   - Crisp, minimal VIP pass tiers with clear monthly/annual pricing and concrete benefits.
-2. If the user holds an active membership, a clean `"Manage Subscription"` panel appears.
-3. User clicks `"Cancel Subscription"`:
-   - Subtle modal appears asking for feedback (e.g., *"Finished reading current series"*, *"Taking a break"*, *"Cost concerns"*, *"Other"*).
-   - Clear confirmation: *"Your VIP access will remain active until the end of your billing cycle on [Date]. No further charges will occur."*
-   - Confirmation button updates subscription status in local storage/Firestore and shows support contact details.
-4. Dedicated `"Need Help with Billing or Reading?"` support section at the bottom of the page with direct email and support inquiry form.
-
-### Visual Identity & Theme
-- **Theme Posture**: Locked permanently to **Dark Slate** (`#090d16` canvas, `#111827` cards, `#1e293b` borders). Light mode toggles and white themes are completely excised.
-- **Color Discipline**:
-  - Dominant Neutral (60%): `#090d16` (Deep Manga Midnight)
-  - Structural Surface (30%): `#111827` (Card Surface) & `#1e293b` (Subtle 1px Borders)
-  - Accent Budget (10%): `#f8fafc` (Pure White Contrast Text) & `#38bdf8` (Refined Slate-Sky for active controls only)
-  - Anti-Gold Ban: Zero amber/yellow tones anywhere. All VIP crowns and tier tags use crisp platinum slate (`#e2e8f0` / `#94a3b8`).
-  - Chapter Complete Tick: Replaced loud green circle tick with an understated slate-gray verified check (`#94a3b8` on `#1e293b`).
-- **Typography**:
-  - Brand Mark: `Rockidz 3D` (already integrated into header, reader bar, and footer).
-  - Headings: `Plus Jakarta Sans` / `Cinzel` in clean title case (no comment slashes `//` or pseudo-code).
-  - Metrics & Leaderboard: `font-mono tabular-nums` for precise alignment.
-
----
-
-## 3. Key Product Decisions & Trade-Offs
-
-### Decision 1: Single Ranked Leaderboard vs Multi-Chart Canvas
-- **Chosen Approach**: Replace the cluttered `CreatorAnalyticsCharts.tsx` with a single, highly readable ranked leaderboard that toggles between Views and Likes.
-- **Why**: Multi-axis canvas charts cause layout jank on low-end phones, are difficult to read on small touchscreens, and do not directly answer the creator's core question: *"Which of my manga are performing best?"*
-- **Trade-off**: Removes detailed daily line-chart oscillations in exchange for instant clarity and zero mobile lag.
-
-### Decision 2: Permanent Dark Theme Lock vs Toggle Preservation
-- **Chosen Approach**: Lock `index.html` to `class="dark"`, hardcode `ThemeContext` to dark mode, and remove the sun/moon toggle from headers and drawers.
-- **Why**: Manga artwork, high-contrast comic panels, and midnight reading sessions suffer heavily on stark white backgrounds. Removing light mode eliminates several kilobytes of redundant CSS variables, prevents layout flash on load, and respects user preference.
-
-### Decision 3: Complete Removal of Points System
-- **Chosen Approach**: Excise points counters, `"Buy Points"` cards, and currency multipliers across the application. Manga chapters are either free or unlocked via the VIP All-Access Membership.
-- **Why**: Dual-currency systems (paying real money to buy digital points to unlock single chapters) frustrate readers and clutter the navigation with point stores. A clean VIP subscription model is far more transparent.
-
----
-
-## 4. Technical Architecture & Data Strategy
-
-### System & Component Structure
+## 1. System Architecture & Workflow
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│                        App Navigation & Top Bar                        │
-│   [Rockidz 3D Wordmark] ──── [Browse / Library / VIP] ──── [Profile]   │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │
-         ┌──────────────────────────┴──────────────────────────┐
-         ▼                                                     ▼
-┌───────────────────────────────────┐ ┌──────────────────────────────────┐
-│      Creator / Admin Console      │ │       Authentication Modal       │
-│                                   │ │                                  │
-│ ┌───────────────────────────────┐ │ │ ┌──────────────────────────────┐ │
-│ │  30-Day Manga Leaderboard     │ │ │ │ Email / Password Inputs      │ │
-│ │  • Toggle: [Views] | [Likes]  │ │ │ │ • Dynamic Error Auto-Clear   │ │
-│ │  • Range: 7d | 30d (def) | 90d│ │ │ └──────────────┬───────────────┘ │
-│ │  • Ranked #1..#N series cards │ │ │                ▼                 │
-│ │  • Tabular figures (no jank)  │ │ │ ┌──────────────────────────────┐ │
-│ └───────────────────────────────┘ │ │ │ Forgot Password 6-Digit OTP  │ │
-│                                   │ │ │ • Code verification screen   │ │
-│ ┌───────────────────────────────┐ │ │ │ • Resend countdown & reset   │ │
-│ │  Creator Upload & Series List │ │ │ └──────────────────────────────┘ │
-│ └───────────────────────────────┘ │ └──────────────────────────────────┘
-└───────────────────────────────────┘
-                                    │
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                        Membership & Billing Page                       │
-│                                                                        │
-│ ┌───────────────────────────────┐   ┌────────────────────────────────┐ │
-│ │ Minimal VIP Subscription Card │   │ Active Subscription Manager    │ │
-│ │ • No points / No gold clutter │   │ • [Cancel Subscription] button │ │
-│ │ • Concrete reader perks       │   │ • Cancellation Reason Modal    │ │
-│ └───────────────────────────────┘   └────────────────────────────────┘ │
-│                                                                        │
-│ ┌────────────────────────────────────────────────────────────────────┐ │
-│ │ Dedicated Reader Support & Help Center                             │ │
-│ │ • support@mangawild.online · Inquiry Form · Billing FAQs           │ │
-│ └────────────────────────────────────────────────────────────────────┘ │
+│                        CREATOR STUDIO WORKFLOW                         │
 └────────────────────────────────────────────────────────────────────────┘
+          │
+          ├──> 1. Series Editor (Metadata, Age Rating 13+/18+, Reading Default)
+          │
+          ├──> 2. Chapter Studio (Multi-Image Picker, Sorter Grid, Monetization)
+          │
+          ├──> 3. Instant Live Preview (Test read in seamless vertical or paged)
+          │
+          ├──> 4. Status Transition:
+          │        • Auto-save local draft ('draft')
+          │        • Submit for Admin Review ('pending_review')
+          │
+          └──> 5. Post-Approval Direct Editing:
+                   • Edit any panel, cover, or text without re-approval!
+                   • Reorder pages, upload replacements, save live immediately.
 ```
-
-### Key Component & State Mutations
-
-1. **`AuthModal.tsx`**:
-   - `handleInputChange(field, val)`: Calls `setError(null)` whenever user edits credentials.
-   - `authMode`: Extended with `'forgot_password'` (email entry) and `'verify_otp'` (6-digit code entry + new password).
-   - Instant verification feedback with clear helper text.
-
-2. **`CreatorAnalyticsCharts.tsx` / `CreatorDashboardPage.tsx`**:
-   - Replaced with `MinimalMangaLeaderboard.tsx`.
-   - State `selectedMetric: 'views' | 'likes'` (default `'views'`).
-   - State `timeframe: '7d' | '30d' | '90d'` (default `'30d'`).
-   - Pure CSS list layout using `tabular-nums` and lightweight SVG icons.
-
-3. **`MembershipPage.tsx` & `Footer.tsx`**:
-   - Purged all references to `"Points"`, `"Coins"`, and `"Coin Store"`.
-   - State `showCancelModal: boolean` and `cancelReason: string`.
-   - Updated subscription handler to flag cancellation in storage without breaking current access period.
-   - Embedded `<SupportSection />` with email contact and direct help ticket modal.
-
-4. **`ReaderPage.tsx`**:
-   - Chapter completion banner updated: replaced vibrant green check circle with a minimalist slate badge (`bg-slate-800 text-slate-300 border border-slate-700`).
 
 ---
 
-## Verification & Acceptance Criteria
-- [ ] Dashboard shows clean 30-day ranked lists with views/likes toggle without lag or cluttered charts.
-- [ ] Login error message disappears immediately upon editing email or password.
-- [ ] Forgot password flow supports email submission and 6-digit OTP code entry.
-- [ ] All points mentions and points purchase options are removed from the site.
-- [ ] All golden/amber buttons, borders, and text are converted to sleek slate/monochrome.
-- [ ] Reader chapter completed icon is styled with subtle graphite/slate instead of bright green.
-- [ ] Active subscribers can request cancellation via the modal with reasons and confirmation.
-- [ ] Dedicated support section is visible on the membership page and footer.
-- [ ] Applet builds and lints with 0 errors.
+## 2. Proposed Implementation Details
+
+### A. Data Schema & Models (`src/types/manga.ts`)
+1. **MangaSeries**:
+   - `readingFormat`: `'webtoon_vertical' | 'manga_horizontal'` (Creator's preferred reading mode).
+   - `ageRating`: `'All Ages' | '13+' | '18+'` (Age advisory badge).
+   - `isApprovedByAdmin`: `boolean` (Unlocks direct creator editing without re-moderation).
+2. **Chapter**:
+   - `monetizationType`: `'free' | 'vip' | 'coin'` with optional `coinCost?: number`.
+   - `moderationStatus`: `'draft' | 'pending_review' | 'approved' | 'rejected'`.
+   - `tippingEnabled`: `boolean` (Allows reader tipping jar).
+
+### B. Creator Studio & Manga Editor (`src/pages/CreatorDashboardPage.tsx`)
+1. **Multi-Image Panel Upload Dropzone**:
+   - File picker supporting batch image selection (`multiple accept="image/*"`).
+   - Instant conversion to optimized display URLs with progress feedback.
+2. **Interactive Visual Sequencer & Direct Editor**:
+   - Visual thumbnail cards showing Page numbers (`#1`, `#2`, `#3`...).
+   - **Move Up**, **Move Down**, **Replace Image**, and **Delete Page** buttons on each panel.
+   - Bulk "Add More Panels" button.
+3. **Post-Approval Live Editing Mode**:
+   - For approved manga series, creator can enter "Edit Series & Panels" directly from their series catalog tab.
+   - Modify title, cover art, chapter panels, and sequence order.
+   - One-click "Save Changes Live" with instant update to storage and notifications.
+4. **Instant Live Preview Reader Modal**:
+   - Test reader right inside the Creator Studio to preview continuous vertical gapless scroll or horizontal manga page flip before publishing.
+
+### C. Reader Experience & Preference Toggles (`src/pages/ReaderPage.tsx`)
+1. **Default to Creator's Preference**: Automatically initialize `readingMode` based on the series `readingFormat` (`'webtoon'` for vertical, `'page_flip'` for horizontal).
+2. **Reader Toggle**: Prominent toggle button in the reader header/toolbar allowing readers to switch between Vertical Continuous Flow and Horizontal Paginated Flip at any time.
+3. **Seamless Gapless Flow**: In vertical webtoon mode, enforce `gap-0`, no margins, and seamless image stitching.
+4. **Creator Tipping Widget**: Clean, minimal monochrome tipping button at chapter end for readers to tip coins/UPI to the mangaka.
+
+### D. Admin Moderation Desk (`src/pages/AdminDashboardPage.tsx`)
+1. **Initial Review Queue**: Inspect submitted series and chapters with thumbnail previews.
+2. **Approve / Reject Actions**:
+   - Approve: Sets status to `approved`, notifies creator, publishes to public catalog, and permanently unlocks direct creator editing.
+   - Reject: Allows admin to leave specific reviewer notes to help creator revise.
+
+### E. Minimalist Glassmorphic UI & Visual Polish
+1. **Garish Colors Removal**:
+   - Replace yellow stars with clean minimal monochrome stars.
+   - Replace gold VIP badge with elegant minimal monochrome badge (`bg-white/10 text-white border border-white/20`).
+   - Replace red sign out button with subtle minimal neutral button (`hover:bg-zinc-800 text-zinc-300`).
+   - Style coins, points, and goods in minimal high-contrast monochrome tags.
+2. **Curved Glassmorphic Header & Navigation**:
+   - Apply rounded bezel edges (`rounded-2xl mx-3 sm:mx-6 my-2`).
+   - Glassmorphism: `backdrop-blur-xl bg-zinc-900/80 border border-white/10 shadow-2xl`.
+   - Micro-animations: Interactive bounce/scale effect on hover and click for Home, Browse, Library, and Profile icons (`active:scale-90 hover:scale-110 transition-transform duration-200`).
+
+---
+
+## 3. Verification & Testing Plan
+
+1. **Compilation**: Run `compile_applet` to ensure zero TypeScript errors or missing imports.
+2. **Creator Upload Flow**:
+   - Open Creator Dashboard (`/creator`).
+   - Create a new series with Cover, Age Rating (`18+`), and Reading Preference (`Vertical Webtoon`).
+   - Upload multiple chapter panels via file picker.
+   - Reorder panels using Move Up / Down controls.
+   - Open Live Preview to verify gapless vertical webtoon flow.
+   - Submit for Admin Review.
+3. **Admin Approval & Post-Approval Editing**:
+   - Switch to Admin Dashboard (`/admin`) and approve the new series and chapter.
+   - Return to Creator Dashboard and edit the approved manga (change title, swap a panel, reorder pages) to verify it updates immediately without re-moderation.
+4. **Reader Experience**:
+   - Open the manga in the Reader to verify it opens in vertical mode by default.
+   - Click the format toggle to switch to horizontal paginated mode and back.
+5. **UI & Aesthetic Check**:
+   - Verify floating rounded header and bottom bar with glassmorphic blur and icon micro-animations.
+   - Verify all star ratings, VIP badges, and buttons use minimal monochrome styling.

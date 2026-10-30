@@ -45,6 +45,9 @@ export interface Chapter {
   reviewerNotes?: string;
   viewsCount: number;
   likesCount: number;
+  monetizationType?: 'free' | 'vip' | 'coin';
+  coinCost?: number;
+  tippingEnabled?: boolean;
   panels: ChapterPanel[];
 }
 
@@ -62,6 +65,9 @@ export interface MangaSeries {
   genres: MangaGenre[];
   status: 'ongoing' | 'completed' | 'hiatus';
   moderationStatus: ModerationStatus;
+  isApprovedByAdmin?: boolean;
+  readingFormat?: 'webtoon_vertical' | 'manga_horizontal';
+  ageRating?: 'All Ages' | '13+' | '18+';
   reviewerNotes?: string;
   totalViews: number;
   totalReads: number;
@@ -179,10 +185,16 @@ export interface ReviewSummary {
 
 export interface ReadingHistoryItem {
   seriesId: string;
+  seriesTitle?: string;
   chapterId: string;
   chapterNumber: number;
+  chapterTitle?: string;
   panelIndex: number;
   totalPanels: number;
+  scrollPosition?: number;
+  scrollPercent?: number;
+  progressPercent?: number;
+  isCompleted?: boolean;
   updatedAt: string;
 }
 

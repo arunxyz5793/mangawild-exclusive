@@ -2279,9 +2279,14 @@ export const StorageService = {
         s.slug === 'silent-heads' ||
         s.slug === 'chitrakatha-chintu' ||
         s.slug === 'chintu';
+      const isApproved = s.isApprovedByAdmin ?? (s.moderationStatus === 'approved');
       return {
         ...s,
         isExclusive: isTargetExclusive,
+        readingFormat: s.readingFormat || (s.id === 'series_chitrakatha_chintu' ? 'manga_horizontal' : 'webtoon_vertical'),
+        ageRating: s.ageRating || '13+',
+        isApprovedByAdmin: isApproved,
+        moderationStatus: isApproved ? 'approved' : s.moderationStatus,
         totalViews: s.totalViews ?? 0,
         totalReads: s.totalReads ?? 0,
         likesCount: s.likesCount ?? 0,
@@ -2315,6 +2320,9 @@ export const StorageService = {
       genres: seriesData.genres && seriesData.genres.length > 0 ? seriesData.genres : ['Action'],
       status: 'ongoing',
       moderationStatus: 'pending_review',
+      isApprovedByAdmin: false,
+      readingFormat: seriesData.readingFormat || 'webtoon_vertical',
+      ageRating: seriesData.ageRating || '13+',
       totalViews: 0,
       totalReads: 0,
       rating: 5.0,
@@ -2346,7 +2354,18 @@ export const StorageService = {
     const all = this.getSeries();
     const idx = all.findIndex(s => s.id === id);
     if (idx === -1) return undefined;
-    all[idx] = { ...all[idx], ...updates, updatedAt: new Date().toISOString() };
+    const existing = all[idx];
+    const isAlreadyApproved = existing.isApprovedByAdmin || existing.moderationStatus === 'approved';
+    
+    // Once approved by admin, creator can edit title, hero cover, synopsis, genre, panels directly without re-approval!
+    all[idx] = {
+      ...existing,
+      ...updates,
+      // preserve approval status if already approved
+      moderationStatus: isAlreadyApproved ? 'approved' : (updates.moderationStatus || existing.moderationStatus),
+      isApprovedByAdmin: isAlreadyApproved || updates.isApprovedByAdmin || false,
+      updatedAt: new Date().toISOString()
+    };
     this.saveSeries(all);
     return all[idx];
   },
@@ -2360,13 +2379,24 @@ export const StorageService = {
   // Chapters & Panels
   getChapters(seriesId?: string): Chapter[] {
     const all = getStored<Chapter[]>(STORAGE_KEYS.CHAPTERS, INITIAL_CHAPTERS);
+    const seriesList = this.getSeries();
     const mapped = all.map(c => {
       const isExclusiveSeries =
         c.seriesId === 'series_silent_heads' ||
         c.seriesId === 'series_chitrakatha_chintu';
+      const isVIP = c.isExclusiveVIP ?? isExclusiveSeries;
+      const monetization: 'free' | 'vip' | 'coin' = c.monetizationType || (isVIP ? 'vip' : 'free');
+      const parentSeries = seriesList.find(s => s.id === c.seriesId);
+      const isParentApproved = parentSeries?.isApprovedByAdmin || parentSeries?.moderationStatus === 'approved';
+      
       return {
         ...c,
-        isExclusiveVIP: isExclusiveSeries,
+        isExclusiveVIP: monetization === 'vip' || isVIP,
+        monetizationType: monetization,
+        coinCost: c.coinCost ?? (monetization === 'coin' ? 10 : 0),
+        tippingEnabled: c.tippingEnabled ?? true,
+        // If parent series was approved, chapter is accessible immediately
+        moderationStatus: isParentApproved && c.moderationStatus !== 'rejected' ? 'approved' : c.moderationStatus,
       };
     });
     if (seriesId) {
@@ -2387,10 +2417,18 @@ export const StorageService = {
     seriesId: string;
     chapterNumber: number;
     title: string;
-    isExclusiveVIP: boolean;
+    isExclusiveVIP?: boolean;
+    monetizationType?: 'free' | 'vip' | 'coin';
+    coinCost?: number;
+    tippingEnabled?: boolean;
     panels: ChapterPanel[];
   }): Chapter {
     const all = this.getChapters();
+    const parentSeries = this.getSeriesById(chapterData.seriesId);
+    const isParentApproved = parentSeries?.isApprovedByAdmin || parentSeries?.moderationStatus === 'approved';
+    const monetization = chapterData.monetizationType || (chapterData.isExclusiveVIP ? 'vip' : 'free');
+    const isVIP = monetization === 'vip';
+
     const newChapter: Chapter = {
       id: `ch_${Date.now()}`,
       seriesId: chapterData.seriesId,
@@ -2398,8 +2436,12 @@ export const StorageService = {
       title: chapterData.title,
       slug: `chapter-${chapterData.chapterNumber}-${chapterData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
       releaseDate: new Date().toISOString().split('T')[0],
-      isExclusiveVIP: chapterData.isExclusiveVIP,
-      moderationStatus: 'pending_review',
+      isExclusiveVIP: isVIP,
+      monetizationType: monetization,
+      coinCost: chapterData.coinCost ?? (monetization === 'coin' ? 10 : 0),
+      tippingEnabled: chapterData.tippingEnabled ?? true,
+      // If series is already approved, new/edited chapters become immediately live as requested!
+      moderationStatus: isParentApproved ? 'approved' : 'pending_review',
       viewsCount: 0,
       likesCount: 0,
       panels: chapterData.panels,
@@ -2410,8 +2452,8 @@ export const StorageService = {
     this.addNotification({
       id: `notif_${Date.now()}`,
       userId: 'user_admin_01',
-      title: 'New Chapter Pending Review',
-      message: `Chapter ${newChapter.chapterNumber} ("${newChapter.title}") submitted for moderation review.`,
+      title: isParentApproved ? 'New Chapter Published' : 'New Chapter Pending Review',
+      message: `Chapter ${newChapter.chapterNumber} ("${newChapter.title}") for "${parentSeries?.title || 'Series'}" is ${isParentApproved ? 'published live' : 'submitted for review'}.`,
       type: 'moderation',
       read: false,
       createdAt: new Date().toISOString(),
@@ -2425,7 +2467,16 @@ export const StorageService = {
     const all = this.getChapters();
     const idx = all.findIndex(c => c.id === id);
     if (idx === -1) return undefined;
-    all[idx] = { ...all[idx], ...updates };
+    const existing = all[idx];
+    const parentSeries = this.getSeriesById(existing.seriesId);
+    const isParentApproved = parentSeries?.isApprovedByAdmin || parentSeries?.moderationStatus === 'approved';
+
+    all[idx] = {
+      ...existing,
+      ...updates,
+      // If parent series is approved, keep chapter approved upon edit
+      moderationStatus: isParentApproved && existing.moderationStatus === 'approved' ? 'approved' : (updates.moderationStatus || existing.moderationStatus),
+    };
     this.saveChapters(all);
     return all[idx];
   },

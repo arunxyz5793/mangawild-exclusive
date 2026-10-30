@@ -70,16 +70,16 @@ export const BrowsePage: React.FC<BrowsePageProps> = ({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6 border-zinc-200 dark:border-zinc-800">
         <div>
           <h1
-            className={`text-3xl font-extrabold font-serif tracking-tight ${
+            className={`text-2xl sm:text-3xl font-extrabold font-serif tracking-tight ${
               theme === 'dark' ? 'text-white' : 'text-zinc-900'
             }`}
           >
-            {isNewSeriesView ? 'New Series & Fresh Releases' : 'Explore Manga Catalog'}
+            {isNewSeriesView ? 'New Series' : 'Catalog'}
           </h1>
-          <p className="text-sm text-zinc-400 mt-1">
+          <p className="text-xs sm:text-sm text-zinc-400 mt-0.5">
             {isNewSeriesView
-              ? 'Discover newly serialized indie manga, fresh weekly drops, and original comic releases'
-              : 'Discover original serialized graphic novels, webtoons, and manga series'}
+              ? 'Newly serialized indie manga and weekly drops'
+              : 'Original manga, webtoons, and graphic novels'}
           </p>
         </div>
 
@@ -271,8 +271,8 @@ export const BrowsePage: React.FC<BrowsePageProps> = ({
                   <div className="flex items-center gap-1.5 text-xs text-zinc-400 font-mono">
                     <span>{series.genres[0]}</span>
                     <span>·</span>
-                    <span className="flex items-center gap-0.5 text-amber-400 font-bold">
-                      <Star className="w-3 h-3 fill-current" />
+                    <span className="flex items-center gap-0.5 text-zinc-200 font-semibold">
+                      <Star className="w-3 h-3 fill-current text-white" />
                       {series.rating.toFixed(1)}
                     </span>
                   </div>

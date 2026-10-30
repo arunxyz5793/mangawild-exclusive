@@ -16,12 +16,14 @@ import {
   Calendar,
   AlertCircle,
   Download,
+  Calculator,
 } from 'lucide-react';
 import { SUBSCRIPTION_PLANS } from '../services/razorpay';
 import { SubscriptionPlan } from '../types/manga';
 import { useAuth } from '../context/AuthContext';
 import { StorageService } from '../services/storage';
 import { useLanguage } from '../context/LanguageContext';
+import { SubscriptionCancellationCalculatorModal } from '../components/SubscriptionCancellationCalculatorModal';
 
 interface MembershipPageProps {
   onOpenVIPModal: (planId?: 'monthly' | 'yearly') => void;
@@ -42,6 +44,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
 
   // Cancellation state
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isCalcModalOpen, setIsCalcModalOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('Finished reading favorite series');
   const [cancelNotes, setCancelNotes] = useState('');
   const [isCancelledPending, setIsCancelledPending] = useState(() => {
@@ -202,40 +205,40 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
       )}
 
       {/* 1. Hero Header */}
-      <div className="text-center space-y-4 max-w-3xl mx-auto">
-        <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-stone-300 bg-white/5 px-3 py-1 rounded-full border border-white/10 font-mono">
-          <Crown className="w-3.5 h-3.5 text-white" /> MANGAWILD ALL-ACCESS PASS
+      <div className="text-center space-y-3.5 max-w-3xl mx-auto">
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-zinc-300 bg-white/5 px-3 py-1 rounded-full border border-white/10 font-mono">
+          <Crown className="w-3.5 h-3.5 text-zinc-200" /> VIP PASS
         </span>
         <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
-          Read Unrestricted. Support Independent Creators.
+          All-Access Pass
         </h1>
-        <p className="text-stone-400 text-sm sm:text-base leading-relaxed">
-          {t.membership.subtitle}
+        <p className="text-zinc-400 text-sm leading-relaxed max-w-lg mx-auto">
+          Unlimited VIP chapters, ad-free reading, and direct creator support.
         </p>
 
         {isVIP && (
-          <div className="inline-flex items-center gap-2 p-2 px-4 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs font-semibold">
-            <Check className="w-4 h-4 text-emerald-400" />
-            <span>Active VIP Subscription Enabled on your Account</span>
+          <div className="inline-flex items-center gap-2 p-1.5 px-3.5 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs font-medium">
+            <Check className="w-3.5 h-3.5 text-white" />
+            <span>VIP Subscription Active</span>
           </div>
         )}
 
         {/* Billing Cycle Switcher with Savings Badge */}
-        <div className="pt-4 flex items-center justify-center">
-          <div className="inline-flex items-center p-1 rounded-2xl bg-zinc-900 border border-zinc-800">
+        <div className="pt-3 flex items-center justify-center">
+          <div className="inline-flex items-center p-1 rounded-xl bg-zinc-900 border border-zinc-800">
             <button
               type="button"
               onClick={() => {
                 setBillingCycle('monthly');
                 setSelectedPlanId('monthly');
               }}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                 billingCycle === 'monthly'
-                  ? 'bg-white text-zinc-950 shadow-md'
+                  ? 'bg-white text-zinc-950 font-semibold shadow-xs'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
-              Monthly Billing
+              Monthly
             </button>
             <button
               type="button"
@@ -243,18 +246,31 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
                 setBillingCycle('yearly');
                 setSelectedPlanId('yearly');
               }}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
                 billingCycle === 'yearly'
-                  ? 'bg-white text-zinc-950 shadow-md'
+                  ? 'bg-white text-zinc-950 font-semibold shadow-xs'
                   : 'text-zinc-400 hover:text-white'
               }`}
             >
-              <span>Annual Billing</span>
-              <span className="text-[10px] font-mono font-bold bg-zinc-800 text-zinc-200 border border-zinc-700 px-2 py-0.5 rounded-full">
-                SAVE 37%
+              <span>Annual</span>
+              <span className="text-[10px] font-mono font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700 px-1.5 py-0.2 rounded">
+                -37%
               </span>
             </button>
           </div>
+        </div>
+
+        {/* Dedicated Subscription Cancellation & Calculation Button */}
+        <div className="pt-1 flex items-center justify-center">
+          <button
+            type="button"
+            onClick={() => setIsCalcModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-zinc-200 text-xs font-medium font-mono transition-all cursor-pointer shadow-xs active:scale-95"
+            title="Subscription Cancellation & Prorated Refund Calculator"
+          >
+            <Calculator className="w-3.5 h-3.5 text-zinc-400" />
+            <span>Refund Calculator</span>
+          </button>
         </div>
       </div>
 
@@ -285,7 +301,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
             <div className="text-left sm:text-right font-mono">
               <span className="text-xs text-zinc-400 block">Subscription Status:</span>
               <span className="text-sm font-bold text-white flex items-center sm:justify-end gap-1.5">
-                <Check className="w-4 h-4 text-emerald-400" /> Active & Unrestricted
+                <Check className="w-4 h-4 text-white" /> Active & Unrestricted
               </span>
               {user.subscription?.expiresAt && (
                 <span className="text-[11px] text-zinc-400 block mt-0.5">
@@ -320,20 +336,30 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
           <div className="pt-4 border-t border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-zinc-300">
               <div className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                <Check className="w-4 h-4 text-white shrink-0" />
                 <span>All Exclusive VIP Chapters Unlocked</span>
               </div>
               <div className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                <Check className="w-4 h-4 text-white shrink-0" />
                 <span>100% Ad-Free Reading Experience</span>
               </div>
               <div className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                <Check className="w-4 h-4 text-white shrink-0" />
                 <span>70% Direct Royalties to Manga Creators</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsCalcModalOpen(true)}
+                className="px-3.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-xs text-zinc-200 font-mono font-medium transition-colors cursor-pointer flex items-center gap-1.5"
+                title="Prorated Calculation"
+              >
+                <Calculator className="w-3.5 h-3.5 text-white" />
+                <span>Cancellation & Calculation</span>
+              </button>
+
               {isCancelledPending ? (
                 <span className="text-xs font-mono text-zinc-400 bg-zinc-800 px-3 py-1.5 rounded-xl border border-zinc-700">
                   Cancellation Scheduled
@@ -373,7 +399,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
             >
               {isThisPlanActive ? (
                 <span className="absolute -top-3.5 right-6 bg-white text-zinc-950 text-xs font-black font-mono tracking-wider px-3.5 py-1 rounded-full shadow-lg uppercase flex items-center gap-1.5">
-                  <Check className="w-3.5 h-3.5 text-emerald-600" /> ACTIVE PLAN
+                  <Check className="w-3.5 h-3.5 text-black" /> ACTIVE PLAN
                 </span>
               ) : plan.savingsBadge ? (
                 <span className="absolute -top-3.5 right-6 bg-zinc-800 text-zinc-200 border border-zinc-700 text-xs font-bold font-mono tracking-wider px-3 py-1 rounded-full shadow-md uppercase">
@@ -413,8 +439,8 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
 
                 <div className="space-y-3 border-t border-white/10 pt-6">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-stone-300 uppercase tracking-wider block">
-                      What&apos;s Included:
+                    <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider block">
+                      Included:
                     </span>
                     <button
                       type="button"
@@ -422,16 +448,16 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
                         e.stopPropagation();
                         setDetailsModalPlan(plan);
                       }}
-                      className="text-xs text-purple-400 hover:text-purple-300 font-mono font-bold flex items-center gap-1 cursor-pointer"
+                      className="text-xs text-zinc-300 hover:text-white font-mono font-medium flex items-center gap-1 cursor-pointer"
                     >
-                      <Info className="w-3.5 h-3.5" />
-                      <span>Plan Details & Breakdown</span>
+                      <Info className="w-3.5 h-3.5 text-zinc-400" />
+                      <span>Details</span>
                     </button>
                   </div>
                   <ul className="space-y-2.5 text-xs text-stone-300">
                     {plan.features.map(feat => (
                       <li key={feat} className="flex items-start gap-2.5">
-                        <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                        <Check className="w-4 h-4 text-white shrink-0 mt-0.5" />
                         <span>{feat}</span>
                       </li>
                     ))}
@@ -443,7 +469,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
               <div className="pt-8 space-y-2.5">
                 {isThisPlanActive ? (
                   <div className="w-full py-3.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 bg-zinc-800 border border-zinc-700 text-zinc-200">
-                    <Check className="w-4 h-4 text-emerald-400" />
+                    <Check className="w-4 h-4 text-white" />
                     <span>Your Current Active Plan</span>
                   </div>
                 ) : isVIP && activePlanId === 'yearly' && plan.id === 'monthly' ? (
@@ -548,7 +574,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
                       {new Date(pay.createdAt).toLocaleDateString()}
                     </td>
                     <td className="py-3.5 px-4">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-white/10 text-white border border-white/20">
                         {pay.status}
                       </span>
                     </td>
@@ -591,27 +617,27 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
               <tr>
                 <td className="p-3.5 pl-4 font-sans font-medium text-white">Full Access to All Exclusive VIP Chapters</td>
                 <td className="p-3.5 text-center text-zinc-500">Locked / Previews only</td>
-                <td className="p-3.5 text-center text-emerald-400 font-bold bg-zinc-900/30">✓ 100% Unrestricted</td>
+                <td className="p-3.5 text-center text-white font-bold bg-zinc-900/30">✓ 100% Unrestricted</td>
               </tr>
               <tr>
                 <td className="p-3.5 pl-4 font-sans font-medium text-white">Ad-Free Uninterrupted Reading</td>
                 <td className="p-3.5 text-center text-zinc-500">Standard Ads</td>
-                <td className="p-3.5 text-center text-emerald-400 font-bold bg-zinc-900/30">✓ Completely Ad-Free</td>
+                <td className="p-3.5 text-center text-white font-bold bg-zinc-900/30">✓ Completely Ad-Free</td>
               </tr>
               <tr>
                 <td className="p-3.5 pl-4 font-sans font-medium text-white">Ultra HD 4K Scans & Full Zoom</td>
                 <td className="p-3.5 text-center text-zinc-500">Standard Definition</td>
-                <td className="p-3.5 text-center text-emerald-400 font-bold bg-zinc-900/30">✓ High DPI 4K Zoom</td>
+                <td className="p-3.5 text-center text-white font-bold bg-zinc-900/30">✓ High DPI 4K Zoom</td>
               </tr>
               <tr>
                 <td className="p-3.5 pl-4 font-sans font-medium text-white">24-Hour Early Access to New Releases</td>
                 <td className="p-3.5 text-center text-zinc-500">Public Release</td>
-                <td className="p-3.5 text-center text-emerald-400 font-bold bg-zinc-900/30">✓ 24-Hour Early Drop</td>
+                <td className="p-3.5 text-center text-white font-bold bg-zinc-900/30">✓ 24-Hour Early Drop</td>
               </tr>
               <tr>
                 <td className="p-3.5 pl-4 font-sans font-medium text-white">Direct Manga Creator Royalty Share</td>
                 <td className="p-3.5 text-center text-zinc-500">Ad revenue pool</td>
-                <td className="p-3.5 text-center text-emerald-400 font-bold bg-zinc-900/30">✓ 70% Direct to Artists</td>
+                <td className="p-3.5 text-center text-white font-bold bg-zinc-900/30">✓ 70% Direct to Artists</td>
               </tr>
               <tr>
                 <td className="p-3.5 pl-4 font-sans font-medium text-white">VIP Badge on Profile & Comments</td>
@@ -694,27 +720,27 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
               </span>
               <ul className="space-y-2 text-xs text-zinc-300">
                 <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <Check className="w-4 h-4 text-white shrink-0" />
                   <span>Permanent access to all locked & VIP exclusive manga series</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <Check className="w-4 h-4 text-white shrink-0" />
                   <span>100% Ad-Free reading with zero interruptions</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <Check className="w-4 h-4 text-white shrink-0" />
                   <span>Ultra-crisp 4K scan resolution & panel zoom enhancement</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <Check className="w-4 h-4 text-white shrink-0" />
                   <span>24-Hour early drop access for new chapter uploads</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <Check className="w-4 h-4 text-white shrink-0" />
                   <span>70% direct creator royalty pool allocation</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <Check className="w-4 h-4 text-white shrink-0" />
                   <span>Exclusive VIP badge on user profile, comments, and reviews</span>
                 </li>
               </ul>
@@ -743,7 +769,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
                 </button>
               </div>
               {couponMessage && (
-                <p className={`text-[11px] font-mono ${couponMessage.isError ? 'text-red-400' : 'text-emerald-400'}`}>
+                <p className={`text-[11px] font-mono ${couponMessage.isError ? 'text-zinc-400' : 'text-white'}`}>
                   {couponMessage.text}
                 </p>
               )}
@@ -849,7 +875,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
           >
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-red-400 font-bold bg-red-950/60 px-2 py-0.5 rounded border border-red-800/50">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-300 font-bold bg-zinc-800 px-2 py-0.5 rounded border border-zinc-700">
                   Manage Plan
                 </span>
                 <h3 className="text-xl font-bold text-white mt-1">Cancel VIP Subscription</h3>
@@ -915,7 +941,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-red-950 hover:bg-red-900 border border-red-800 text-red-200 font-bold text-xs cursor-pointer shadow-md transition-all active:scale-95"
+                  className="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white font-bold text-xs cursor-pointer shadow-md transition-all active:scale-95"
                 >
                   Confirm Cancellation
                 </button>
@@ -952,7 +978,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
             </div>
 
             {supportSuccess ? (
-              <div className="p-4 rounded-2xl bg-zinc-950 border border-emerald-800 text-emerald-300 text-xs font-mono">
+              <div className="p-4 rounded-2xl bg-zinc-950 border border-zinc-700 text-zinc-200 text-xs font-mono">
                 {supportSuccess}
               </div>
             ) : (
@@ -1044,7 +1070,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
             </p>
 
             {giftSuccess ? (
-              <div className="p-4 rounded-2xl bg-zinc-950 border border-emerald-700 text-emerald-300 text-xs font-mono">
+              <div className="p-4 rounded-2xl bg-zinc-950 border border-zinc-700 text-zinc-200 text-xs font-mono">
                 {giftSuccess}
               </div>
             ) : (
@@ -1078,6 +1104,16 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
           </div>
         </div>
       )}
+
+      {/* Subscription Cancellation & Refund Calculation Modal */}
+      <SubscriptionCancellationCalculatorModal
+        isOpen={isCalcModalOpen}
+        onClose={() => setIsCalcModalOpen(false)}
+        onConfirmCancel={() => {
+          setIsCancelledPending(true);
+          showToast('Cancellation request submitted. Auto-renewal paused.');
+        }}
+      />
     </div>
   );
 };

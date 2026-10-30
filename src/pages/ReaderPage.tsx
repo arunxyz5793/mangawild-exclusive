@@ -20,6 +20,8 @@ import {
   ZoomOut,
   RotateCcw,
   Volume2,
+  Cloud,
+  Coins,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -55,8 +57,11 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
     StorageService.getChapterById(chapterId)
   );
 
-  // Reader Settings
-  const [readingMode, setReadingMode] = useState<'webtoon' | 'page_flip'>('webtoon');
+  // Reader Settings - defaults to creator's format preference
+  const [readingMode, setReadingMode] = useState<'webtoon' | 'page_flip'>(() => {
+    const s = StorageService.getSeriesById(seriesId);
+    return s?.readingFormat === 'manga_horizontal' ? 'page_flip' : 'webtoon';
+  });
   const [fitMode, setFitMode] = useState<'width' | 'screen'>('width');
   const [brightness, setBrightness] = useState<number>(100);
   const [zoomLevel, setZoomLevel] = useState<number>(100);
@@ -66,6 +71,24 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
   const [showSettingsMenu, setShowSettingsMenu] = useState<boolean>(false);
   const [showChaptersDrawer, setShowChaptersDrawer] = useState<boolean>(false);
   const [chapterSearchQuery, setChapterSearchQuery] = useState<string>('');
+  const [tipToast, setTipToast] = useState<string | null>(null);
+
+  // Reading Progress & Firestore Database Cloud Sync States
+  const [readingProgress, setReadingProgress] = useState<number>(1);
+  const [isSavingProgress, setIsSavingProgress] = useState<boolean>(false);
+  const [isCloudSynced, setIsCloudSynced] = useState<boolean>(true);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cross-device resume notification state
+  const [crossDevicePrompt, setCrossDevicePrompt] = useState<{
+    show: boolean;
+    chapterId: string;
+    chapterNumber: number;
+    scrollPosition?: number;
+    scrollPercent?: number;
+    panelIndex?: number;
+    isDifferentChapter: boolean;
+  } | null>(null);
 
   const handleZoomIn = () => {
     setZoomLevel(prev => Math.min(prev + 25, 250));
@@ -79,9 +102,14 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
     setZoomLevel(100);
   };
 
+  const handleSendTip = (coins: number) => {
+    setTipToast(`Tipped +${coins} coins to ${series?.author || 'the mangaka'}! Thank you for supporting indie creators!`);
+    setTimeout(() => setTipToast(null), 3500);
+  };
+
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Sync state if props change
+  // Sync state if props change, restore prior progress, and initialize tracking
   useEffect(() => {
     const s = StorageService.getSeriesById(seriesId);
     const chs = StorageService.getChapters(seriesId);
@@ -90,21 +118,129 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
     setSeries(s);
     setChapters(chs);
     setCurrentChapter(curCh);
-    setActivePanelIndex(0);
 
-    // Save reading progress & increment dynamic real views
+    if (s?.readingFormat) {
+      setReadingMode(s.readingFormat === 'manga_horizontal' ? 'page_flip' : 'webtoon');
+    }
+
     if (curCh && s) {
       StorageService.incrementChapterViews(curCh.id, s.id);
+
+      // Check existing reading progress for this series
+      const historyList = StorageService.getReadingHistory(user.id);
+      const localProgress = historyList.find(h => h.seriesId === s.id);
+      let initialPanel = 0;
+
+      // If user previously read this chapter, resume from their last panel
+      if (
+        localProgress &&
+        localProgress.chapterId === curCh.id &&
+        localProgress.panelIndex > 1
+      ) {
+        initialPanel = Math.min(curCh.panels.length - 1, localProgress.panelIndex - 1);
+      }
+      setActivePanelIndex(initialPanel);
+
+      const totalPanels = curCh.panels.length || 1;
+      const initialPercent = Math.max(1, Math.round(((initialPanel + 1) / totalPanels) * 100));
+      setReadingProgress(initialPercent);
+      setIsCloudSynced(true);
+
+      // Save initial progress to local storage
       StorageService.saveReadingProgress(user.id, {
         seriesId: s.id,
         chapterId: curCh.id,
         chapterNumber: curCh.chapterNumber,
-        panelIndex: 1,
-        totalPanels: curCh.panels.length,
+        panelIndex: initialPanel + 1,
+        totalPanels,
         updatedAt: new Date().toISOString(),
       });
     }
   }, [seriesId, chapterId, user.id]);
+
+  // Webtoon Continuous Scroll Reading Progress Tracking
+  useEffect(() => {
+    if (readingMode !== 'webtoon' || !currentChapter || !series) return;
+
+    const computeWebtoonScroll = () => {
+      const el = containerRef.current;
+      let scrollTop = window.scrollY;
+      let scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+
+      if (el && isFullscreen) {
+        scrollTop = el.scrollTop;
+        scrollHeight = el.scrollHeight - el.clientHeight;
+      }
+
+      if (scrollHeight <= 0) {
+        setReadingProgress(100);
+        return;
+      }
+
+      const ratio = Math.min(1, Math.max(0, scrollTop / scrollHeight));
+      const pct = Math.min(100, Math.max(1, Math.round(ratio * 100)));
+      const totalPanels = currentChapter.panels.length;
+      const currentPanel = Math.min(totalPanels, Math.max(1, Math.ceil(ratio * totalPanels)));
+      const isCompleted = pct >= 92;
+
+      setReadingProgress(pct);
+
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = setTimeout(() => {
+        StorageService.saveReadingProgress(user.id, {
+          seriesId: series.id,
+          chapterId: currentChapter.id,
+          chapterNumber: currentChapter.chapterNumber,
+          panelIndex: currentPanel,
+          totalPanels,
+          updatedAt: new Date().toISOString(),
+        });
+      }, 500);
+    };
+
+    window.addEventListener('scroll', computeWebtoonScroll, { passive: true });
+    const el = containerRef.current;
+    if (el) {
+      el.addEventListener('scroll', computeWebtoonScroll, { passive: true });
+    }
+
+    return () => {
+      window.removeEventListener('scroll', computeWebtoonScroll);
+      if (el) {
+        el.removeEventListener('scroll', computeWebtoonScroll);
+      }
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, [readingMode, currentChapter, series, user.id, isFullscreen]);
+
+  // Page Flip Mode Reading Progress Tracking
+  useEffect(() => {
+    if (readingMode !== 'page_flip' || !currentChapter || !series) return;
+    const totalPanels = currentChapter.panels.length;
+    if (totalPanels === 0) return;
+
+    const panelNum = Math.min(totalPanels, activePanelIndex + 1);
+    const pct = Math.min(100, Math.round((panelNum / totalPanels) * 100));
+    const isCompleted = activePanelIndex >= totalPanels || pct >= 95;
+
+    setReadingProgress(pct);
+
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => {
+      StorageService.saveReadingProgress(user.id, {
+        seriesId: series.id,
+        chapterId: currentChapter.id,
+        chapterNumber: currentChapter.chapterNumber,
+        panelIndex: panelNum,
+        totalPanels,
+        updatedAt: new Date().toISOString(),
+      });
+    }, 450);
+
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, [activePanelIndex, readingMode, currentChapter, series, user.id]);
 
   if (!series || !currentChapter) {
     return (
@@ -415,6 +551,14 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
         touchAction: readingMode === 'webtoon' ? 'pan-y' : 'pan-x',
       }}
     >
+      {/* High-Precision MangaWild Pinned Reading Progress Bar */}
+      <div className="fixed top-0 left-0 right-0 z-50 h-[3.5px] bg-zinc-950/80 pointer-events-none">
+        <div
+          className="h-full bg-gradient-to-r from-sky-400 via-white to-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.9)] transition-all duration-150 ease-out"
+          style={{ width: `${readingProgress}%` }}
+        />
+      </div>
+
       {/* Fullscreen Floating Controls Bar with Interactive Zoom, Mode Switch & Exit */}
       {isFullscreen && (
         <div className="fixed top-4 right-4 z-50 flex items-center gap-1.5 sm:gap-2 bg-black/90 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/20 shadow-2xl text-white select-none animate-fade-in">
@@ -586,12 +730,12 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
           </div>
 
 
-          {/* Mode toggle */}
-          <div className="hidden md:flex items-center p-0.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs">
+          {/* Mode toggle (Available across mobile and desktop so readers can switch anytime) */}
+          <div className="flex items-center p-0.5 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] sm:text-xs shrink-0">
             <button
               onClick={() => setReadingMode('webtoon')}
               className={`px-2 py-1 rounded-md transition-colors cursor-pointer ${
-                readingMode === 'webtoon' ? 'bg-white text-zinc-950 font-bold' : 'text-zinc-400'
+                readingMode === 'webtoon' ? 'bg-white text-zinc-950 font-bold' : 'text-zinc-400 hover:text-white'
               }`}
             >
               Vertical
@@ -599,10 +743,10 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
             <button
               onClick={() => setReadingMode('page_flip')}
               className={`px-2 py-1 rounded-md transition-colors cursor-pointer ${
-                readingMode === 'page_flip' ? 'bg-white text-zinc-950 font-bold' : 'text-zinc-400'
+                readingMode === 'page_flip' ? 'bg-white text-zinc-950 font-bold' : 'text-zinc-400 hover:text-white'
               }`}
             >
-              Page Flip
+              Flip
             </button>
           </div>
 
@@ -734,6 +878,15 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
             )}
           </div>
 
+          {/* Cloud Sync Status Indicator */}
+          <div
+            className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-300"
+            title={isSavingProgress ? 'Syncing reading progress to Firestore...' : 'Reading progress synced across devices'}
+          >
+            <Cloud className={`w-3.5 h-3.5 ${isSavingProgress ? 'text-amber-400 animate-pulse' : 'text-emerald-400'}`} />
+            <span className="hidden sm:inline">{isSavingProgress ? 'Syncing' : 'Synced'}</span>
+          </div>
+
           <button
             onClick={toggleFullscreen}
             className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
@@ -743,6 +896,68 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
           </button>
         </div>
       </header>
+ 
+      {/* Tip Toast Notification */}
+      {tipToast && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-2">
+          <div className="bg-zinc-900 border border-white/20 text-white px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 text-xs font-medium">
+            <Coins className="w-4 h-4 text-white" />
+            <span>{tipToast}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Real-time Cross-Device Resume Banner */}
+      {crossDevicePrompt?.show && (
+        <div className="sticky top-12 z-35 w-full max-w-2xl mx-auto px-4 py-2 animate-fadeIn">
+          <div className="bg-zinc-900/95 border border-zinc-700 shadow-2xl rounded-2xl p-3 sm:p-4 flex items-center justify-between gap-3 backdrop-blur-md">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0 text-white">
+                <Cloud className="w-4 h-4 text-emerald-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-white truncate">
+                  {crossDevicePrompt.isDifferentChapter
+                    ? `Resume on other device: Ch. ${crossDevicePrompt.chapterNumber}`
+                    : `Resume scroll position (${crossDevicePrompt.scrollPercent || 0}%)`}
+                </p>
+                <p className="text-[11px] text-zinc-400 font-mono truncate">
+                  {crossDevicePrompt.isDifferentChapter
+                    ? `You were reading Chapter ${crossDevicePrompt.chapterNumber} on another device.`
+                    : `Saved position from your previous session`}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  if (crossDevicePrompt.isDifferentChapter) {
+                    onNavigate('read', { seriesId, chapterId: crossDevicePrompt.chapterId });
+                  } else {
+                    if (crossDevicePrompt.scrollPosition) {
+                      window.scrollTo({ top: crossDevicePrompt.scrollPosition, behavior: 'smooth' });
+                    }
+                  }
+                  setCrossDevicePrompt(null);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-white text-zinc-950 font-bold text-xs hover:bg-zinc-200 transition-all cursor-pointer shadow-sm active:scale-95"
+              >
+                Resume
+              </button>
+              <button
+                type="button"
+                onClick={() => setCrossDevicePrompt(null)}
+                className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
+                title="Dismiss"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 2. Main Reader Canvas */}
       <main
@@ -801,9 +1016,9 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
             </div>
           </div>
         ) : readingMode === 'webtoon' ? (
-          /* Webtoon Endless Scroll Mode with Dynamic Zoom Scaling & Anti-Download Protection */
+          /* Webtoon Seamless Continuous Flow (Gapless vertical webtoon layout) */
           <div
-            className={`w-full space-y-1 my-4 flex flex-col items-center webtoon-scroll transition-all duration-200 select-none`}
+            className="w-full space-y-0 gap-0 p-0 my-0 flex flex-col items-center webtoon-scroll transition-all duration-200 select-none leading-none"
             style={{
               maxWidth: fitMode === 'width' ? `${(zoomLevel / 100) * 850}px` : `${(zoomLevel / 100) * 650}px`,
               width: `${zoomLevel}%`,
@@ -812,15 +1027,15 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
             {currentChapter.panels.map((panel, idx) => (
               <div
                 key={panel.id}
-                className="w-full shadow-2xl shadow-black relative group select-none overflow-hidden"
+                className="w-full shadow-none relative group select-none overflow-hidden m-0 p-0 block leading-none"
               >
                 <BlurUpMangaImage
                   src={panel.imageUrl}
                   alt={`Chapter ${currentChapter.chapterNumber} Panel ${idx + 1}`}
                   loading={idx < 2 ? 'eager' : 'lazy'}
                   panelNumber={idx + 1}
-                  className="w-full"
-                  imgClassName="w-full h-auto block select-none pointer-events-none"
+                  className="w-full m-0 p-0 block leading-none"
+                  imgClassName="w-full h-auto block select-none pointer-events-none m-0 p-0 leading-none align-middle"
                 />
                 {panel.hasError && (
                   <div className="absolute top-2 right-2 z-20 bg-zinc-800/90 border border-zinc-700 text-zinc-300 text-[10px] font-bold px-2 py-0.5 rounded shadow">
@@ -830,9 +1045,48 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
               </div>
             ))}
 
+            {/* Creator Tipping / Support Jar Widget */}
+            {currentChapter.tippingEnabled !== false && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-xl mx-auto my-6 p-5 rounded-2xl bg-zinc-900/90 border border-zinc-800/80 text-center space-y-3 shadow-xl backdrop-blur-sm"
+              >
+                <div className="flex items-center justify-center gap-2 text-zinc-200 text-xs font-bold uppercase tracking-wider font-mono">
+                  <Coins className="w-4 h-4 text-white" />
+                  <span>Support Creator: {series.author}</span>
+                </div>
+                <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+                  Enjoyed this chapter? Send coins directly to the creator to support future releases!
+                </p>
+                <div className="flex items-center justify-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => handleSendTip(10)}
+                    className="px-3.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-xs font-mono font-bold transition-transform active:scale-95 cursor-pointer"
+                  >
+                    🪙 10 Coins
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSendTip(50)}
+                    className="px-3.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-xs font-mono font-bold transition-transform active:scale-95 cursor-pointer"
+                  >
+                    🪙 50 Coins
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSendTip(100)}
+                    className="px-4 py-1.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-mono text-xs font-black shadow transition-transform active:scale-95 cursor-pointer"
+                  >
+                    ✨ 100 Coins
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Vertical Chapter Completion Section - appears vertically after the last page */}
             {!isLocked && (
-              <div className="w-full max-w-2xl py-16 px-4 text-center space-y-4 mt-8 border-t border-zinc-800/80">
+              <div className="w-full max-w-2xl py-12 px-4 text-center space-y-4 mt-4 border-t border-zinc-800/80">
                 <div className="w-12 h-12 mx-auto rounded-full bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center justify-center shadow-md">
                   <CheckCircle className="w-6 h-6 text-zinc-300" />
                 </div>
@@ -934,6 +1188,42 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                     {series.title} • {currentChapter.panels.length} Pages Read
                   </p>
                 </div>
+
+                {/* Creator Tipping / Support Jar in Page Flip */}
+                {currentChapter.tippingEnabled !== false && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-full p-4 rounded-2xl bg-zinc-800/80 border border-zinc-700/80 text-center space-y-2.5 shadow-md"
+                  >
+                    <div className="flex items-center justify-center gap-1.5 text-zinc-200 text-xs font-bold uppercase tracking-wider font-mono">
+                      <Coins className="w-3.5 h-3.5 text-white" />
+                      <span>Tip Creator: {series.author}</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-2 pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => handleSendTip(10)}
+                        className="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-xs font-mono font-bold transition-transform active:scale-95 cursor-pointer"
+                      >
+                        🪙 10 Coins
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSendTip(50)}
+                        className="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 text-xs font-mono font-bold transition-transform active:scale-95 cursor-pointer"
+                      >
+                        🪙 50 Coins
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSendTip(100)}
+                        className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-mono text-xs font-black shadow transition-transform active:scale-95 cursor-pointer"
+                      >
+                        ✨ 100 Coins
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full pt-2">
                   <button
@@ -1103,6 +1393,40 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
           </div>
         )}
       </main>
+
+      {/* Dynamic Reading Progress & Firestore Sync Floating HUD */}
+      <div
+        className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-40 transition-all duration-300 ${
+          showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
+        }`}
+      >
+        <div className="flex items-center gap-2.5 bg-zinc-900/90 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-zinc-700/80 shadow-2xl text-xs font-mono select-none">
+          {/* Progress Percentage & Panel Count */}
+          <span className="font-bold text-white flex items-center gap-1.5">
+            <span className="text-sky-400 font-black">{readingProgress}%</span>
+            <span className="text-zinc-500">•</span>
+            <span className="text-zinc-300 text-[11px]">
+              {readingMode === 'webtoon' ? 'Scroll Progress' : `Panel ${activePanelIndex + 1}/${currentChapter.panels.length}`}
+            </span>
+          </span>
+
+          <div className="w-[1px] h-3.5 bg-zinc-700 mx-0.5" />
+
+          {/* Firestore Real-Time Cloud Sync Badge */}
+          <div className="flex items-center gap-1.5 text-[11px] text-zinc-300">
+            <Cloud className="w-3.5 h-3.5 text-sky-400" />
+            <span className="text-zinc-400 hidden sm:inline">
+              {isSavingProgress ? 'Syncing...' : 'Synced with Firestore'}
+            </span>
+            <span
+              className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                isSavingProgress ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'
+              }`}
+              title={isSavingProgress ? 'Saving progress to Firestore...' : 'Saved to Firestore database'}
+            />
+          </div>
+        </div>
+      </div>
 
       {/* 3. Chapters Directory Slide-Over Drawer */}
       {showChaptersDrawer && (

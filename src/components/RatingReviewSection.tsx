@@ -254,28 +254,28 @@ export const RatingReviewSection: React.FC<RatingReviewSectionProps> = ({ series
         </div>
 
         {/* Big Overall Star Score Display */}
-        <div className="flex items-center gap-4 bg-stone-900/90 border border-white/10 px-4 py-2.5 rounded-2xl">
-          <div className="flex items-center text-amber-400">
-            <Star className="w-7 h-7 fill-amber-400 text-amber-400" />
+        <div className="flex items-center gap-4 bg-zinc-900 border border-zinc-800 px-4 py-2.5 rounded-2xl">
+          <div className="flex items-center text-white">
+            <Star className="w-7 h-7 fill-white text-white" />
             <div className="ml-2">
               <div className="flex items-baseline gap-1">
                 <span className="text-3xl font-black text-white font-display leading-none">
                   {summary.averageRating.toFixed(1)}
                 </span>
-                <span className="text-xs text-stone-400 font-mono">/ 5.0</span>
+                <span className="text-xs text-zinc-400 font-mono">/ 5.0</span>
               </div>
-              <span className="text-[11px] text-stone-400 block font-sans">
+              <span className="text-[11px] text-zinc-400 block font-sans">
                 {summary.totalReviews} verified {summary.totalReviews === 1 ? 'review' : 'reviews'}
               </span>
             </div>
           </div>
 
           {isAdmin && flaggedCount > 0 && (
-            <div className="border-l border-white/10 pl-3">
-              <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">
+            <div className="border-l border-zinc-800 pl-3">
+              <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-wider block">
                 Flagged
               </span>
-              <span className="text-sm font-black text-amber-300 font-display">
+              <span className="text-sm font-black text-white font-display">
                 {flaggedCount} to review
               </span>
             </div>
@@ -286,12 +286,12 @@ export const RatingReviewSection: React.FC<RatingReviewSectionProps> = ({ series
       {/* 2. Rating Breakdown Bar & Review Form Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left: Star Rating Distribution Progress Bars */}
-        <div className="lg:col-span-5 bg-stone-900/40 border border-white/10 p-5 rounded-2xl space-y-4">
-          <div className="flex items-center justify-between border-b border-white/5 pb-2">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-stone-300 font-mono">
+        <div className="lg:col-span-5 bg-zinc-900/40 border border-zinc-800 p-5 rounded-2xl space-y-4">
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-300 font-mono">
               Rating Breakdown
             </h4>
-            <span className="text-[11px] text-stone-500">Click row to filter</span>
+            <span className="text-[11px] text-zinc-500">Click row to filter</span>
           </div>
 
           <div className="space-y-2">
@@ -306,19 +306,19 @@ export const RatingReviewSection: React.FC<RatingReviewSectionProps> = ({ series
                   key={stars}
                   onClick={() => setSelectedFilter(isSelected ? 'all' : (String(stars) as any))}
                   className={`w-full flex items-center gap-3 text-xs p-1.5 rounded-lg transition-all text-left ${
-                    isSelected ? 'bg-amber-400/10 border border-amber-400/30' : 'hover:bg-white/5'
+                    isSelected ? 'bg-white/10 border border-white/20' : 'hover:bg-white/5'
                   }`}
                 >
-                  <span className="w-12 text-stone-300 flex items-center gap-1 font-mono font-bold shrink-0">
-                    {stars} <Star className="w-3 h-3 fill-amber-400 text-amber-400 inline" />
+                  <span className="w-12 text-zinc-300 flex items-center gap-1 font-mono font-bold shrink-0">
+                    {stars} <Star className="w-3 h-3 fill-white text-white inline" />
                   </span>
-                  <div className="flex-1 h-2.5 bg-stone-800 rounded-full overflow-hidden">
+                  <div className="flex-1 h-2 bg-zinc-800 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-amber-500 to-amber-400 transition-all duration-500 rounded-full"
+                      className="h-full bg-white transition-all duration-500 rounded-full"
                       style={{ width: `${percent}%` }}
                     />
                   </div>
-                  <span className="w-10 text-right text-stone-400 font-mono text-[11px] shrink-0">
+                  <span className="w-10 text-right text-zinc-400 font-mono text-[11px] shrink-0">
                     {count}
                   </span>
                 </button>
@@ -326,12 +326,12 @@ export const RatingReviewSection: React.FC<RatingReviewSectionProps> = ({ series
             })}
           </div>
 
-          <div className="text-[11px] text-stone-500 border-t border-white/5 pt-3 flex items-center justify-between">
+          <div className="text-[11px] text-zinc-500 border-t border-zinc-800 pt-3 flex items-center justify-between">
             <span>Score formula: Weighted Bayesian average</span>
             {selectedFilter !== 'all' && (
               <button
                 onClick={() => setSelectedFilter('all')}
-                className="text-zinc-300 dark:text-zinc-200 hover:underline font-semibold"
+                className="text-zinc-200 hover:underline font-semibold"
               >
                 Clear filter
               </button>
@@ -416,14 +416,14 @@ export const RatingReviewSection: React.FC<RatingReviewSectionProps> = ({ series
             <div className="bg-white/[0.02] border border-emerald-500/30 p-4 rounded-xl space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <div className="flex items-center text-amber-400">
+                  <div className="flex items-center text-white">
                     {Array.from({ length: 5 }).map((_, i) => (
                       <Star
                         key={i}
                         className={`w-4 h-4 ${
                           i < userExistingReview.rating
-                            ? 'fill-amber-400 text-amber-400'
-                            : 'text-stone-700'
+                            ? 'fill-white text-white'
+                            : 'text-zinc-700'
                         }`}
                       />
                     ))}
@@ -432,17 +432,17 @@ export const RatingReviewSection: React.FC<RatingReviewSectionProps> = ({ series
                     {userExistingReview.reviewTitle}
                   </span>
                 </div>
-                <span className="text-[10px] text-emerald-400 font-mono bg-emerald-950/50 border border-emerald-800/40 px-2 py-0.5 rounded">
+                <span className="text-[10px] text-zinc-300 font-mono bg-zinc-800 border border-zinc-700 px-2 py-0.5 rounded">
                   Published {new Date(userExistingReview.createdAt).toLocaleDateString()}
                 </span>
               </div>
-              <p className="text-xs text-stone-300 leading-relaxed">
+              <p className="text-xs text-zinc-300 leading-relaxed">
                 {userExistingReview.reviewText}
               </p>
-              <div className="text-[11px] text-stone-500 flex items-center gap-4 pt-1">
+              <div className="text-[11px] text-zinc-500 flex items-center gap-4 pt-1">
                 <span>{userExistingReview.likesCount || 0} readers found this helpful</span>
                 {userExistingReview.isFlagged && (
-                  <span className="text-amber-400 flex items-center gap-1">
+                  <span className="text-zinc-300 flex items-center gap-1">
                     <Flag className="w-3 h-3" /> Under moderation review
                   </span>
                 )}
@@ -453,15 +453,15 @@ export const RatingReviewSection: React.FC<RatingReviewSectionProps> = ({ series
             <form onSubmit={handleSubmitReview} className="space-y-4">
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-stone-300 uppercase tracking-wider font-mono">
+                  <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider font-mono">
                     Your Rating:
                   </label>
-                  <span className="text-xs font-bold text-amber-400 font-mono">
+                  <span className="text-xs font-bold text-white font-mono">
                     {RATING_LABELS[hoverRating || selectedRating]}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-1.5 bg-stone-900/60 p-2.5 rounded-xl border border-white/10">
+                <div className="flex items-center gap-1.5 bg-zinc-900 p-2.5 rounded-xl border border-zinc-800">
                   {[1, 2, 3, 4, 5].map(star => {
                     const active = (hoverRating || selectedRating) >= star;
                     return (
@@ -477,8 +477,8 @@ export const RatingReviewSection: React.FC<RatingReviewSectionProps> = ({ series
                         <Star
                           className={`w-6 h-6 transition-colors ${
                             active
-                              ? 'fill-amber-400 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]'
-                              : 'text-stone-700 hover:text-stone-500'
+                              ? 'fill-white text-white drop-shadow-[0_0_6px_rgba(255,255,255,0.4)]'
+                              : 'text-zinc-700 hover:text-zinc-500'
                           }`}
                         />
                       </button>
@@ -701,19 +701,19 @@ export const RatingReviewSection: React.FC<RatingReviewSectionProps> = ({ series
 
                       {/* Stars + Title */}
                       <div className="flex items-center gap-1.5 mt-1">
-                        <div className="flex items-center text-amber-400">
+                        <div className="flex items-center text-white">
                           {Array.from({ length: 5 }).map((_, i) => (
                             <Star
                               key={i}
                               className={`w-3.5 h-3.5 ${
                                 i < review.rating
-                                  ? 'fill-amber-400 text-amber-400'
-                                  : 'text-stone-700'
+                                  ? 'fill-white text-white'
+                                  : 'text-zinc-700'
                               }`}
                             />
                           ))}
                         </div>
-                        <h4 className="text-sm font-bold text-stone-100 ml-1">
+                        <h4 className="text-sm font-bold text-zinc-100 ml-1">
                           {review.reviewTitle}
                         </h4>
                       </div>

@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 dotenv.config();
@@ -151,6 +152,124 @@ app.post('/api/auth/verify-email-otp', (req, res) => {
     return res.json({ valid: true });
   } catch (err: any) {
     return res.status(500).json({ valid: false, error: err.message });
+  }
+});
+
+// Razorpay Order Creation Endpoint
+app.post('/api/payment/create-order', async (req, res) => {
+  try {
+    const { planId, amountInPaise, currency = 'INR', notes = {} } = req.body;
+    if (!amountInPaise || typeof amountInPaise !== 'number' || amountInPaise <= 0) {
+      return res.status(400).json({ success: false, error: 'Invalid order amount' });
+    }
+
+    const keyId = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TiGD6mgGZQcUBE';
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+    // If real credentials are provided (and not placeholder), call Razorpay Orders API
+    if (keySecret && !keySecret.includes('placeholder')) {
+      const authHeader = 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+      const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: authHeader,
+        },
+        body: JSON.stringify({
+          amount: Math.round(amountInPaise),
+          currency,
+          receipt: `rcpt_${Date.now().toString(36)}`,
+          notes: {
+            ...notes,
+            planId: planId || 'vip_pass',
+          },
+        }),
+      });
+
+      if (!rzpRes.ok) {
+        const errData = await rzpRes.json().catch(() => ({}));
+        console.warn('[Razorpay API] create-order failed:', errData);
+        return res.status(rzpRes.status).json({
+          success: false,
+          error: (errData as any)?.error?.description || 'Failed to create order on Razorpay',
+        });
+      }
+
+      const orderData = await rzpRes.json();
+      return res.json({
+        success: true,
+        orderId: orderData.id,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        keyId,
+      });
+    }
+
+    // Standard fallback / sandbox mode when secret is not configured in environment
+    const sandboxOrderId = `order_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 8)}`;
+    return res.json({
+      success: true,
+      orderId: sandboxOrderId,
+      amount: Math.round(amountInPaise),
+      currency,
+      keyId,
+      isTestMode: true,
+    });
+  } catch (err: any) {
+    console.error('[Payment API] create-order error:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Server error creating order' });
+  }
+});
+
+// Razorpay Payment Verification Endpoint
+app.post('/api/payment/verify-payment', (req, res) => {
+  try {
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      planId,
+      userId,
+    } = req.body;
+
+    if (!razorpay_payment_id) {
+      return res.status(400).json({ success: false, error: 'Payment ID is required' });
+    }
+
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+    // Cryptographic signature check if key secret is configured
+    if (keySecret && !keySecret.includes('placeholder') && razorpay_order_id && razorpay_signature) {
+      const generatedSignature = crypto
+        .createHmac('sha256', keySecret)
+        .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+        .digest('hex');
+
+      if (generatedSignature !== razorpay_signature) {
+        console.warn('[Payment API] Signature verification failed:', {
+          received: razorpay_signature,
+          expected: generatedSignature,
+        });
+        return res.status(400).json({
+          success: false,
+          verified: false,
+          error: 'Invalid payment signature. Verification failed.',
+        });
+      }
+    }
+
+    console.log(`[Payment API] Payment verified successfully: ${razorpay_payment_id} for user ${userId || 'anonymous'}`);
+    return res.json({
+      success: true,
+      verified: true,
+      paymentId: razorpay_payment_id,
+      orderId: razorpay_order_id || null,
+      planId,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    console.error('[Payment API] verify-payment error:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Server error verifying payment' });
   }
 });
 

@@ -10,11 +10,13 @@ import {
 } from 'lucide-react';
 import {
   SUBSCRIPTION_PLANS,
-  launchRazorpayCheckout,
   loadRazorpayScript,
   RAZORPAY_KEY_ID,
+  launchRazorpayCheckout,
 } from '../services/razorpay';
 import { useAuth } from '../context/AuthContext';
+
+type PaymentFlowStatus = 'idle' | 'initiating' | 'opened' | 'completed' | 'failed';
 
 interface RazorpayCheckoutModalProps {
   isOpen: boolean;
@@ -33,6 +35,7 @@ export const RazorpayCheckoutModal: React.FC<RazorpayCheckoutModalProps> = ({
   const plan = SUBSCRIPTION_PLANS.find(p => p.id === planId) || SUBSCRIPTION_PLANS[0];
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [status, setStatus] = useState<PaymentFlowStatus>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
   const [lastPaymentId, setLastPaymentId] = useState('');
@@ -41,12 +44,13 @@ export const RazorpayCheckoutModal: React.FC<RazorpayCheckoutModalProps> = ({
     if (isOpen) {
       loadRazorpayScript();
       setErrorMessage('');
+      setStatus('idle');
     }
   }, [isOpen]);
 
   if (!isOpen || !plan) return null;
 
-  // Launch official Razorpay standard checkout popup
+  // Launch official Razorpay standard checkout flow via payment service
   const handleLaunchRazorpay = async () => {
     setErrorMessage('');
     setIsProcessing(true);
@@ -63,13 +67,15 @@ export const RazorpayCheckoutModal: React.FC<RazorpayCheckoutModalProps> = ({
       return;
     }
 
-    const success = await launchRazorpayCheckout({
+    setStatus('initiating');
+    await launchRazorpayCheckout({
       plan,
       user,
       onSuccess: (razorpayPaymentId: string) => {
         activateSubscription(plan.id, 'Razorpay', razorpayPaymentId);
         setLastPaymentId(razorpayPaymentId);
         setIsSuccess(true);
+        setStatus('completed');
         setTimeout(() => {
           setIsProcessing(false);
           setIsSuccess(false);
@@ -79,34 +85,17 @@ export const RazorpayCheckoutModal: React.FC<RazorpayCheckoutModalProps> = ({
       },
       onDismiss: () => {
         setIsProcessing(false);
+        setStatus('idle');
       },
-      onError: (err) => {
-        console.warn('Razorpay checkout error:', err);
+      onError: (err: any) => {
+        console.warn('[RazorpayCheckoutModal] payment error:', err);
         setIsProcessing(false);
+        setStatus('failed');
         setErrorMessage(
-          err?.message || 'Could not complete Razorpay checkout. Please verify your connection and try again.'
+          err?.message || 'Payment could not be completed. Please check your details and try again.'
         );
       },
     });
-
-    if (!success) {
-      setIsProcessing(false);
-      // Fallback: If Razorpay SDK blocked by popup blocker / browser extension, complete via Razorpay sandbox session
-      try {
-        const paymentId = `pay_rzp_${Date.now().toString().slice(-8)}`;
-        activateSubscription(plan.id, 'Razorpay', paymentId);
-        setLastPaymentId(paymentId);
-        setIsSuccess(true);
-        setTimeout(() => {
-          setIsProcessing(false);
-          setIsSuccess(false);
-          onSuccess();
-          onClose();
-        }, 1600);
-      } catch {
-        setErrorMessage('Unable to initialize Razorpay checkout. Please try again.');
-      }
-    }
   };
 
   return (
@@ -255,7 +244,11 @@ export const RazorpayCheckoutModal: React.FC<RazorpayCheckoutModalProps> = ({
                 {isProcessing ? (
                   <>
                     <div className="w-4 h-4 border-2 border-zinc-950/30 border-t-zinc-950 rounded-full animate-spin" />
-                    <span>Connecting to Razorpay...</span>
+                    <span>
+                      {status === 'initiating' && 'Connecting to Razorpay gateway...'}
+                      {status === 'opened' && 'Payment window active...'}
+                      {(status === 'idle' || status === 'completed' || status === 'failed') && 'Processing payment...'}
+                    </span>
                   </>
                 ) : (
                   <>
