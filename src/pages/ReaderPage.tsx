@@ -622,17 +622,17 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
 
       {/* 1. Floating Top Reader Bar */}
       <header
-        className={`sticky top-0 z-40 bg-[#090b12]/95 backdrop-blur-md border-b border-white/10 px-3 sm:px-4 py-2.5 flex items-center justify-between transition-transform duration-300 ${
+        className={`sticky top-0 z-40 bg-[#090b12]/95 backdrop-blur-md border-b border-white/10 px-2 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-1 sm:gap-3 transition-transform duration-300 max-w-full overflow-hidden box-border ${
           showControls ? 'translate-y-0' : '-translate-y-full'
         }`}
       >
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
           <button
             onClick={() => onNavigate('series', { id: seriesId })}
-            className="p-1.5 text-stone-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
+            className="p-1 sm:p-1.5 text-stone-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors cursor-pointer shrink-0"
             title="Back to Series"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
           <button
             onClick={() => onNavigate('home')}
@@ -641,7 +641,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
           >
             <MangaWildLogo size="sm" />
           </button>
-          <div className="max-w-[140px] sm:max-w-xs truncate">
+          <div className="max-w-[85px] xs:max-w-[120px] sm:max-w-xs truncate min-w-0">
             <h1 className="text-xs sm:text-sm font-bold text-white leading-tight truncate">
               <span className="truncate">{series.title}</span>
             </h1>

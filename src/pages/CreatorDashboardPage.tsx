@@ -681,10 +681,10 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto max-w-full box-border">
           <button
             onClick={() => onNavigate('creator-profile', { id: creatorProfile?.id, author: creatorProfile?.penName || user.name })}
-            className="px-3.5 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-white font-medium text-xs flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+            className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer max-w-full box-border"
             title="View Public Mangaka Profile & Tip Jar"
           >
             <Eye className="w-3.5 h-3.5 text-zinc-400" />
@@ -693,7 +693,7 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
 
           <button
             onClick={() => setActiveTab('new_series')}
-            className="px-3.5 py-1.5 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-semibold text-xs flex items-center gap-1.5 transition-all shadow-xs active:scale-95 cursor-pointer"
+            className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-semibold text-xs flex items-center justify-center gap-1.5 transition-all shadow-xs active:scale-95 cursor-pointer max-w-full box-border"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>New Series</span>
@@ -701,7 +701,7 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
 
           <button
             onClick={() => setActiveTab('new_chapter')}
-            className="px-3.5 py-1.5 rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-white font-medium text-xs flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+            className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer max-w-full box-border"
           >
             <Layers className="w-3.5 h-3.5" />
             <span>Add Chapter</span>

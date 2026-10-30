@@ -131,12 +131,12 @@ export const Header: React.FC<HeaderProps> = ({
   const isCreatorOrAdmin = user.role === 'creator' || user.role === 'admin';
 
   const navLinks = [
-    { id: 'browse', label: 'Browse' },
-    { id: 'new_series', label: 'New Series' },
-    { id: 'membership', label: 'Subscription', highlight: true },
-    ...(isCreatorOrAdmin ? [{ id: 'creator', label: 'Creator Studio' }] : []),
-    { id: 'news', label: 'Manga News' },
-    { id: 'library', label: 'My Library' },
+    { id: 'browse', label: 'Browse', icon: Compass },
+    { id: 'new_series', label: 'New Releases', icon: Sparkles },
+    { id: 'membership', label: 'VIP Pass', icon: Crown, highlight: true },
+    ...(isCreatorOrAdmin ? [{ id: 'creator', label: 'Creator Studio', icon: PenTool }] : []),
+    { id: 'news', label: 'Manga News', icon: Flame },
+    { id: 'library', label: 'My Library', icon: BookOpen },
   ];
 
   const handleSaveUsername = (e: React.FormEvent) => {
@@ -173,7 +173,7 @@ export const Header: React.FC<HeaderProps> = ({
             : '-translate-y-24 opacity-0 pointer-events-none'
         }`}
       >
-        <div className="relative bg-black/75 backdrop-blur-2xl border border-white/15 rounded-2xl sm:rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.85)] px-3 sm:px-5 py-2 sm:py-2.5 flex items-center justify-between gap-3 sm:gap-6">
+        <div className="relative bg-black/75 backdrop-blur-2xl border border-white/15 rounded-2xl sm:rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.85)] px-2.5 sm:px-5 py-2 sm:py-2.5 flex items-center justify-between gap-1.5 sm:gap-6 max-w-full box-border">
           {/* Left: MangaWild Logo inside curved island bar */}
           <button
             onClick={() => onNavigate('home')}
@@ -184,53 +184,68 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {/* Menu Buttons & Actions - Clickable when header is in view */}
-          <div className="flex items-center justify-between flex-1 gap-4 sm:gap-8 pointer-events-auto">
-            {/* Center: Clean Text Navigation Links */}
-            <nav className="hidden lg:flex items-center gap-6 xl:gap-8 text-sm font-semibold">
-            {navLinks.map(link => {
-              const isActive = currentView === link.id;
-              return (
+          <div className="flex items-center justify-between flex-1 gap-2 sm:gap-8 pointer-events-auto min-w-0">
+            {/* Center: Minimalist Uniform Line-Art Navigation Icons */}
+            <nav className="hidden md:flex items-center gap-1 sm:gap-1.5" aria-label="Main Navigation">
+              {navLinks.map(link => {
+                const isActive = currentView === link.id;
+                const IconComponent = link.icon;
+                return (
+                  <button
+                    key={link.id}
+                    onClick={() => onNavigate(link.id)}
+                    title={link.label}
+                    aria-label={link.label}
+                    className={`group relative p-2 rounded-xl transition-all duration-150 cursor-pointer active:scale-95 flex items-center justify-center border ${
+                      isActive
+                        ? 'text-white bg-white/15 border-white/25 shadow-xs'
+                        : link.highlight
+                        ? 'text-zinc-200 hover:text-white hover:bg-white/[0.08] border-white/10'
+                        : 'text-zinc-400 hover:text-white hover:bg-white/[0.06] border-transparent'
+                    }`}
+                  >
+                    <IconComponent
+                      className={`w-4 h-4 shrink-0 transition-transform duration-150 group-hover:scale-110 ${
+                        isActive ? 'stroke-[2.25px] text-white' : 'stroke-[1.75px]'
+                      }`}
+                    />
+                    {/* Active subtle bottom dot indicator */}
+                    {isActive && (
+                      <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white shadow-xs" />
+                    )}
+                  </button>
+                );
+              })}
+
+              {user.role === 'admin' && (
                 <button
-                  key={link.id}
-                  onClick={() => onNavigate(link.id)}
-                  className={`transition-all duration-150 whitespace-nowrap cursor-pointer relative py-1 active:scale-95 ${
-                    isActive
-                      ? theme === 'dark'
-                        ? 'text-white border-b-2 border-white'
-                        : 'text-zinc-950 border-b-2 border-zinc-950'
-                      : link.highlight
-                      ? 'text-zinc-200 hover:text-white font-bold'
-                      : theme === 'dark'
-                      ? 'text-zinc-400 hover:text-white'
-                      : 'text-zinc-600 hover:text-zinc-950'
+                  onClick={() => onNavigate('admin')}
+                  title="Admin Suite"
+                  aria-label="Admin Suite"
+                  className={`group relative p-2 rounded-xl transition-all duration-150 cursor-pointer active:scale-95 flex items-center justify-center border ${
+                    currentView === 'admin'
+                      ? 'text-white bg-white/15 border-white/25 shadow-xs'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/[0.06] border-transparent'
                   }`}
                 >
-                  {link.label}
+                  <Shield
+                    className={`w-4 h-4 shrink-0 transition-transform duration-150 group-hover:scale-110 ${
+                      currentView === 'admin' ? 'stroke-[2.25px] text-white' : 'stroke-[1.75px]'
+                    }`}
+                  />
+                  {currentView === 'admin' && (
+                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white shadow-xs" />
+                  )}
                 </button>
-              );
-            })}
-
-            {user.role === 'admin' && (
-              <button
-                onClick={() => onNavigate('admin')}
-                className={`transition-all duration-150 whitespace-nowrap font-bold flex items-center gap-1.5 cursor-pointer py-1 active:scale-95 ${
-                  currentView === 'admin'
-                    ? 'text-white border-b-2 border-white'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                <Shield className="w-4 h-4 text-white" />
-                <span>Admin Suite</span>
-              </button>
-            )}
-          </nav>
+              )}
+            </nav>
 
           {/* Right: Search, Theme Toggle, Notifications, VIP & Menu */}
-          <div className="flex items-center gap-1 sm:gap-2.5 shrink-0 ml-auto">
+          <div className="flex items-center gap-1 sm:gap-2.5 shrink-0 ml-auto max-w-full box-border">
             {/* Search Button (Minimalist pill with ⌘K badge) */}
             <button
               onClick={onOpenSearch}
-              className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 hover:text-zinc-200 transition-all duration-150 active:scale-95 cursor-pointer"
+              className="p-1.5 sm:px-3 sm:py-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 hover:text-zinc-200 transition-all duration-150 active:scale-95 cursor-pointer shrink-0"
               title="Search Manga Catalog (Ctrl+K)"
             >
               <Search className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
@@ -241,7 +256,7 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             {/* Notifications Dropdown */}
-            <div className="relative">
+            <div className="relative shrink-0">
               <button
                 onClick={() => {
                   setIsNotifOpen(!isNotifOpen);
@@ -307,13 +322,13 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={() => onNavigate('membership')}
-              className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer active:scale-95 border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white"
+              className="flex items-center gap-1 p-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer active:scale-95 border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white shrink-0"
               title="MangaWild VIP Pass & Membership"
             >
               <Crown className="w-3.5 h-3.5 text-zinc-200" />
-              <span className="tracking-wide">VIP</span>
+              <span className="hidden sm:inline tracking-wide">VIP</span>
               {isVIP && (
-                <span className="text-[8px] tracking-wider uppercase bg-white/10 text-white border border-white/20 px-1 py-0.2 rounded font-mono font-semibold">
+                <span className="hidden sm:inline text-[8px] tracking-wider uppercase bg-white/10 text-white border border-white/20 px-1 py-0.2 rounded font-mono font-semibold">
                   PRO
                 </span>
               )}
@@ -323,10 +338,10 @@ export const Header: React.FC<HeaderProps> = ({
             {!isAuthenticated && (
               <button
                 onClick={() => handleOpenAuth('reader')}
-                className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-black bg-white hover:bg-zinc-200 rounded-xl transition-all whitespace-nowrap cursor-pointer active:scale-95 shadow-xs"
+                className="flex items-center gap-1 p-1.5 sm:px-3 sm:py-1.5 text-xs font-semibold text-black bg-white hover:bg-zinc-200 rounded-xl transition-all whitespace-nowrap cursor-pointer active:scale-95 shadow-xs shrink-0"
               >
                 <UserIcon className="w-3.5 h-3.5" />
-                <span>Log In</span>
+                <span className="hidden sm:inline">Log In</span>
               </button>
             )}
 
@@ -685,9 +700,9 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   <div className="flex items-center gap-3">
                     <UserIcon className="w-4 h-4 text-zinc-300" />
-                    <span>My Creator Profile & Socials</span>
+                    <span>Creator Profile</span>
                   </div>
-                  <span className="text-[10px] font-mono text-zinc-400 font-bold">Edit Profile</span>
+                  <span className="text-[10px] font-mono text-zinc-400 font-bold">Edit</span>
                 </button>
               )}
 
@@ -705,7 +720,7 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <div className="flex items-center gap-3">
                   <BookOpen className="w-4 h-4 text-white" />
-                  <span>Reader Library & History</span>
+                  <span>Library</span>
                 </div>
                 <span className="text-[10px] font-mono text-zinc-500">Reader</span>
               </button>
@@ -725,9 +740,9 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   <div className="flex items-center gap-3">
                     <PenTool className="w-4 h-4 text-white" />
-                    <span>Creator Studio & Uploads</span>
+                    <span>Creator Studio</span>
                   </div>
-                  <span className="text-[10px] font-mono text-zinc-500">70% Royalty</span>
+                  <span className="text-[10px] font-mono text-zinc-500">70% Share</span>
                 </button>
               )}
 
@@ -746,7 +761,7 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   <div className="flex items-center gap-3">
                     <Shield className="w-4 h-4 text-white" />
-                    <span>Admin Moderation & Approval</span>
+                    <span>Admin Suite</span>
                   </div>
                   <span className="text-[10px] font-mono text-zinc-500">Approvals</span>
                 </button>
@@ -774,7 +789,7 @@ export const Header: React.FC<HeaderProps> = ({
                       <div>
                         <div className="flex items-center gap-1.5">
                           <span className="text-xs font-black text-white group-hover:text-zinc-200">
-                            VIP Pass & Membership
+                            VIP Pass
                           </span>
                           <span className="text-[9px] bg-white text-black px-1.5 py-0.5 rounded font-black font-mono uppercase">
                             VIP
@@ -805,7 +820,7 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   <div className="flex items-center gap-3">
                     <Calculator className="w-4 h-4 text-zinc-300" />
-                    <span>Cancellation & Calculator</span>
+                    <span>Refund Calculator</span>
                   </div>
                   <span className="text-[10px] font-mono text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded border border-zinc-700">
                     Proration
@@ -827,7 +842,7 @@ export const Header: React.FC<HeaderProps> = ({
                   className="w-full text-left px-3.5 py-2 rounded-xl text-xs text-zinc-400 hover:text-white hover:bg-zinc-900 flex items-center gap-3 transition-colors cursor-pointer"
                 >
                   <Compass className="w-4 h-4" />
-                  <span>All Manga Catalog</span>
+                  <span>Catalog</span>
                 </button>
 
                 <button
@@ -838,7 +853,7 @@ export const Header: React.FC<HeaderProps> = ({
                   className="w-full text-left px-3.5 py-2 rounded-xl text-xs text-zinc-400 hover:text-white hover:bg-zinc-900 flex items-center gap-3 transition-colors cursor-pointer"
                 >
                   <Sparkles className="w-4 h-4 text-zinc-300" />
-                  <span>New Series Releases</span>
+                  <span>Releases</span>
                 </button>
 
                 <button
@@ -849,7 +864,7 @@ export const Header: React.FC<HeaderProps> = ({
                   className="w-full text-left px-3.5 py-2 rounded-xl text-xs text-zinc-400 hover:text-white hover:bg-zinc-900 flex items-center gap-3 transition-colors cursor-pointer"
                 >
                   <Newspaper className="w-4 h-4" />
-                  <span>Manga News & Updates</span>
+                  <span>News</span>
                 </button>
               </div>
             </div>

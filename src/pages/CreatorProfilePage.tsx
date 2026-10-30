@@ -328,11 +328,11 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
             </div>
 
             {/* Action Buttons: Tip Artist, Creator Edit/Switch Mode vs Reader Follow */}
-            <div className="flex flex-wrap items-center gap-2.5 self-stretch sm:self-auto justify-end max-w-full box-border">
+            <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto justify-end max-w-full box-border">
               <button
                 type="button"
                 onClick={() => setIsTipModalOpen(true)}
-                className="px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-700 text-xs font-bold flex items-center gap-1.5 shadow-md transition-all active:scale-95 cursor-pointer max-w-full box-border"
+                className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-700 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95 cursor-pointer max-w-full box-border"
               >
                 <Coins className="w-4 h-4 text-zinc-300" />
                 <span>Tip Artist</span>
@@ -342,7 +342,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                 <>
                   <button
                     onClick={handleOpenEdit}
-                    className="px-4 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-bold flex items-center gap-1.5 shadow-md transition-all active:scale-95 cursor-pointer max-w-full box-border"
+                    className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95 cursor-pointer max-w-full box-border"
                   >
                     <Edit3 className="w-4 h-4" />
                     <span>Edit Profile</span>
@@ -353,7 +353,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                       showToast('Switched to Reader Mode');
                       onNavigate('home');
                     }}
-                    className="px-3.5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold border border-zinc-700 transition-all cursor-pointer max-w-full box-border"
+                    className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold border border-zinc-700 transition-all cursor-pointer max-w-full box-border"
                     title="Switch to Reader Mode"
                   >
                     Switch to Reader
@@ -365,7 +365,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                     toggleFollowCreator(creator.id);
                     setCreators(StorageService.getCreators());
                   }}
-                  className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-md cursor-pointer active:scale-95 max-w-full box-border ${
+                  className={`flex-1 sm:flex-initial px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md cursor-pointer active:scale-95 max-w-full box-border ${
                     isFollowing
                       ? 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700'
                       : 'bg-white hover:bg-zinc-200 text-zinc-950'
@@ -568,17 +568,6 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Tip Mangaka Section (Razorpay UPI & Cards) */}
-        <div id="tip-section" className="w-full max-w-full box-border">
-          <CreatorTipJar
-            creatorId={creator.id}
-            creatorName={creator.penName}
-            onTipSent={() => {
-              showToast(`Tip sent to ${creator.penName}! Thank you for your support.`);
-            }}
-          />
         </div>
 
         {/* Navigation Tabs (Only if owner) */}
@@ -1293,6 +1282,8 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
             <CreatorTipJar
               creatorId={creator.id}
               creatorName={creator.penName}
+              directForm={true}
+              onClose={() => setIsTipModalOpen(false)}
               onTipSent={() => {
                 showToast(`Tip sent to ${creator.penName}! Thank you for your support.`);
                 setIsTipModalOpen(false);

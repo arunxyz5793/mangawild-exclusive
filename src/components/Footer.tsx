@@ -1,6 +1,21 @@
 import React from 'react';
 import { MangaWildLogo } from './MangaWildLogo';
-import { Shield, Sparkles } from 'lucide-react';
+import {
+  Shield,
+  Sparkles,
+  Compass,
+  Flame,
+  Crown,
+  PenTool,
+  Users,
+  Wallet,
+  PlusCircle,
+  Clock,
+  Bookmark,
+  Star,
+  LifeBuoy,
+  Home,
+} from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
 interface FooterProps {
@@ -11,195 +26,222 @@ interface FooterProps {
 export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenVIPModal }) => {
   const { theme } = useTheme();
 
+  // Fast-access icon strip
+  const quickNav = [
+    { id: 'home', label: 'Home', icon: Home },
+    { id: 'browse', label: 'Catalog', icon: Compass },
+    { id: 'new_series', label: 'Releases', icon: Sparkles },
+    { id: 'news', label: 'News', icon: Flame },
+    { id: 'membership', label: 'VIP Pass', icon: Crown },
+    { id: 'creator', label: 'Creator Studio', icon: PenTool },
+    { id: 'library', label: 'Library', icon: Bookmark },
+  ];
+
   return (
     <footer
-      className={`border-t pt-16 pb-12 transition-colors select-none ${
+      className={`border-t pt-10 pb-20 sm:pb-12 transition-colors select-none max-w-full box-border ${
         theme === 'dark'
           ? 'bg-[#09090b] border-zinc-800 text-zinc-400'
           : 'bg-zinc-100 border-zinc-200 text-zinc-600'
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 pb-12 border-b border-zinc-800/40">
-          {/* Brand Info */}
-          <div className="lg:col-span-2 space-y-4">
-            <MangaWildLogo size="lg" />
-            <p className="text-xs leading-relaxed max-w-sm">
-              The premier publishing destination for original serialized manga, webtoons, and graphic novels.
-              Empowering independent writers and artists with 70% royalties and weekly direct payouts.
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 space-y-8 max-w-full box-border">
+        {/* Minimalist Quick Navigation Line-Art Icon Strip */}
+        <div className="flex items-center justify-between flex-wrap gap-2 pb-6 border-b border-zinc-800/60 max-w-full box-border">
+          <div className="flex items-center gap-2 shrink-0">
+            <MangaWildLogo size="sm" />
+          </div>
+
+          <nav aria-label="Footer Quick Navigation" className="flex items-center gap-1 sm:gap-2 flex-wrap">
+            {quickNav.map(item => {
+              const IconComp = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onNavigate(item.id)}
+                  title={item.label}
+                  aria-label={item.label}
+                  className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/[0.06] border border-transparent hover:border-white/10 transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+                >
+                  <IconComp className="w-4 h-4 shrink-0 stroke-[1.75px]" />
+                  <span className="hidden sm:inline text-xs font-medium">{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Minimalist Multi-Column Navigation with Uniform Line-Art Icons */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 pb-8 border-b border-zinc-800/40 max-w-full box-border">
+          {/* Brand Info & Core Badges */}
+          <div className="lg:col-span-2 space-y-3.5 max-w-full box-border">
+            <p className="text-xs leading-relaxed max-w-sm text-zinc-400">
+              Original serialized manga, webtoons, and graphic novels with weekly direct UPI payouts and 70% creator revenue share.
             </p>
-            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+            <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs">
               <span
-                className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 font-mono ${
+                className={`px-2 py-1 rounded-lg border flex items-center gap-1.5 font-mono text-[11px] ${
                   theme === 'dark' ? 'bg-zinc-900 border-zinc-800 text-zinc-300' : 'bg-white border-zinc-200 text-zinc-700'
                 }`}
               >
-                <Shield className="w-3.5 h-3.5 text-zinc-300" />
-                <span>70% Creator Royalties</span>
+                <Shield className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                <span>70% Share</span>
               </span>
               <span
-                className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 font-mono ${
+                className={`px-2 py-1 rounded-lg border flex items-center gap-1.5 font-mono text-[11px] ${
                   theme === 'dark' ? 'bg-zinc-900 border-zinc-800 text-zinc-300' : 'bg-white border-zinc-200 text-zinc-700'
                 }`}
               >
-                <Sparkles className="w-3.5 h-3.5 text-zinc-300" />
-                <span>Weekly UPI & Bank Payouts</span>
+                <Wallet className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                <span>Direct UPI</span>
               </span>
             </div>
           </div>
 
-          {/* Explore Links */}
-          <div className="space-y-3">
+          {/* Catalog & Discover */}
+          <div className="space-y-2.5 max-w-full box-border">
             <h4
-              className={`text-xs font-bold uppercase tracking-wider font-mono ${
-                theme === 'dark' ? 'text-white' : 'text-zinc-900'
+              className={`text-[11px] font-bold uppercase tracking-wider font-mono ${
+                theme === 'dark' ? 'text-zinc-200' : 'text-zinc-900'
               }`}
             >
-              MangaWild Library
+              Discover
             </h4>
-            <ul className="space-y-2 text-xs">
-              <li>
-                <button
-                  onClick={() => onNavigate('browse')}
-                  className="hover:text-zinc-950 dark:hover:text-white transition-all active:scale-95 cursor-pointer"
-                >
-                  All Original Manga
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onNavigate('new_series')}
-                  className="hover:text-zinc-950 dark:hover:text-white transition-all active:scale-95 cursor-pointer"
-                >
-                  New Series Releases
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onNavigate('news')}
-                  className="hover:text-zinc-950 dark:hover:text-white transition-all active:scale-95 cursor-pointer"
-                >
-                  Studio News & Releases
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onNavigate('membership')}
-                  className="font-bold hover:underline cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 text-zinc-200 hover:text-white"
-                >
-                  <Sparkles className="w-3 h-3 text-zinc-400" /> VIP All-Access Pass
-                </button>
-              </li>
-            </ul>
+            <div className="space-y-1">
+              <button
+                type="button"
+                onClick={() => onNavigate('browse')}
+                className="group flex items-center gap-2 py-1.5 px-2 rounded-lg text-xs text-zinc-400 hover:text-white hover:bg-white/[0.04] transition-all cursor-pointer w-full text-left max-w-full box-border"
+              >
+                <Compass className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors shrink-0 stroke-[1.75px]" />
+                <span className="truncate">Catalog</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate('new_series')}
+                className="group flex items-center gap-2 py-1.5 px-2 rounded-lg text-xs text-zinc-400 hover:text-white hover:bg-white/[0.04] transition-all cursor-pointer w-full text-left max-w-full box-border"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors shrink-0 stroke-[1.75px]" />
+                <span className="truncate">Releases</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate('news')}
+                className="group flex items-center gap-2 py-1.5 px-2 rounded-lg text-xs text-zinc-400 hover:text-white hover:bg-white/[0.04] transition-all cursor-pointer w-full text-left max-w-full box-border"
+              >
+                <Flame className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors shrink-0 stroke-[1.75px]" />
+                <span className="truncate">News</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate('membership')}
+                className="group flex items-center gap-2 py-1.5 px-2 rounded-lg text-xs text-zinc-300 hover:text-white hover:bg-white/[0.06] transition-all cursor-pointer w-full text-left max-w-full box-border font-medium"
+              >
+                <Crown className="w-3.5 h-3.5 text-zinc-300 group-hover:text-white transition-colors shrink-0 stroke-[1.75px]" />
+                <span className="truncate">VIP Pass</span>
+              </button>
+            </div>
           </div>
 
-          {/* Creators */}
-          <div className="space-y-3">
+          {/* Creator Desk */}
+          <div className="space-y-2.5 max-w-full box-border">
             <h4
-              className={`text-xs font-bold uppercase tracking-wider font-mono ${
-                theme === 'dark' ? 'text-white' : 'text-zinc-900'
+              className={`text-[11px] font-bold uppercase tracking-wider font-mono ${
+                theme === 'dark' ? 'text-zinc-200' : 'text-zinc-900'
               }`}
             >
-              Creator Studio
+              Creators
             </h4>
-            <ul className="space-y-2 text-xs">
-              <li>
-                <button
-                  onClick={() => onNavigate('creator')}
-                  className={`hover:text-zinc-950 dark:hover:text-white transition-all active:scale-95 cursor-pointer font-semibold ${
-                    theme === 'dark' ? 'text-zinc-200' : 'text-zinc-900'
-                  }`}
-                >
-                  Join Creator Program
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onNavigate('creators')}
-                  className="hover:text-zinc-950 dark:hover:text-white transition-all active:scale-95 cursor-pointer"
-                >
-                  MangaWild Creators
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onNavigate('creator')}
-                  className="hover:text-zinc-950 dark:hover:text-white transition-all active:scale-95 cursor-pointer"
-                >
-                  Creator Revenue & Payouts
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onNavigate('creator')}
-                  className="hover:text-zinc-950 dark:hover:text-white transition-all active:scale-95 cursor-pointer"
-                >
-                  Publish New Chapters
-                </button>
-              </li>
-            </ul>
+            <div className="space-y-1">
+              <button
+                type="button"
+                onClick={() => onNavigate('creator')}
+                className="group flex items-center gap-2 py-1.5 px-2 rounded-lg text-xs text-zinc-400 hover:text-white hover:bg-white/[0.04] transition-all cursor-pointer w-full text-left max-w-full box-border"
+              >
+                <PenTool className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors shrink-0 stroke-[1.75px]" />
+                <span className="truncate">Studio</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate('creators')}
+                className="group flex items-center gap-2 py-1.5 px-2 rounded-lg text-xs text-zinc-400 hover:text-white hover:bg-white/[0.04] transition-all cursor-pointer w-full text-left max-w-full box-border"
+              >
+                <Users className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors shrink-0 stroke-[1.75px]" />
+                <span className="truncate">Mangaka</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate('creator')}
+                className="group flex items-center gap-2 py-1.5 px-2 rounded-lg text-xs text-zinc-400 hover:text-white hover:bg-white/[0.04] transition-all cursor-pointer w-full text-left max-w-full box-border"
+              >
+                <Wallet className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors shrink-0 stroke-[1.75px]" />
+                <span className="truncate">Payouts</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate('creator')}
+                className="group flex items-center gap-2 py-1.5 px-2 rounded-lg text-xs text-zinc-400 hover:text-white hover:bg-white/[0.04] transition-all cursor-pointer w-full text-left max-w-full box-border"
+              >
+                <PlusCircle className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors shrink-0 stroke-[1.75px]" />
+                <span className="truncate">Publish</span>
+              </button>
+            </div>
           </div>
 
-          {/* Reader Library */}
-          <div className="space-y-3">
+          {/* Reader Desk */}
+          <div className="space-y-2.5 max-w-full box-border">
             <h4
-              className={`text-xs font-bold uppercase tracking-wider font-mono ${
-                theme === 'dark' ? 'text-white' : 'text-zinc-900'
+              className={`text-[11px] font-bold uppercase tracking-wider font-mono ${
+                theme === 'dark' ? 'text-zinc-200' : 'text-zinc-900'
               }`}
             >
-              Reader Account
+              Account
             </h4>
-            <ul className="space-y-2 text-xs">
-              <li>
-                <button
-                  onClick={() => onNavigate('library')}
-                  className="hover:text-zinc-950 dark:hover:text-white transition-colors cursor-pointer"
-                >
-                  My Reading History
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onNavigate('library')}
-                  className="hover:text-zinc-950 dark:hover:text-white transition-colors cursor-pointer"
-                >
-                  Bookmarked Series
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onNavigate('library')}
-                  className="hover:text-zinc-950 dark:hover:text-white transition-colors cursor-pointer"
-                >
-                  Submitted Reviews
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onNavigate('membership')}
-                  className="hover:text-zinc-950 dark:hover:text-white transition-colors cursor-pointer"
-                >
-                  VIP Membership
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onNavigate('membership')}
-                  className="hover:text-zinc-950 dark:hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
-                >
-                  <span>Help & Support</span>
-                  <span className="text-[10px] text-zinc-500 font-mono">support@mangawild.online</span>
-                </button>
-              </li>
-            </ul>
+            <div className="space-y-1">
+              <button
+                type="button"
+                onClick={() => onNavigate('library')}
+                className="group flex items-center gap-2 py-1.5 px-2 rounded-lg text-xs text-zinc-400 hover:text-white hover:bg-white/[0.04] transition-all cursor-pointer w-full text-left max-w-full box-border"
+              >
+                <Bookmark className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors shrink-0 stroke-[1.75px]" />
+                <span className="truncate">Library</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate('library')}
+                className="group flex items-center gap-2 py-1.5 px-2 rounded-lg text-xs text-zinc-400 hover:text-white hover:bg-white/[0.04] transition-all cursor-pointer w-full text-left max-w-full box-border"
+              >
+                <Clock className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors shrink-0 stroke-[1.75px]" />
+                <span className="truncate">History</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate('library')}
+                className="group flex items-center gap-2 py-1.5 px-2 rounded-lg text-xs text-zinc-400 hover:text-white hover:bg-white/[0.04] transition-all cursor-pointer w-full text-left max-w-full box-border"
+              >
+                <Star className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors shrink-0 stroke-[1.75px]" />
+                <span className="truncate">Reviews</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate('membership')}
+                className="group flex items-center gap-2 py-1.5 px-2 rounded-lg text-xs text-zinc-400 hover:text-white hover:bg-white/[0.04] transition-all cursor-pointer w-full text-left max-w-full box-border"
+              >
+                <LifeBuoy className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors shrink-0 stroke-[1.75px]" />
+                <span className="truncate">Support</span>
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-zinc-500 font-mono">
+        <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-zinc-500 font-mono max-w-full box-border">
           <p>© {new Date().getFullYear()} MangaWild. All rights reserved.</p>
-          <p className="flex items-center gap-1">
-            Original manga platform built for readers and creators.
+          <p className="flex items-center gap-1.5 text-zinc-500">
+            <span>Built for readers & creators.</span>
+            <span>•</span>
+            <span className="text-zinc-400">70% Royalties</span>
           </p>
         </div>
       </div>

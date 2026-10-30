@@ -241,20 +241,6 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
                     <span>{isFollowingCreator ? '✓ Following' : '+ Follow'}</span>
                     <span className="text-[10px] font-mono opacity-80">({creator.followersCount})</span>
                   </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsTipModalOpen(true)}
-                    className={`text-xs px-3 py-1 rounded-xl border font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95 ${
-                      theme === 'dark'
-                        ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700'
-                        : 'bg-zinc-100 border-zinc-300 text-zinc-800 hover:bg-zinc-200'
-                    }`}
-                    title={`Tip ${series.author}`}
-                  >
-                    <Coins className="w-3.5 h-3.5 text-zinc-400" />
-                    <span>Tip</span>
-                  </button>
                 </div>
               )}
             </div>
@@ -323,7 +309,7 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
           </p>
 
           {/* Action Row - Fully Responsive & Monochromatic */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-2 w-full">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-2 w-full max-w-full box-border">
             {resumeChapter ? (
               <button
                 onClick={() => {
@@ -335,7 +321,7 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
                     onReadChapter(series.id, resumeChapter.id);
                   }
                 }}
-                className="w-full sm:w-auto px-6 py-3 bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer hover:ring-2 hover:ring-white/30"
+                className="w-full sm:w-auto px-5 py-3 bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer max-w-full box-border"
               >
                 {Boolean(series.isExclusive && !isVIP && user.role !== 'admin' && !isCreatorOfSeries) ? (
                   <>
@@ -354,75 +340,79 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
             ) : (user.role === 'admin' || isCreatorOfSeries) ? (
               <button
                 onClick={() => onNavigate('creator')}
-                className="w-full sm:w-auto px-6 py-3 bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer hover:ring-2 hover:ring-white/30"
+                className="w-full sm:w-auto px-5 py-3 bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer max-w-full box-border"
               >
                 <Plus className="w-4 h-4 text-black" />
                 <span>Add Chapter</span>
               </button>
             ) : null}
 
-            {/* Like Button (Strictly Monochromatic) */}
-            <button
-              onClick={() => {
-                const res = toggleLikeSeries(series.id);
-                setLikesCount(res.likesCount);
-              }}
-              className={`flex-1 sm:flex-initial px-4 py-3 rounded-xl border text-xs font-semibold uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
-                likedSeries.includes(series.id)
-                  ? 'bg-white text-black border-white shadow-sm'
-                  : theme === 'dark'
-                  ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700'
-                  : 'bg-white border-zinc-300 text-zinc-700 hover:text-zinc-950 shadow-xs'
-              }`}
-            >
-              <Heart
-                className={`w-4 h-4 transition-transform ${
-                  likedSeries.includes(series.id) ? 'fill-black text-black' : 'text-zinc-400'
+            {/* Secondary Actions: Like, Save, Tip, Share (All contained & responsive) */}
+            <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap max-w-full box-border">
+              {/* Like Button */}
+              <button
+                onClick={() => {
+                  const res = toggleLikeSeries(series.id);
+                  setLikesCount(res.likesCount);
+                }}
+                className={`flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl border text-xs font-semibold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 min-w-[70px] max-w-full box-border ${
+                  likedSeries.includes(series.id)
+                    ? 'bg-white text-black border-white shadow-sm'
+                    : theme === 'dark'
+                    ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700'
+                    : 'bg-white border-zinc-300 text-zinc-700 hover:text-zinc-950 shadow-xs'
                 }`}
-              />
-              <span>{likedSeries.includes(series.id) ? 'Liked' : 'Like'}</span>
-            </button>
+              >
+                <Heart
+                  className={`w-3.5 h-3.5 transition-transform ${
+                    likedSeries.includes(series.id) ? 'fill-black text-black' : 'text-zinc-400'
+                  }`}
+                />
+                <span>{likedSeries.includes(series.id) ? 'Liked' : 'Like'}</span>
+              </button>
 
-            {/* Bookmark Button */}
-            <button
-              onClick={() => toggleBookmark(series.id)}
-              className={`flex-1 sm:flex-initial px-4 py-3 rounded-xl border text-xs font-semibold uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
-                isBookmarked
-                  ? 'bg-zinc-800 border-zinc-700 text-white shadow-xs'
-                  : theme === 'dark'
-                  ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700'
-                  : 'bg-white border-zinc-300 text-zinc-700 hover:text-zinc-950 shadow-xs'
-              }`}
-            >
-              <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-current text-white' : 'text-zinc-400'}`} />
-              <span>{isBookmarked ? 'Saved' : 'Save'}</span>
-            </button>
+              {/* Bookmark Button */}
+              <button
+                onClick={() => toggleBookmark(series.id)}
+                className={`flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl border text-xs font-semibold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 min-w-[70px] max-w-full box-border ${
+                  isBookmarked
+                    ? 'bg-zinc-800 border-zinc-700 text-white shadow-xs'
+                    : theme === 'dark'
+                    ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700'
+                    : 'bg-white border-zinc-300 text-zinc-700 hover:text-zinc-950 shadow-xs'
+                }`}
+              >
+                <Bookmark className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-current text-white' : 'text-zinc-400'}`} />
+                <span>{isBookmarked ? 'Saved' : 'Save'}</span>
+              </button>
 
-            {/* Tip Artist Button (Razorpay UPI / Cards) */}
-            <button
-              onClick={() => setIsTipModalOpen(true)}
-              className={`flex-1 sm:flex-initial px-4 py-3 rounded-xl border text-xs font-semibold uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 ${
-                theme === 'dark'
-                  ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700'
-                  : 'bg-white border-zinc-300 text-zinc-700 hover:text-zinc-950 shadow-xs'
-              }`}
-              title={`Tip ${series.author}`}
-            >
-              <Coins className="w-4 h-4 text-zinc-400" />
-              <span>Tip Artist</span>
-            </button>
+              {/* Tip Artist Button (Single Minimal Entry Point) */}
+              <button
+                onClick={() => setIsTipModalOpen(true)}
+                className={`flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl border text-xs font-semibold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 min-w-[70px] max-w-full box-border ${
+                  theme === 'dark'
+                    ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700'
+                    : 'bg-white border-zinc-300 text-zinc-700 hover:text-zinc-950 shadow-xs'
+                }`}
+                title={`Tip ${series.author}`}
+              >
+                <Coins className="w-3.5 h-3.5 text-zinc-400" />
+                <span>Tip</span>
+              </button>
 
-            <button
-              onClick={handleShare}
-              className={`p-3 rounded-xl border transition-all cursor-pointer shrink-0 ${
-                theme === 'dark'
-                  ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700'
-                  : 'bg-white border-zinc-300 text-zinc-600 hover:text-zinc-950 hover:bg-zinc-50 shadow-xs'
-              }`}
-              title="Share link"
-            >
-              {shareCopied ? <Check className="w-4 h-4 text-white" /> : <Share2 className="w-4 h-4" />}
-            </button>
+              {/* Share Button */}
+              <button
+                onClick={handleShare}
+                className={`p-2.5 rounded-xl border transition-all cursor-pointer shrink-0 max-w-full box-border ${
+                  theme === 'dark'
+                    ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700'
+                    : 'bg-white border-zinc-300 text-zinc-600 hover:text-zinc-950 hover:bg-zinc-50 shadow-xs'
+                }`}
+                title="Share link"
+              >
+                {shareCopied ? <Check className="w-3.5 h-3.5 text-white" /> : <Share2 className="w-3.5 h-3.5" />}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -603,26 +593,7 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
         )}
       </div>
 
-      {/* 3. Support Mangaka Tip Jar (Razorpay UPI & Cards) */}
-      <div className="pt-6 border-t border-zinc-200 dark:border-zinc-800 w-full max-w-full box-border">
-        <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Coins className="w-4 h-4 text-white" />
-            <h3 className={`text-sm font-bold font-mono uppercase tracking-wider ${theme === 'dark' ? 'text-white' : 'text-zinc-900'}`}>
-              Support Mangaka ({series.author})
-            </h3>
-          </div>
-          <span className="text-[11px] text-zinc-500 font-mono">100% Direct Payout via Razorpay</span>
-        </div>
-        <CreatorTipJar
-          creatorId={creator?.id || series.creatorId}
-          creatorName={series.author}
-          seriesId={series.id}
-          seriesTitle={series.title}
-        />
-      </div>
-
-      {/* 4. Manga Reader Comments & Discussion Section */}
+      {/* 3. Manga Reader Comments & Discussion Section */}
       <div className="pt-6 border-t border-zinc-200 dark:border-zinc-800">
         <MangaCommentsSection seriesId={series.id} />
       </div>
@@ -662,6 +633,8 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
               creatorName={series.author}
               seriesId={series.id}
               seriesTitle={series.title}
+              directForm={true}
+              onClose={() => setIsTipModalOpen(false)}
               onTipSent={() => {
                 setIsTipModalOpen(false);
               }}

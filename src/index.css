@@ -67,7 +67,8 @@
   }
 
   body {
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    letter-spacing: -0.012em;
     background-color: var(--bg-page);
     color: var(--text-primary);
     overflow-x: hidden;
@@ -86,12 +87,7 @@
   select,
   textarea,
   .btn-interactive,
-  .interactive-field {
-    max-width: 100%;
-    box-sizing: border-box;
-  }
-
-  /* Cards, Hero section elements and containers strictly contained */
+  .interactive-field,
   .hero-card,
   .hero-section,
   .card-interactive,
@@ -99,9 +95,16 @@
   article,
   header,
   nav,
-  main {
+  main,
+  aside,
+  footer {
     max-width: 100%;
     box-sizing: border-box;
+  }
+
+  /* Word wrap containment: Prevent long series titles from overflowing */
+  h1, h2, h3, h4, h5, h6, p, label {
+    overflow-wrap: break-word;
   }
 
   /* Anti-Piracy & Image Protection: Disable long-press download, touch callout, and image dragging */
@@ -245,12 +248,13 @@
 }
 
 .font-display {
-  font-family: 'Bebas Neue', 'Plus Jakarta Sans', sans-serif;
-  letter-spacing: 0.03em;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  letter-spacing: -0.02em;
 }
 
 .font-serif {
-  font-family: 'Cinzel', Georgia, serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  letter-spacing: -0.02em;
 }
 
 /* Custom sleek slate-grey scrollbar */

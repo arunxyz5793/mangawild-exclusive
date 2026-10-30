@@ -13,6 +13,8 @@ interface CreatorTipJarProps {
   chapterNumber?: number;
   onTipSent?: (coins: number, inr?: number) => void;
   compact?: boolean;
+  directForm?: boolean;
+  onClose?: () => void;
 }
 
 interface Particle {
@@ -36,6 +38,8 @@ export const CreatorTipJar: React.FC<CreatorTipJarProps> = ({
   chapterNumber,
   onTipSent,
   compact = false,
+  directForm = false,
+  onClose,
 }) => {
   const { user } = useAuth();
   const [showModal, setShowModal] = useState(false);
@@ -170,6 +174,189 @@ export const CreatorTipJar: React.FC<CreatorTipJarProps> = ({
     setShowModal(false);
     setTipMessage('');
   };
+
+  if (directForm) {
+    return (
+      <div className="w-full max-w-full space-y-4 text-white box-border text-left">
+        {/* Method Tabs: Razorpay vs Coins */}
+        <div className="flex items-center p-1 rounded-xl bg-zinc-900 border border-white/[0.06] text-xs font-mono">
+          <button
+            type="button"
+            onClick={() => setTipMethod('razorpay')}
+            className={`flex-1 py-1.5 rounded-lg font-semibold text-center transition-all cursor-pointer ${
+              tipMethod === 'razorpay'
+                ? 'bg-white text-zinc-950 shadow-xs'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            Razorpay (UPI / Card)
+          </button>
+          <button
+            type="button"
+            onClick={() => setTipMethod('coins')}
+            className={`flex-1 py-1.5 rounded-lg font-semibold text-center transition-all cursor-pointer ${
+              tipMethod === 'coins'
+                ? 'bg-white text-zinc-950 shadow-xs'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            Coins
+          </button>
+        </div>
+
+        {errorMessage && (
+          <div className="p-2.5 rounded-xl bg-zinc-900 border border-white/20 text-[11px] text-zinc-300 font-mono">
+            {errorMessage}
+          </div>
+        )}
+
+        {/* Razorpay Amount Selection */}
+        {tipMethod === 'razorpay' ? (
+          <div className="space-y-3 text-xs">
+            <div>
+              <label className="text-[11px] font-mono text-zinc-400 block mb-1.5">
+                Select Tip Amount (INR)
+              </label>
+              <div className="grid grid-cols-4 gap-2 mb-2">
+                {[20, 50, 100, 200].map((amt) => (
+                  <button
+                    key={amt}
+                    type="button"
+                    onClick={() => {
+                      setSelectedInr(amt);
+                      setCustomInr(amt.toString());
+                    }}
+                    className={`py-2 rounded-xl border font-mono text-xs font-bold transition-all cursor-pointer ${
+                      selectedInr === amt && customInr === amt.toString()
+                        ? 'bg-white text-zinc-950 border-white shadow-xs'
+                        : 'bg-zinc-900 text-zinc-300 border-white/[0.08] hover:border-white/30'
+                    }`}
+                  >
+                    ₹{amt}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-zinc-400 font-bold">₹</span>
+                <input
+                  type="number"
+                  min={10}
+                  max={20000}
+                  value={customInr}
+                  onChange={(e) => {
+                    setCustomInr(e.target.value);
+                    setSelectedInr(parseInt(e.target.value) || 0);
+                  }}
+                  placeholder="Custom amount"
+                  className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-white/10 text-white font-mono text-xs focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/20"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-mono text-zinc-400 block mb-1">
+                Message for Mangaka (Optional)
+              </label>
+              <input
+                type="text"
+                maxLength={120}
+                placeholder="Leave a note of encouragement..."
+                value={tipMessage}
+                onChange={(e) => setTipMessage(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-white/10 text-white text-xs placeholder:text-zinc-600 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/20"
+              />
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-zinc-900/60 border border-white/[0.04] text-[10px] text-zinc-400 font-mono flex items-center gap-2">
+              <ShieldCheck className="w-3.5 h-3.5 text-zinc-300 shrink-0" />
+              <span>Direct checkout via Razorpay (UPI, GPay, PhonePe, Paytm, Cards).</span>
+            </div>
+
+            <div className="pt-2 flex items-center justify-end gap-2 border-t border-white/[0.06]">
+              {onClose && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-3.5 py-2 rounded-xl border border-zinc-800 text-zinc-400 hover:text-white font-mono text-xs transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={isProcessingRazorpay || selectedInr <= 0}
+                onClick={() => handlePayViaRazorpay(selectedInr)}
+                className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-bold font-mono text-xs flex items-center justify-center gap-1.5 hover:ring-2 hover:ring-white/30 transition-all duration-200 active:scale-95 cursor-pointer shadow disabled:opacity-50"
+              >
+                <CreditCard className="w-3.5 h-3.5" />
+                <span>{isProcessingRazorpay ? 'Opening Gateway...' : `Pay ₹${selectedInr} via Razorpay`}</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* Coins */
+          <div className="space-y-3 text-xs">
+            <div>
+              <label className="text-[11px] font-mono text-zinc-400 block mb-1.5">
+                Select Coins
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[10, 50, 100].map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setSelectedInr(c)}
+                    className={`py-2 rounded-xl border font-mono text-xs font-bold transition-all cursor-pointer ${
+                      selectedInr === c
+                        ? 'bg-white text-zinc-950 border-white shadow-xs'
+                        : 'bg-zinc-900 text-zinc-300 border-white/[0.08] hover:border-white/30'
+                    }`}
+                  >
+                    🪙 {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-mono text-zinc-400 block mb-1">
+                Message for Mangaka (Optional)
+              </label>
+              <input
+                type="text"
+                maxLength={120}
+                placeholder="Leave a note of encouragement..."
+                value={tipMessage}
+                onChange={(e) => setTipMessage(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-white/10 text-white text-xs placeholder:text-zinc-600 focus:outline-none focus:border-white/30"
+              />
+            </div>
+
+            <div className="pt-2 flex items-center justify-end gap-2 border-t border-white/[0.06]">
+              {onClose && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-3.5 py-2 rounded-xl border border-zinc-800 text-zinc-400 hover:text-white font-mono text-xs transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => handleSendCoins(selectedInr)}
+                className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-bold font-mono text-xs flex items-center justify-center gap-1.5 hover:ring-2 hover:ring-white/30 transition-all duration-200 active:scale-95 cursor-pointer shadow"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>Send {selectedInr} Coins</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full max-w-full box-border">
