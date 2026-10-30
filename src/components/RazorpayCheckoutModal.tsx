@@ -99,7 +99,7 @@ export const RazorpayCheckoutModal: React.FC<RazorpayCheckoutModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-fadeIn">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 modal-backdrop-overlay bg-black/85 backdrop-blur-sm animate-fadeIn">
       <div className="relative w-full max-w-md bg-[#0c0d10] text-[#fafafa] border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden">
         {/* Modal Header */}
         <div className="p-5 border-b border-zinc-800/80 flex items-center justify-between bg-zinc-950/40">

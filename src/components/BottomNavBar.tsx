@@ -65,8 +65,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
       <nav
         className={`relative w-full backdrop-blur-2xl border-t border-x rounded-t-[1.75rem] sm:rounded-t-[2.25rem] py-1.5 px-4 flex items-center justify-around transition-colors duration-200 ${
           theme === 'light'
-            ? 'bg-white/95 border-zinc-300 shadow-[0_-6px_24px_rgba(0,0,0,0.08)]'
-            : 'bg-black/95 border-white/15 shadow-[0_-8px_30px_rgba(0,0,0,0.85)]'
+            ? 'bg-white border-black text-black shadow-[0_-4px_20px_rgba(0,0,0,0.06)]'
+            : 'bg-black/95 border-white/20 text-white shadow-[0_-8px_30px_rgba(0,0,0,0.85)]'
         }`}
       >
         {/* 1. Home Button */}
@@ -76,11 +76,11 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
           className={`group relative flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all duration-200 cursor-pointer active:scale-90 ${
             currentView === 'home'
               ? theme === 'light'
-                ? 'text-black bg-zinc-200 font-bold'
+                ? 'text-black bg-white border border-black font-bold'
                 : 'text-white bg-white/15 font-bold'
               : theme === 'light'
-              ? 'text-zinc-600 hover:text-black hover:bg-zinc-100'
-              : 'text-zinc-400 hover:text-white hover:bg-white/10'
+              ? 'text-black hover:bg-white'
+              : 'text-white hover:bg-white/10'
           }`}
           title="Home"
         >
@@ -101,11 +101,11 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
           className={`group relative flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all duration-200 cursor-pointer active:scale-90 ${
             currentView === 'browse' || currentView === 'new_series'
               ? theme === 'light'
-                ? 'text-black bg-zinc-200 font-bold'
+                ? 'text-black bg-white border border-black font-bold'
                 : 'text-white bg-white/15 font-bold'
               : theme === 'light'
-              ? 'text-zinc-600 hover:text-black hover:bg-zinc-100'
-              : 'text-zinc-400 hover:text-white hover:bg-white/10'
+              ? 'text-black hover:bg-white'
+              : 'text-white hover:bg-white/10'
           }`}
           title="Browse All Manga"
         >
@@ -128,11 +128,11 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
           className={`group relative flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all duration-200 cursor-pointer active:scale-90 ${
             currentView === 'library'
               ? theme === 'light'
-                ? 'text-black bg-zinc-200 font-bold'
+                ? 'text-black bg-white border border-black font-bold'
                 : 'text-white bg-white/15 font-bold'
               : theme === 'light'
-              ? 'text-zinc-600 hover:text-black hover:bg-zinc-100'
-              : 'text-zinc-400 hover:text-white hover:bg-white/10'
+              ? 'text-black hover:bg-white'
+              : 'text-white hover:bg-white/10'
           }`}
           title="My Library"
         >
@@ -153,11 +153,11 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
           className={`group relative flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all duration-200 cursor-pointer active:scale-90 ${
             currentView === 'membership' || currentView === 'creator' || currentView === 'admin'
               ? theme === 'light'
-                ? 'text-black bg-zinc-200 font-bold'
+                ? 'text-black bg-white border border-black font-bold'
                 : 'text-white bg-white/15 font-bold'
               : theme === 'light'
-              ? 'text-zinc-600 hover:text-black hover:bg-zinc-100'
-              : 'text-zinc-400 hover:text-white hover:bg-white/10'
+              ? 'text-black hover:bg-white'
+              : 'text-white hover:bg-white/10'
           }`}
           title="Profile & Menu"
         >

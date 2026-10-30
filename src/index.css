@@ -1,58 +1,59 @@
 @import "tailwindcss";
 
 @layer base {
-  :root {
-    /* Pure Minimal Dark Monochrome Theme */
-    --bg-page: #09090b;
-    --bg-card: #121215;
-    --bg-surface: #18181b;
-    --bg-elevated: #27272a;
+  :root,
+  html.dark {
+    /* Pure Minimal Dark Monochrome Theme (All Text Crisp White) */
+    --bg-page: #000000;
+    --bg-card: #09090b;
+    --bg-surface: #121215;
+    --bg-elevated: #18181b;
     
-    --border-color: rgba(255, 255, 255, 0.12);
-    --border-subtle: rgba(255, 255, 255, 0.07);
+    --border-color: rgba(255, 255, 255, 0.22);
+    --border-subtle: rgba(255, 255, 255, 0.14);
     
     --text-primary: #ffffff;
-    --text-secondary: #d4d4d8;
-    --text-muted: #a1a1aa;
+    --text-secondary: #ffffff;
+    --text-muted: #ffffff;
     
     --accent-primary: #ffffff;
-    --accent-secondary: #a1a1aa;
+    --accent-secondary: #ffffff;
     --accent-highlight: #ffffff;
-    --accent-contrast: #09090b;
+    --accent-contrast: #000000;
     --accent-contrast-bg: #ffffff;
     
-    --badge-bg: rgba(255, 255, 255, 0.1);
-    --badge-border: rgba(255, 255, 255, 0.2);
+    --badge-bg: rgba(255, 255, 255, 0.12);
+    --badge-border: rgba(255, 255, 255, 0.25);
     --badge-text: #ffffff;
     
     --glow-color: rgba(255, 255, 255, 0.12);
   }
 
   html.light {
-    /* Pure Minimal White Monochrome Theme */
+    /* Pure Plain White Monochrome Theme (Zero Beige/Grey, Crisp Black Text & Black Layer Lines) */
     --bg-page: #ffffff;
-    --bg-card: #f8f8fa;
-    --bg-surface: #f1f1f4;
-    --bg-elevated: #e4e4e7;
+    --bg-card: #ffffff;
+    --bg-surface: #ffffff;
+    --bg-elevated: #ffffff;
     
-    --border-color: rgba(9, 9, 11, 0.14);
-    --border-subtle: rgba(9, 9, 11, 0.08);
+    --border-color: #000000;
+    --border-subtle: #000000;
     
-    --text-primary: #09090b;
-    --text-secondary: #27272a;
-    --text-muted: #52525b;
+    --text-primary: #000000;
+    --text-secondary: #000000;
+    --text-muted: #000000;
     
-    --accent-primary: #09090b;
-    --accent-secondary: #27272a;
-    --accent-highlight: #09090b;
+    --accent-primary: #000000;
+    --accent-secondary: #000000;
+    --accent-highlight: #000000;
     --accent-contrast: #ffffff;
-    --accent-contrast-bg: #09090b;
+    --accent-contrast-bg: #000000;
     
-    --badge-bg: rgba(9, 9, 11, 0.07);
-    --badge-border: rgba(9, 9, 11, 0.18);
-    --badge-text: #09090b;
+    --badge-bg: #ffffff;
+    --badge-border: #000000;
+    --badge-text: #000000;
     
-    --glow-color: rgba(9, 9, 11, 0.08);
+    --glow-color: rgba(0, 0, 0, 0.08);
   }
 
   html {
@@ -63,6 +64,8 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     font-weight: 500;
     font-style: normal;
+    background-color: var(--bg-page);
+    color: var(--text-primary);
   }
 
   *, ::before, ::after {
@@ -157,18 +160,81 @@
   }
 }
 
-/* Comprehensive White (Light) Mode Monochrome Adaptation */
-html.light body,
-html.light main,
-html.light .bg-\[\#09090b\],
-html.light .bg-\[\#0b0f17\],
-html.light .bg-\[\#0e0e12\],
-html.light .bg-zinc-950,
-html.light .bg-black {
-  background-color: #ffffff !important;
-  color: #09090b !important;
+/* ============================================================================
+   1. BLACK THEME (html.dark) — CONVERT ALL GREY FONTS TO PURE CRISP WHITE
+   ============================================================================ */
+html.dark .text-zinc-100,
+html.dark .text-zinc-200,
+html.dark .text-zinc-300,
+html.dark .text-zinc-400,
+html.dark .text-zinc-500,
+html.dark .text-zinc-600,
+html.dark .text-stone-100,
+html.dark .text-stone-200,
+html.dark .text-stone-300,
+html.dark .text-stone-400,
+html.dark .text-stone-500,
+html.dark .text-stone-600,
+html.dark .text-slate-100,
+html.dark .text-slate-200,
+html.dark .text-slate-300,
+html.dark .text-slate-400,
+html.dark .text-slate-500,
+html.dark .text-gray-300,
+html.dark .text-gray-400,
+html.dark .text-gray-500,
+html.dark p,
+html.dark h1,
+html.dark h2,
+html.dark h3,
+html.dark h4,
+html.dark h5,
+html.dark h6,
+html.dark li,
+html.dark label,
+html.dark td,
+html.dark th {
+  color: #ffffff !important;
 }
 
+/* Keep White Buttons in Dark Mode with Crisp Black Text */
+html.dark button.bg-white,
+html.dark button.bg-white *,
+html.dark a.bg-white,
+html.dark a.bg-white *,
+html.dark .bg-white.text-black,
+html.dark .bg-white.text-black *,
+html.dark .bg-white.text-zinc-950,
+html.dark .bg-white.text-zinc-950 * {
+  color: #000000 !important;
+}
+
+html.dark .font-rockidz-3d {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* ============================================================================
+   2. WHITE THEME (html.light) — 100% PLAIN WHITE (#ffffff), CRISP BLACK TEXT
+      (#000000), AND CRISP BLACK HAIRLINE BORDERS (#000000) FOR EVERY LAYER
+   ============================================================================ */
+html.light,
+html.light body,
+html.light #root,
+html.light main,
+html.light footer,
+html.light aside,
+html.light .bg-black,
+html.light .bg-black\/95,
+html.light .bg-black\/90,
+html.light .bg-black\/80,
+html.light .bg-black\/70,
+html.light .bg-black\/60,
+html.light .bg-black\/50,
+html.light .bg-black\/40,
+html.light .bg-zinc-950,
+html.light .bg-zinc-950\/60,
+html.light .bg-zinc-950\/40,
 html.light .bg-zinc-900,
 html.light .bg-zinc-900\/90,
 html.light .bg-zinc-900\/80,
@@ -177,16 +243,27 @@ html.light .bg-zinc-900\/60,
 html.light .bg-zinc-900\/50,
 html.light .bg-zinc-900\/40,
 html.light .bg-zinc-900\/30,
-html.light .bg-\[\#111827\],
-html.light .bg-\[\#121215\] {
-  background-color: #f4f4f5 !important;
-  color: #09090b !important;
-}
-
 html.light .bg-zinc-800,
 html.light .bg-zinc-800\/80,
 html.light .bg-zinc-800\/60,
 html.light .bg-zinc-800\/50,
+html.light .bg-zinc-800\/40,
+html.light .bg-zinc-700,
+html.light .bg-zinc-100,
+html.light .bg-zinc-50,
+html.light .bg-stone-950,
+html.light .bg-stone-900,
+html.light .bg-stone-800,
+html.light .bg-slate-950,
+html.light .bg-slate-900,
+html.light .bg-\[\#09090b\],
+html.light .bg-\[\#0b0f17\],
+html.light .bg-\[\#0e0e12\],
+html.light .bg-\[\#101014\],
+html.light .bg-\[\#111827\],
+html.light .bg-\[\#121215\],
+html.light .bg-\[\#f8fafc\],
+html.light .bg-white\/\[0\.01\],
 html.light .bg-white\/\[0\.02\],
 html.light .bg-white\/\[0\.03\],
 html.light .bg-white\/\[0\.04\],
@@ -194,65 +271,101 @@ html.light .bg-white\/\[0\.05\],
 html.light .bg-white\/\[0\.06\],
 html.light .bg-white\/\[0\.08\],
 html.light .bg-white\/5,
-html.light .bg-white\/10 {
-  background-color: #e4e4e7 !important;
-  color: #09090b !important;
+html.light .bg-white\/10,
+html.light .bg-white\/15 {
+  background-color: #ffffff !important;
+  color: #000000 !important;
 }
 
-/* Primary Action Buttons in Light Mode: Invert White buttons into crisp Black buttons with White text */
-html.light button.bg-white,
-html.light a.bg-white,
-html.light .btn-primary-mono {
-  background-color: #09090b !important;
-  color: #ffffff !important;
-  border-color: #09090b !important;
-}
-html.light button.bg-white *,
-html.light a.bg-white * {
-  color: #ffffff !important;
-}
-html.light button.bg-white:hover,
-html.light a.bg-white:hover {
-  background-color: #27272a !important;
-}
-
-/* Text Colors in Light Mode: Crisp Black for headings & paragraphs */
-html.light .text-white:not(button.bg-white *):not(.font-rockidz-3d),
+/* All Text & Fonts in White Mode Turn Crisp Black (#000000) */
+html.light h1,
+html.light h2,
+html.light h3,
+html.light h4,
+html.light h5,
+html.light h6,
+html.light p,
+html.light span,
+html.light a,
+html.light li,
+html.light label,
+html.light td,
+html.light th,
+html.light input,
+html.light select,
+html.light textarea,
+html.light button,
+html.light .text-white,
 html.light .text-zinc-100,
 html.light .text-zinc-200,
-html.light .text-slate-100,
-html.light .text-slate-200 {
-  color: #09090b !important;
-}
-
 html.light .text-zinc-300,
 html.light .text-zinc-400,
+html.light .text-zinc-500,
+html.light .text-zinc-600,
+html.light .text-zinc-700,
+html.light .text-zinc-800,
+html.light .text-zinc-900,
+html.light .text-stone-100,
+html.light .text-stone-200,
+html.light .text-stone-300,
+html.light .text-stone-400,
+html.light .text-stone-500,
+html.light .text-stone-600,
+html.light .text-slate-100,
+html.light .text-slate-200,
 html.light .text-slate-300,
 html.light .text-slate-400,
-html.light p {
-  color: #18181b !important;
-}
-
-html.light .text-zinc-500,
 html.light .text-slate-500 {
-  color: #52525b !important;
+  color: #000000 !important;
 }
 
-/* Borders in Light Mode */
-html.light .border-zinc-800,
-html.light .border-zinc-800\/80,
-html.light .border-zinc-800\/60,
-html.light .border-zinc-700,
-html.light .border-white\/5,
-html.light .border-white\/10,
-html.light .border-white\/15,
-html.light .border-white\/20,
-html.light .border-white\/\[0\.06\],
-html.light .border-white\/\[0\.08\] {
-  border-color: rgba(9, 9, 11, 0.14) !important;
+/* MangaWild Logo Wordmark in White Mode: Crisp Black */
+html.light .font-rockidz-3d {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
 }
 
-/* Micro-interaction & animations */
+/* Primary Action Buttons in White Mode: Invert to Solid Black Background + Crisp White Text */
+html.light button.bg-white,
+html.light a.bg-white,
+html.light .btn-primary-mono,
+html.light .light-invert-pill {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border-color: #000000 !important;
+}
+
+html.light button.bg-white *,
+html.light a.bg-white *,
+html.light .btn-primary-mono *,
+html.light .light-invert-pill * {
+  color: #ffffff !important;
+}
+
+/* Crisp Black Hairline Borders Around All Layers, Cards, Panels & Manga Covers in White Mode */
+html.light .border,
+html.light .border-2,
+html.light .border-t,
+html.light .border-b,
+html.light .border-l,
+html.light .border-r,
+html.light .border-x,
+html.light .border-y,
+html.light [class*="border-"],
+html.light input,
+html.light select,
+html.light textarea,
+html.light .hero-card,
+html.light .manga-poster-frame {
+  border-color: #000000 !important;
+}
+
+/* Keep Modal Backdrop Semitransparent Black in Both Modes so Centered Popups Stand Out */
+html.light .modal-backdrop-overlay {
+  background-color: rgba(0, 0, 0, 0.65) !important;
+}
+
+/* Micro-interaction & animations (Transform-free at rest so fixed modals never break) */
 @keyframes popClick {
   0% { transform: scale(1); }
   50% { transform: scale(0.94); }
@@ -262,11 +375,9 @@ html.light .border-white\/\[0\.08\] {
 @keyframes slideUpFade {
   from {
     opacity: 0;
-    transform: translateY(12px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -284,7 +395,7 @@ html.light .border-white\/\[0\.08\] {
 }
 
 .animate-fade-in-up {
-  animation: slideUpFade 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: slideUpFade 0.25s ease-out;
 }
 
 .btn-interactive {
@@ -407,15 +518,13 @@ pre {
   background: #475569;
 }
 
-/* Subtle performance-safe animations */
+/* Subtle performance-safe animations (transform-free so fixed modals stay bound to viewport) */
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(4px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -429,7 +538,7 @@ pre {
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeIn 0.2s ease-out;
 }
 
 .animate-pulse-gently {

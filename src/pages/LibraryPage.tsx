@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Bookmark, Clock, Star, ArrowRight, UserPlus, MessageSquare, ExternalLink, Crown, Sparkles, CheckCircle2, Cloud, RefreshCw } from 'lucide-react';
+import { Bookmark, Clock, Star, ArrowRight, UserPlus, MessageSquare, ExternalLink, Crown, Sparkles, CheckCircle2 } from 'lucide-react';
 import { StorageService } from '../services/storage';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { MangaSeries } from '../types/manga';
 
 interface LibraryPageProps {
@@ -16,13 +17,14 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
   onNavigate,
 }) => {
   const { user, isVIP, bookmarks, toggleBookmark, followedCreators, toggleFollowCreator } = useAuth();
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
   const [activeTab, setActiveTab] = useState<'history' | 'bookmarks' | 'creators' | 'reviews'>('history');
 
   const allSeries = StorageService.getSeries();
   const allCreators = StorageService.getCreators();
 
   const [readingHistory, setReadingHistory] = useState(() => StorageService.getReadingHistory(user.id));
-  const [isSyncingCloud, setIsSyncingCloud] = useState<boolean>(false);
 
   // Sync reading history on mount
   useEffect(() => {
@@ -36,23 +38,33 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8 animate-fade-in">
       {/* Header with Reader Profile Card */}
-      <div className="p-6 rounded-3xl border border-zinc-800 bg-zinc-900/40 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div
+        className={`p-6 rounded-3xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
+          isLight ? 'bg-white border-black text-black' : 'bg-zinc-950 border-white/20 text-white'
+        }`}
+      >
         <div className="flex items-center gap-4">
           <img
             src={user.avatarUrl || '/avatars/vip.svg'}
             alt={user.username}
-            className="w-16 h-16 rounded-2xl object-cover bg-zinc-800 border-2 border-zinc-700 shadow-md"
+            className={`w-16 h-16 rounded-2xl object-cover border ${
+              isLight ? 'bg-white border-black' : 'bg-zinc-900 border-white/25'
+            }`}
           />
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-black text-white font-sans tracking-tight font-mono">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-black font-sans tracking-tight">
                 @{user.username || 'reader'}
               </h1>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-wider font-bold bg-zinc-800 text-zinc-300 border border-zinc-700">
+              <span
+                className={`text-[10px] font-mono px-2.5 py-0.5 rounded-full uppercase tracking-wider font-bold border ${
+                  isLight ? 'bg-white text-black border-black' : 'bg-zinc-900 text-white border-white/25'
+                }`}
+              >
                 {user.role.replace('_', ' ')}
               </span>
             </div>
-            <p className="text-xs text-zinc-400 font-mono mt-0.5">
+            <p className="text-xs font-mono mt-1">
               {readingHistory.length} Series Read • {bookmarks.length} Bookmarks
             </p>
           </div>
@@ -60,16 +72,20 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
 
         <div className="flex items-center gap-3 w-full sm:w-auto justify-start sm:justify-end">
           {isVIP ? (
-            <div className="px-3.5 py-2 rounded-xl bg-zinc-800 text-zinc-200 border border-zinc-700 font-bold text-xs font-mono flex items-center gap-2 shadow-xs">
-              <Crown className="w-4 h-4 text-zinc-300" />
+            <div
+              className={`px-3.5 py-2 rounded-xl border font-bold text-xs font-mono flex items-center gap-2 ${
+                isLight ? 'bg-white text-black border-black' : 'bg-zinc-900 text-white border-white/25'
+              }`}
+            >
+              <Crown className="w-4 h-4" />
               <span>{user.subscription?.planId === 'yearly' ? 'VIP Annual' : 'VIP Active'}</span>
             </div>
           ) : (
             <button
               onClick={() => onNavigate && onNavigate('membership')}
-              className="w-full sm:w-auto px-4 py-2 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-xs transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+              className="w-full sm:w-auto px-4 py-2 rounded-xl bg-white text-black hover:bg-zinc-200 font-bold text-xs transition-all border border-white active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
             >
-              <Sparkles className="w-3.5 h-3.5 text-zinc-900" />
+              <Sparkles className="w-3.5 h-3.5" />
               <span>Get VIP Pass</span>
             </button>
           )}
@@ -77,13 +93,19 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-white/10 pb-3 text-xs sm:text-sm font-semibold overflow-x-auto">
+      <div
+        className={`flex items-center gap-2 border-b pb-3 text-xs sm:text-sm font-semibold overflow-x-auto ${
+          isLight ? 'border-black' : 'border-white/15'
+        }`}
+      >
         <button
           onClick={() => setActiveTab('history')}
-          className={`px-4 py-2 rounded-xl transition-colors flex items-center gap-2 whitespace-nowrap ${
+          className={`px-4 py-2 rounded-xl transition-colors flex items-center gap-2 whitespace-nowrap border cursor-pointer ${
             activeTab === 'history'
-              ? 'bg-white text-black font-bold shadow-sm'
-              : 'text-stone-400 hover:text-white hover:bg-white/5'
+              ? 'bg-white text-black border-white font-bold shadow-xs'
+              : isLight
+              ? 'bg-white text-black border-black hover:bg-zinc-100'
+              : 'bg-zinc-950 text-white border-white/15 hover:border-white/35'
           }`}
         >
           <Clock className="w-4 h-4" />
@@ -92,10 +114,12 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
 
         <button
           onClick={() => setActiveTab('bookmarks')}
-          className={`px-4 py-2 rounded-xl transition-colors flex items-center gap-2 whitespace-nowrap ${
+          className={`px-4 py-2 rounded-xl transition-colors flex items-center gap-2 whitespace-nowrap border cursor-pointer ${
             activeTab === 'bookmarks'
-              ? 'bg-white text-black font-bold shadow-sm'
-              : 'text-stone-400 hover:text-white hover:bg-white/5'
+              ? 'bg-white text-black border-white font-bold shadow-xs'
+              : isLight
+              ? 'bg-white text-black border-black hover:bg-zinc-100'
+              : 'bg-zinc-950 text-white border-white/15 hover:border-white/35'
           }`}
         >
           <Bookmark className="w-4 h-4" />
@@ -104,10 +128,12 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
 
         <button
           onClick={() => setActiveTab('creators')}
-          className={`px-4 py-2 rounded-xl transition-colors flex items-center gap-2 whitespace-nowrap ${
+          className={`px-4 py-2 rounded-xl transition-colors flex items-center gap-2 whitespace-nowrap border cursor-pointer ${
             activeTab === 'creators'
-              ? 'bg-white text-black font-bold shadow-sm'
-              : 'text-stone-400 hover:text-white hover:bg-white/5'
+              ? 'bg-white text-black border-white font-bold shadow-xs'
+              : isLight
+              ? 'bg-white text-black border-black hover:bg-zinc-100'
+              : 'bg-zinc-950 text-white border-white/15 hover:border-white/35'
           }`}
         >
           <UserPlus className="w-4 h-4" />
@@ -116,10 +142,12 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
 
         <button
           onClick={() => setActiveTab('reviews')}
-          className={`px-4 py-2 rounded-xl transition-colors flex items-center gap-2 whitespace-nowrap ${
+          className={`px-4 py-2 rounded-xl transition-colors flex items-center gap-2 whitespace-nowrap border cursor-pointer ${
             activeTab === 'reviews'
-              ? 'bg-white text-black font-bold shadow-sm'
-              : 'text-stone-400 hover:text-white hover:bg-white/5'
+              ? 'bg-white text-black border-white font-bold shadow-xs'
+              : isLight
+              ? 'bg-white text-black border-black hover:bg-zinc-100'
+              : 'bg-zinc-950 text-white border-white/15 hover:border-white/35'
           }`}
         >
           <Star className="w-4 h-4" />
@@ -131,27 +159,18 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
       {activeTab === 'history' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between px-1">
-            <h3 className="text-xs uppercase font-mono tracking-wider text-zinc-400 font-bold flex items-center gap-2">
-              <Clock className="w-3.5 h-3.5 text-zinc-300" />
+            <h3 className="text-xs uppercase font-mono tracking-wider font-bold flex items-center gap-2">
+              <Clock className="w-3.5 h-3.5" />
               <span>Continue Reading ({readingHistory.length})</span>
             </h3>
-            <div className="flex items-center gap-2 text-[11px] font-mono text-zinc-400">
-              {isSyncingCloud ? (
-                <span className="flex items-center gap-1.5 text-sky-400">
-                  <RefreshCw className="w-3 h-3 animate-spin" />
-                  <span>Syncing with Firestore...</span>
-                </span>
-              ) : (
-                <span className="flex items-center gap-1.5 text-emerald-400">
-                  <Cloud className="w-3 h-3" />
-                  <span>Firestore Cloud Synced</span>
-                </span>
-              )}
-            </div>
           </div>
 
           {readingHistory.length === 0 ? (
-            <div className="py-16 text-center text-stone-500 text-sm bg-white/[0.01] rounded-2xl border border-white/5">
+            <div
+              className={`py-16 text-center text-sm rounded-2xl border ${
+                isLight ? 'bg-white border-black text-black' : 'bg-zinc-950 border-white/15 text-white'
+              }`}
+            >
               You haven&apos;t started reading any manga yet. Explore the catalog to begin!
             </div>
           ) : (
@@ -171,70 +190,95 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                 return (
                   <div
                     key={item.seriesId}
-                    className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800 hover:border-zinc-700 flex flex-col justify-between gap-3 transition-all shadow-md group"
+                    className={`p-4 rounded-2xl border flex flex-col justify-between gap-3 transition-all group ${
+                      isLight
+                        ? 'bg-white border-black text-black'
+                        : 'bg-zinc-950 border-white/20 hover:border-white/40 text-white'
+                    }`}
                   >
                     <div className="flex items-start gap-4">
                       <img
                         src={series.coverUrl}
                         alt={series.title}
-                        className="w-16 h-24 object-cover rounded-xl bg-zinc-950 border border-white/10 shrink-0 group-hover:scale-102 transition-transform"
+                        className={`manga-poster-frame w-16 h-24 object-cover rounded-xl border shrink-0 group-hover:scale-102 transition-transform ${
+                          isLight ? 'bg-white border-black' : 'bg-zinc-900 border-white/20'
+                        }`}
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <h4 className="text-sm sm:text-base font-bold text-white truncate">
+                          <h4 className="text-sm sm:text-base font-bold truncate">
                             {series.title}
                           </h4>
                         </div>
 
-                        <p className="text-xs text-zinc-300 font-semibold mt-0.5 font-mono truncate">
+                        <p className="text-xs font-semibold mt-0.5 font-mono truncate">
                           Ch. {item.chapterNumber} {item.chapterTitle ? `· ${item.chapterTitle}` : ''}
                         </p>
 
-                        <div className="flex items-center gap-2 mt-2">
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
                           {isFinished ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                            <span
+                              className={`inline-flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                                isLight
+                                  ? 'bg-white text-black border-black'
+                                  : 'bg-white text-black border-white light-invert-pill'
+                              }`}
+                            >
                               <CheckCircle2 className="w-3 h-3" /> Completed
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 rounded-full">
+                            <span
+                              className={`inline-flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                                isLight
+                                  ? 'bg-white text-black border-black'
+                                  : 'bg-zinc-900 text-white border-white/25'
+                              }`}
+                            >
                               {percent}% Read
                             </span>
                           )}
 
-                          <span className="text-[10px] text-zinc-500 font-mono">
+                          <span className="text-[10px] font-mono">
                             Panel {currentPanel}/{total}
                           </span>
                         </div>
 
-                        <p className="text-[10px] text-zinc-500 font-mono mt-1">
+                        <p className="text-[10px] font-mono mt-1">
                           Last read {new Date(item.updatedAt).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
 
-                    {/* Visual Chapter Progress Bar */}
+                    {/* Minimal Monochrome Chapter Progress Bar */}
                     <div className="space-y-1 pt-1">
-                      <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden border border-white/5 relative">
+                      <div
+                        className={`w-full rounded-full h-1.5 overflow-hidden border relative ${
+                          isLight ? 'bg-white border-black' : 'bg-zinc-900 border-white/20'
+                        }`}
+                      >
                         <div
-                          className={`h-full rounded-full transition-all duration-300 ${
-                            isFinished
-                              ? 'bg-gradient-to-r from-emerald-400 to-teal-400 shadow-[0_0_8px_rgba(16,185,129,0.5)]'
-                              : 'bg-gradient-to-r from-sky-400 via-white to-sky-300 shadow-[0_0_8px_rgba(56,189,248,0.5)]'
-                          }`}
-                          style={{ width: `${percent}%` }}
+                          className="h-full rounded-full transition-all duration-300"
+                          style={{
+                            width: `${percent}%`,
+                            backgroundColor: isLight ? '#000000' : '#ffffff',
+                          }}
                         />
                       </div>
                     </div>
 
                     {/* Bottom Actions */}
-                    <div className="flex items-center justify-between pt-1 border-t border-zinc-800/80">
-                      <span className="text-[10px] font-mono text-zinc-500 flex items-center gap-1">
-                        <Cloud className="w-3 h-3 text-sky-400/80" /> Firestore Saved
+                    <div
+                      className={`flex items-center justify-between pt-2 border-t ${
+                        isLight ? 'border-black' : 'border-white/15'
+                      }`}
+                    >
+                      <span className="text-[10px] font-mono uppercase tracking-wider font-semibold">
+                        {isFinished ? '100% Complete' : `${percent}% Progress`}
                       </span>
 
                       <button
                         onClick={() => onReadChapter(series.id, item.chapterId)}
-                        className="px-3.5 py-1.5 bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-bold uppercase tracking-wider rounded-xl shadow-sm flex items-center gap-1.5 shrink-0 transition-transform active:scale-95 cursor-pointer"
+                        className="px-3.5 py-1.5 bg-white hover:bg-zinc-200 text-black text-xs font-bold uppercase tracking-wider rounded-xl border border-white flex items-center gap-1.5 shrink-0 transition-transform active:scale-95 cursor-pointer"
                       >
                         <span>{isFinished ? 'Re-read' : 'Resume'}</span>
                         <ArrowRight className="w-3 h-3" />
@@ -252,8 +296,12 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
       {activeTab === 'bookmarks' && (
         <div>
           {bookmarkedSeries.length === 0 ? (
-            <div className="py-16 text-center text-stone-500 text-sm">
-              No bookmarked manga yet. Click &ldquo;Add to Library&rdquo; on any manga series to save it here!
+            <div
+              className={`py-16 text-center text-sm rounded-2xl border ${
+                isLight ? 'bg-white border-black text-black' : 'bg-zinc-950 border-white/15 text-white'
+              }`}
+            >
+              No bookmarked manga yet. Click &ldquo;Save&rdquo; on any manga series to add it here!
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-5">
@@ -261,26 +309,32 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                 <div
                   key={series.id}
                   onClick={() => onSelectSeries(series.id)}
-                  className="group cursor-pointer space-y-2 select-none"
+                  className={`group cursor-pointer p-2.5 rounded-2xl border space-y-2 select-none transition-all hover:-translate-y-1 ${
+                    isLight ? 'bg-white border-black' : 'bg-zinc-950 border-white/15 hover:border-white/35'
+                  }`}
                 >
-                  <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-stone-900 border border-white/10 group-hover:border-white/40 transition-all">
+                  <div
+                    className={`manga-poster-frame relative aspect-[3/4] rounded-xl overflow-hidden border transition-all ${
+                      isLight ? 'bg-white border-black' : 'bg-zinc-900 border-white/15'
+                    }`}
+                  >
                     <img src={series.coverUrl} alt={series.title} className="w-full h-full object-cover" />
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         toggleBookmark(series.id);
                       }}
-                      className="absolute top-2 right-2 p-1.5 rounded-full bg-black/70 text-white hover:bg-black transition-colors"
+                      className="absolute top-2 right-2 p-1.5 rounded-full bg-white text-black border border-black transition-colors cursor-pointer"
                       title="Remove Bookmark"
                     >
-                      <Bookmark className="w-4 h-4 fill-white" />
+                      <Bookmark className="w-3.5 h-3.5 fill-current" />
                     </button>
                   </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-white group-hover:text-stone-300 truncate">
+                  <div className="px-0.5">
+                    <h4 className="text-sm font-bold truncate">
                       {series.title}
                     </h4>
-                    <p className="text-xs text-stone-400 flex items-center gap-1 font-mono">
+                    <p className="text-xs flex items-center gap-1 font-mono truncate">
                       <span>{series.genres[0]}</span>
                       <span>·</span>
                       <button
@@ -289,7 +343,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                           e.stopPropagation();
                           onNavigate?.('creator-profile', { id: series.creatorId, author: series.author });
                         }}
-                        className="hover:text-purple-400 hover:underline cursor-pointer truncate"
+                        className="hover:underline cursor-pointer truncate font-semibold"
                         title={`View ${series.author}'s Creator Profile`}
                       >
                         by {series.author}
@@ -307,31 +361,47 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
       {activeTab === 'creators' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {followedCreatorsList.length === 0 ? (
-            <div className="col-span-full py-16 text-center text-stone-500 text-sm">
+            <div
+              className={`col-span-full py-16 text-center text-sm rounded-2xl border ${
+                isLight ? 'bg-white border-black text-black' : 'bg-zinc-950 border-white/15 text-white'
+              }`}
+            >
               You aren&apos;t following any creators yet. Support indie creators from the homepage or series pages!
             </div>
           ) : (
             followedCreatorsList.map(cr => (
               <div
                 key={cr.id}
-                className="p-4 rounded-xl bg-white/[0.02] border border-white/10 flex items-center justify-between gap-4"
+                className={`p-4 rounded-2xl border flex items-center justify-between gap-4 ${
+                  isLight ? 'bg-white border-black text-black' : 'bg-zinc-950 border-white/20 text-white'
+                }`}
               >
                 <div
                   onClick={() => onNavigate?.('creator-profile', { id: cr.id })}
                   className="flex items-center gap-3 cursor-pointer group"
                   title={`View ${cr.penName}'s Creator Profile`}
                 >
-                  <img src={cr.avatarUrl} alt={cr.penName} className="w-12 h-12 rounded-full object-cover border border-white/15 group-hover:scale-105 transition-transform" />
+                  <img
+                    src={cr.avatarUrl}
+                    alt={cr.penName}
+                    className={`w-12 h-12 rounded-full object-cover border group-hover:scale-105 transition-transform ${
+                      isLight ? 'border-black' : 'border-white/25'
+                    }`}
+                  />
                   <div>
-                    <h4 className="text-sm font-bold text-white group-hover:text-purple-400 transition-colors">{cr.penName}</h4>
-                    <p className="text-xs text-stone-400">{cr.handle}</p>
-                    <p className="text-[11px] text-stone-500 font-mono">{cr.followersCount} followers</p>
+                    <h4 className="text-sm font-bold group-hover:underline">{cr.penName}</h4>
+                    <p className="text-xs">{cr.handle}</p>
+                    <p className="text-[11px] font-mono">{cr.followersCount} followers</p>
                   </div>
                 </div>
 
                 <button
                   onClick={() => toggleFollowCreator(cr.id)}
-                  className="px-3 py-1 bg-white/10 hover:bg-white/15 text-stone-300 hover:text-white rounded-lg text-xs font-semibold transition-colors"
+                  className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-colors cursor-pointer ${
+                    isLight
+                      ? 'bg-white border-black text-black hover:bg-zinc-100'
+                      : 'bg-zinc-900 border-white/20 text-white hover:bg-zinc-800'
+                  }`}
                 >
                   Unfollow
                 </button>
@@ -345,10 +415,14 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
       {activeTab === 'reviews' && (
         <div className="space-y-4">
           {userReviews.length === 0 ? (
-            <div className="py-16 text-center text-stone-500 text-sm space-y-2">
-              <MessageSquare className="w-8 h-8 mx-auto text-stone-600" />
+            <div
+              className={`py-16 text-center text-sm space-y-2 rounded-2xl border ${
+                isLight ? 'bg-white border-black text-black' : 'bg-zinc-950 border-white/15 text-white'
+              }`}
+            >
+              <MessageSquare className="w-8 h-8 mx-auto" />
               <p>You haven&apos;t written any reviews yet.</p>
-              <p className="text-xs text-stone-600">
+              <p className="text-xs">
                 Visit any manga series page to rate it and share your thoughts with the community!
               </p>
             </div>
@@ -357,39 +431,35 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
               {userReviews.map(rev => (
                 <div
                   key={rev.id}
-                  className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 hover:border-white/20 transition-all space-y-3"
+                  className={`p-5 rounded-2xl border transition-all space-y-3 ${
+                    isLight ? 'bg-white border-black text-black' : 'bg-zinc-950 border-white/20 text-white'
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <span className="text-[11px] text-stone-300 font-bold uppercase tracking-wider block font-mono">
+                      <span className="text-[11px] font-bold uppercase tracking-wider block font-mono">
                         {rev.seriesTitle}
                       </span>
                       <div className="flex items-center gap-1.5 mt-1">
-                        <div className="flex items-center text-amber-400">
+                        <div className="flex items-center gap-0.5">
                           {Array.from({ length: 5 }).map((_, i) => (
                             <Star
                               key={i}
                               className={`w-3.5 h-3.5 ${
-                                i < rev.rating
-                                  ? 'fill-amber-400 text-amber-400'
-                                  : 'text-stone-700'
+                                i < rev.rating ? 'fill-current' : 'opacity-30'
                               }`}
                             />
                           ))}
                         </div>
-                        <span className="text-xs font-bold text-white font-mono">
+                        <span className="text-xs font-bold font-mono">
                           {rev.rating}/5
                         </span>
                       </div>
                     </div>
 
                     <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase font-mono ${
-                        rev.status === 'approved'
-                          ? 'bg-emerald-950/40 text-emerald-400 border border-emerald-800/40'
-                          : rev.status === 'hidden'
-                          ? 'bg-stone-800 text-stone-300 border border-white/10'
-                          : 'bg-amber-950/40 text-amber-400 border border-amber-800/40'
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase font-mono border ${
+                        isLight ? 'bg-white text-black border-black' : 'bg-zinc-900 text-white border-white/25'
                       }`}
                     >
                       {rev.status}
@@ -397,20 +467,24 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                   </div>
 
                   <div>
-                    <h4 className="text-sm font-bold text-stone-100">{rev.reviewTitle}</h4>
-                    <p className="text-xs text-stone-300 mt-1 line-clamp-3 leading-relaxed">
+                    <h4 className="text-sm font-bold">{rev.reviewTitle}</h4>
+                    <p className="text-xs mt-1 line-clamp-3 leading-relaxed">
                       {rev.reviewText}
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-white/5 text-xs text-stone-400">
-                    <span className="text-[11px] text-stone-500">
+                  <div
+                    className={`flex items-center justify-between pt-2 border-t text-xs ${
+                      isLight ? 'border-black' : 'border-white/15'
+                    }`}
+                  >
+                    <span className="text-[11px]">
                       Posted {new Date(rev.createdAt).toLocaleDateString()}
                     </span>
 
                     <button
                       onClick={() => onSelectSeries(rev.seriesId)}
-                      className="text-xs text-white hover:underline font-bold flex items-center gap-1"
+                      className="text-xs hover:underline font-bold flex items-center gap-1 cursor-pointer"
                     >
                       <span>View on Series Page</span>
                       <ExternalLink className="w-3 h-3" />

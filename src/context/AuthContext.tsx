@@ -30,6 +30,7 @@ interface AuthContextType {
     paymentMethod?: 'UPI' | 'Card' | 'Netbanking' | 'Razorpay',
     customPaymentId?: string
   ) => { updatedUser: User; paymentRecord: any };
+  cancelSubscription: () => void;
   refreshUser: () => void;
   notifications: PlatformNotification[];
   unreadNotifsCount: number;
@@ -653,6 +654,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return res;
   };
 
+  const cancelSubscription = () => {
+    const updatedRole: UserRole = user.role === 'subscriber' ? 'free_user' : user.role;
+    const updatedUser: User = {
+      ...user,
+      role: updatedRole,
+      isVIP: false,
+      subscription: undefined,
+    };
+
+    const allUsers = StorageService.getUsers();
+    const idx = allUsers.findIndex(u => u.id === user.id);
+    if (idx >= 0) {
+      allUsers[idx] = updatedUser;
+      StorageService.saveUsers(allUsers);
+    }
+
+    StorageService.setCurrentUser(updatedUser);
+    setUser(updatedUser);
+    setUsers(StorageService.getUsers());
+    localStorage.removeItem('mw_sub_cancelled');
+  };
+
   const refreshUser = () => {
     const cur = StorageService.getCurrentUser();
     setUser(cur);
@@ -689,6 +712,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateUser,
         updateUsername,
         activateSubscription,
+        cancelSubscription,
         refreshUser,
         notifications,
         unreadNotifsCount,

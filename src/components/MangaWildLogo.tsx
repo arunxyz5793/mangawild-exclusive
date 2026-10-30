@@ -37,13 +37,12 @@ export const MangaWildLogo: React.FC<MangaWildLogoProps> = ({
           src="/mangawild-logo.webp"
           alt="MangaWild"
           className={`${logoDimensions[size]} object-contain rounded-xl border ${
-            theme === 'light' ? 'border-zinc-300 bg-black' : 'border-zinc-700/60 bg-black'
+            theme === 'light' ? 'border-black bg-black' : 'border-white/30 bg-black'
           } shadow-md transition-transform duration-200 group-hover:scale-105`}
           onError={(e) => {
             (e.currentTarget as HTMLImageElement).src = 'https://d1yei2z3i6k35z.cloudfront.net/17195590/69d8ee239944d3.80596161_1000295520.webp';
           }}
         />
-        <div className="absolute inset-0 rounded-xl ring-1 ring-white/10 pointer-events-none" />
       </div>
 
       {/* MangaWild Wordmark Typography in custom MangaWild font - switches between White (Dark) and Black (Light) */}
@@ -51,11 +50,13 @@ export const MangaWildLogo: React.FC<MangaWildLogoProps> = ({
         <div className="flex items-center justify-center min-w-0">
           <span
             className={`font-rockidz-3d tracking-wider leading-none transition-colors duration-200 ${
-              theme === 'light' ? 'text-zinc-950' : 'text-white'
+              theme === 'light' ? 'text-black' : 'text-white'
             } ${textSizes[size]}`}
             style={{
               fontFamily: "'Rockidz 3D', 'Rockidz', cursive, system-ui, sans-serif",
               letterSpacing: '0.04em',
+              color: theme === 'light' ? '#000000' : '#ffffff',
+              WebkitTextFillColor: theme === 'light' ? '#000000' : '#ffffff',
             }}
           >
             MANGAWILD

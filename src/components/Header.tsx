@@ -15,7 +15,6 @@ import {
   Flame,
   Newspaper,
   Compass,
-  Calculator,
   ChevronRight,
   Sun,
   Moon,
@@ -38,7 +37,6 @@ export const Header: React.FC<HeaderProps> = ({
   currentView,
   onNavigate,
   onOpenSearch,
-  onOpenCancelCalc,
 }) => {
   const {
     user,
@@ -100,6 +98,21 @@ export const Header: React.FC<HeaderProps> = ({
     window.addEventListener('mw-toggle-menu', handleToggleMenu);
     return () => window.removeEventListener('mw-toggle-menu', handleToggleMenu);
   }, []);
+
+  // Lock background scroll when menu drawer is open
+  useEffect(() => {
+    if (isMenuDrawerOpen) {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    };
+  }, [isMenuDrawerOpen]);
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authDefaultRole, setAuthDefaultRole] = useState<'reader' | 'creator' | 'admin'>('reader');
@@ -172,8 +185,8 @@ export const Header: React.FC<HeaderProps> = ({
         <div
           className={`relative w-full max-w-7xl mx-auto backdrop-blur-2xl border-b border-x rounded-b-[1.75rem] sm:rounded-b-[2.5rem] px-3.5 sm:px-7 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-6 max-w-full box-border transition-colors duration-200 ${
             theme === 'light'
-              ? 'bg-white/95 border-zinc-300 shadow-[0_6px_24px_rgba(0,0,0,0.08)]'
-              : 'bg-black/95 border-white/15 shadow-[0_8px_30px_rgba(0,0,0,0.85)]'
+              ? 'bg-white border-black text-black shadow-[0_4px_20px_rgba(0,0,0,0.06)]'
+              : 'bg-black/95 border-white/20 text-white shadow-[0_8px_30px_rgba(0,0,0,0.85)]'
           }`}
         >
           {/* Left: MangaWild Logo */}
@@ -784,29 +797,6 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                     <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
                   </div>
-                </button>
-
-                {/* Dedicated Subscription Cancellation & Calculation Button */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsMenuDrawerOpen(false);
-                    if (onOpenCancelCalc) {
-                      onOpenCancelCalc();
-                    } else {
-                      onNavigate('membership');
-                    }
-                  }}
-                  className="w-full text-left px-3.5 py-2.5 rounded-xl font-medium text-xs flex items-center justify-between transition-all cursor-pointer bg-zinc-900/70 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800"
-                  title="Subscription Cancellation & Refund Calculator"
-                >
-                  <div className="flex items-center gap-3">
-                    <Calculator className="w-4 h-4 text-zinc-300" />
-                    <span>Refund Calculator</span>
-                  </div>
-                  <span className="text-[10px] font-mono text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded border border-zinc-700">
-                    Proration
-                  </span>
                 </button>
               </div>
 

@@ -23,7 +23,6 @@ import { RazorpayCheckoutModal } from './components/RazorpayCheckoutModal';
 import { SearchModal } from './components/SearchModal';
 import { AuthModal } from './components/AuthModal';
 import { BottomNavBar } from './components/BottomNavBar';
-import { SubscriptionCancellationCalculatorModal } from './components/SubscriptionCancellationCalculatorModal';
 import { StorageService } from './services/storage';
 import { MangaSeries, Chapter } from './types/manga';
 
@@ -219,6 +218,7 @@ function getRouteUrl(view: string, params?: Record<string, string>): string {
 
 function AppContent() {
   const { isAuthenticated, isAuthModalOpen, authModalOptions, openAuthModal, closeAuthModal } = useAuth();
+  const { theme } = useTheme();
   // Initialize route from current browser URL
   const initialRoute = parseUrlToRoute(window.location.pathname);
   const [currentView, setCurrentView] = useState<string>(initialRoute.view);
@@ -227,7 +227,21 @@ function AppContent() {
   const [isVIPModalOpen, setIsVIPModalOpen] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<'monthly' | 'yearly'>('monthly');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isCancelCalcOpen, setIsCancelCalcOpen] = useState(false);
+
+  // Lock background page scroll whenever any global modal is open
+  useEffect(() => {
+    if (isVIPModalOpen || isSearchOpen || isAuthModalOpen) {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    };
+  }, [isVIPModalOpen, isSearchOpen, isAuthModalOpen]);
 
   // Check if visitor arrived from an official Firebase Password Reset email link
   useEffect(() => {
@@ -471,17 +485,14 @@ function AppContent() {
     }
   }
 
-  const { theme } = useTheme();
-
   return (
-    <div className={`min-h-screen flex flex-col transition-colors duration-200 ${theme === 'dark' ? 'bg-[#09090b] text-[#f4f4f5]' : 'bg-[#f8fafc] text-[#0f172a]'}`}>
+    <div className={`min-h-screen flex flex-col transition-colors duration-200 ${theme === 'dark' ? 'bg-black text-white' : 'bg-white text-black'}`}>
       {/* Strict 3-zone Header */}
       <Header
         currentView={currentView}
         onNavigate={handleNavigate}
         onOpenVIPModal={() => handleOpenVIPModal('monthly')}
         onOpenSearch={() => setIsSearchOpen(true)}
-        onOpenCancelCalc={() => setIsCancelCalcOpen(true)}
       />
 
       {/* Main Dynamic View */}
@@ -608,12 +619,6 @@ function AppContent() {
           }
           closeAuthModal();
         }}
-      />
-
-      {/* Global Subscription Cancellation & Refund Calculation Modal */}
-      <SubscriptionCancellationCalculatorModal
-        isOpen={isCancelCalcOpen}
-        onClose={() => setIsCancelCalcOpen(false)}
       />
 
       {/* Minimal Bottom Navigation Bar Dock (matches screenshot) */}

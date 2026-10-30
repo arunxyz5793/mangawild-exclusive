@@ -41,13 +41,13 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenVIPModal }) =>
     <footer
       className={`border-t pt-10 pb-20 sm:pb-12 transition-colors select-none max-w-full box-border ${
         theme === 'dark'
-          ? 'bg-[#09090b] border-zinc-800 text-zinc-400'
-          : 'bg-zinc-100 border-zinc-200 text-zinc-600'
+          ? 'bg-black border-zinc-800 text-white'
+          : 'bg-white border-black text-black'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8 max-w-full box-border">
         {/* Top Brand & Quick Navigation Strip Stacked Below Logo with Visible Labels */}
-        <div className="flex flex-col items-start gap-4 pb-6 border-b border-zinc-800/60 max-w-full box-border">
+        <div className={`flex flex-col items-start gap-4 pb-6 border-b max-w-full box-border ${theme === 'dark' ? 'border-zinc-800' : 'border-black'}`}>
           <div className="flex flex-col gap-2">
             <MangaWildLogo size="sm" />
             <p className="text-xs sm:text-sm font-medium leading-relaxed max-w-xl text-zinc-400">
@@ -68,8 +68,8 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenVIPModal }) =>
                   aria-label={item.label}
                   className={`px-3 py-1.5 rounded-xl border transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 text-xs font-semibold ${
                     theme === 'light'
-                      ? 'bg-white border-zinc-300 text-zinc-800 hover:bg-zinc-200 hover:text-black'
-                      : 'bg-zinc-900/80 border-white/10 text-zinc-300 hover:text-white hover:bg-white/10'
+                      ? 'bg-white border-black text-black hover:bg-black hover:text-white'
+                      : 'bg-zinc-900/80 border-white/15 text-white hover:bg-white/10'
                   }`}
                 >
                   <IconComp className="w-3.5 h-3.5 shrink-0 stroke-[1.75px]" />

@@ -149,6 +149,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   }, [isOpen, defaultMode, defaultRole]);
 
+  React.useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    };
+  }, [isOpen]);
+
   // Request Firebase / Secure Email Engine to dispatch Password Reset Verification Code
   const handleSendResetOTP = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -462,12 +476,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 modal-backdrop-overlay bg-black/80 backdrop-blur-sm animate-fade-in">
       <div
         className={`w-full max-w-lg rounded-3xl border shadow-2xl overflow-hidden transition-all ${
           theme === 'dark'
             ? 'bg-[#101014] border-zinc-800 text-white'
-            : 'bg-white border-zinc-200 text-zinc-900'
+            : 'bg-white border-black text-black'
         }`}
       >
         {/* Header with Title and Close Button */}
