@@ -149,7 +149,7 @@ export async function launchRazorpayCheckout({
       platform: 'MangaWild VIP Subscriptions',
     },
     theme: {
-      color: '#7c3aed',
+      color: '#000000',
     },
     handler: (response) => {
       onSuccess(response.razorpay_payment_id);
@@ -285,7 +285,7 @@ export async function launchRazorpayTipCheckout({
       platform: 'MangaWild Direct Mangaka Payouts',
     },
     theme: {
-      color: '#18181b', // Monochromatic dark zinc
+      color: '#000000',
     },
     handler: (response) => {
       onSuccess(response.razorpay_payment_id);

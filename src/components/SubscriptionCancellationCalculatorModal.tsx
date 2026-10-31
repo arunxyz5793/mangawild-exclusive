@@ -91,11 +91,11 @@ export const SubscriptionCancellationCalculatorModal: React.FC<SubscriptionCance
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-fade-in select-none"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 modal-backdrop-overlay bg-black/85 backdrop-blur-md animate-fade-in select-none"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-xl max-h-[92vh] overflow-y-auto bg-[#0c0c0e] border border-zinc-800 rounded-3xl p-5 sm:p-7 space-y-6 shadow-2xl relative animate-scale-in text-white scrollbar-thin"
+        className="w-full max-w-xl max-h-[92vh] overflow-y-auto bg-black border border-white/25 rounded-3xl p-5 sm:p-7 space-y-6 shadow-2xl relative animate-scale-in text-white scrollbar-thin"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}

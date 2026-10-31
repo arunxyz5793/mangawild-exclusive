@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Lock,
@@ -15,6 +16,7 @@ import {
   launchRazorpayCheckout,
 } from '../services/razorpay';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 type PaymentFlowStatus = 'idle' | 'initiating' | 'opened' | 'completed' | 'failed';
 
@@ -32,6 +34,9 @@ export const RazorpayCheckoutModal: React.FC<RazorpayCheckoutModalProps> = ({
   onSuccess,
 }) => {
   const { user, isAuthenticated, openAuthModal, activateSubscription } = useAuth();
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
+
   const plan = SUBSCRIPTION_PLANS.find(p => p.id === planId) || SUBSCRIPTION_PLANS[0];
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -48,7 +53,7 @@ export const RazorpayCheckoutModal: React.FC<RazorpayCheckoutModalProps> = ({
     }
   }, [isOpen]);
 
-  if (!isOpen || !plan) return null;
+  if (!isOpen || !plan || typeof document === 'undefined') return null;
 
   // Launch official Razorpay standard checkout flow via payment service
   const handleLaunchRazorpay = async () => {
@@ -98,23 +103,53 @@ export const RazorpayCheckoutModal: React.FC<RazorpayCheckoutModalProps> = ({
     });
   };
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 modal-backdrop-overlay bg-black/85 backdrop-blur-sm animate-fadeIn">
-      <div className="relative w-full max-w-md bg-[#0c0d10] text-[#fafafa] border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden">
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 modal-backdrop-overlay bg-black/75 backdrop-blur-sm animate-fade-in"
+      onClick={onClose}
+    >
+      <div
+        className={`relative w-full max-w-md rounded-3xl border shadow-2xl overflow-hidden transition-colors ${
+          isLight
+            ? 'bg-white text-black border-black'
+            : 'bg-black text-white border-white/25'
+        }`}
+        onClick={e => e.stopPropagation()}
+      >
         {/* Modal Header */}
-        <div className="p-5 border-b border-zinc-800/80 flex items-center justify-between bg-zinc-950/40">
+        <div
+          className={`p-5 border-b flex items-center justify-between ${
+            isLight
+              ? 'bg-white border-black text-black'
+              : 'bg-black border-white/20 text-white'
+          }`}
+        >
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white">
+            <div
+              className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${
+                isLight
+                  ? 'bg-white text-black border-black'
+                  : 'bg-black text-white border-white/25'
+              }`}
+            >
               <Lock className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-white tracking-tight">Razorpay Checkout</h3>
-                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
+                <h3 className="text-sm font-black tracking-tight uppercase">
+                  Razorpay Checkout
+                </h3>
+                <span
+                  className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border uppercase ${
+                    isLight
+                      ? 'bg-white text-black border-black'
+                      : 'bg-black text-white border-white/25'
+                  }`}
+                >
                   Verified
                 </span>
               </div>
-              <p className="text-[11px] text-zinc-400 font-mono">
+              <p className="text-[11px] font-mono mt-0.5">
                 Key: {RAZORPAY_KEY_ID ? `${RAZORPAY_KEY_ID.slice(0, 10)}...` : 'Connected'}
               </p>
             </div>
@@ -122,21 +157,36 @@ export const RazorpayCheckoutModal: React.FC<RazorpayCheckoutModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
+            className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+              isLight
+                ? 'border-black text-black hover:bg-black hover:text-white'
+                : 'border-white/20 text-white hover:bg-white hover:text-black'
+            }`}
+            aria-label="Close Checkout Modal"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {!isAuthenticated ? (
           <div className="p-8 text-center space-y-5">
-            <div className="w-14 h-14 rounded-2xl bg-zinc-900 text-white mx-auto flex items-center justify-center border border-zinc-800 shadow-md">
+            <div
+              className={`w-14 h-14 rounded-2xl mx-auto flex items-center justify-center border ${
+                isLight
+                  ? 'bg-white text-black border-black'
+                  : 'bg-black text-white border-white/25'
+              }`}
+            >
               <Lock className="w-7 h-7" />
             </div>
             <div className="space-y-1.5">
-              <h3 className="text-xl font-bold text-white tracking-tight">Sign In Required</h3>
-              <p className="text-xs text-zinc-400 max-w-sm mx-auto leading-relaxed">
-                Please sign in with your email and password to link the <strong className="text-white">{plan.name} (₹{plan.priceInr})</strong> to your account.
+              <h3 className="text-xl font-black tracking-tight">Sign In Required</h3>
+              <p className="text-xs max-w-sm mx-auto leading-relaxed">
+                Please sign in with your email and password to link the{' '}
+                <strong className="font-bold">
+                  {plan.name} (₹{plan.priceInr})
+                </strong>{' '}
+                to your account.
               </p>
             </div>
 
@@ -151,7 +201,11 @@ export const RazorpayCheckoutModal: React.FC<RazorpayCheckoutModalProps> = ({
                     defaultMode: 'signin',
                   });
                 }}
-                className="w-full py-3 px-5 rounded-xl bg-white text-zinc-950 font-bold text-xs uppercase tracking-wider shadow-md hover:bg-zinc-200 transition-all active:scale-98 cursor-pointer"
+                className={`w-full py-3 px-5 rounded-xl font-bold text-xs uppercase tracking-wider border transition-all active:scale-98 cursor-pointer ${
+                  isLight
+                    ? 'bg-black text-white border-black light-invert-pill'
+                    : 'bg-white text-black border-white'
+                }`}
               >
                 Sign In to Continue
               </button>
@@ -165,7 +219,11 @@ export const RazorpayCheckoutModal: React.FC<RazorpayCheckoutModalProps> = ({
                     defaultMode: 'signup',
                   });
                 }}
-                className="w-full py-3 px-5 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+                className={`w-full py-3 px-5 rounded-xl border font-bold text-xs uppercase tracking-wider transition-all cursor-pointer ${
+                  isLight
+                    ? 'bg-white text-black border-black'
+                    : 'bg-black text-white border-white/25'
+                }`}
               >
                 Create Account
               </button>
@@ -173,61 +231,87 @@ export const RazorpayCheckoutModal: React.FC<RazorpayCheckoutModalProps> = ({
           </div>
         ) : isSuccess ? (
           <div className="p-8 text-center space-y-4">
-            <div className="w-14 h-14 mx-auto rounded-full bg-zinc-800 text-white border border-zinc-700 flex items-center justify-center animate-bounce">
+            <div
+              className={`w-14 h-14 mx-auto rounded-full border flex items-center justify-center ${
+                isLight
+                  ? 'bg-white text-black border-black'
+                  : 'bg-black text-white border-white/25'
+              }`}
+            >
               <CheckCircle2 className="w-8 h-8" />
             </div>
-            <h3 className="text-xl font-bold text-white tracking-tight">
-              Payment Successful!
-            </h3>
-            <p className="text-xs text-zinc-300 leading-relaxed max-w-sm mx-auto">
-              Your Exclusive Subscription is now active. All Exclusive chapters (including Silent Heads & Chintu) are unlocked.
+            <h3 className="text-xl font-black tracking-tight">Payment Successful!</h3>
+            <p className="text-xs leading-relaxed max-w-sm mx-auto">
+              Your Exclusive Subscription is now active. All Exclusive chapters (including Silent Heads &amp; Chintu) are unlocked.
             </p>
-            <div className="text-xs text-zinc-400 font-mono bg-zinc-900 py-2 px-3 rounded-lg border border-zinc-800">
-              Razorpay Ref: <strong className="text-white">{lastPaymentId}</strong>
+            <div
+              className={`text-xs font-mono py-2 px-3 rounded-xl border ${
+                isLight
+                  ? 'bg-white text-black border-black'
+                  : 'bg-black text-white border-white/25'
+              }`}
+            >
+              Razorpay Ref: <strong>{lastPaymentId}</strong>
             </div>
           </div>
         ) : (
           <div className="p-6 space-y-5">
             {/* Plan Info Card */}
-            <div className="p-4 rounded-2xl bg-zinc-900/70 border border-zinc-800">
-              <div className="flex justify-between items-start">
+            <div
+              className={`p-4 rounded-2xl border ${
+                isLight
+                  ? 'bg-white text-black border-black'
+                  : 'bg-black text-white border-white/25'
+              }`}
+            >
+              <div className="flex justify-between items-start gap-3">
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 font-mono">
+                  <span className="text-[10px] font-bold uppercase tracking-widest font-mono block">
                     Exclusive Subscription
                   </span>
-                  <h4 className="text-base font-bold text-white mt-0.5">{plan.name}</h4>
-                  <p className="text-xs text-zinc-400">{plan.durationDays} Days Unrestricted Reading</p>
+                  <h4 className="text-base font-black mt-0.5">{plan.name}</h4>
+                  <p className="text-xs mt-0.5">{plan.durationDays} Days Unrestricted Reading</p>
                 </div>
-                <div className="text-right">
-                  <span className="text-2xl font-black text-white font-mono">₹{plan.priceInr}</span>
-                  <p className="text-[10px] text-zinc-500">all taxes included</p>
+                <div className="text-right shrink-0">
+                  <span className="text-2xl font-black font-mono block">₹{plan.priceInr}</span>
+                  <p className="text-[10px] font-mono">all taxes included</p>
                 </div>
               </div>
             </div>
 
             {/* Benefits list */}
-            <div className="space-y-2 border-t border-zinc-800/80 pt-4">
-              <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block">
+            <div
+              className={`space-y-2.5 border-t pt-4 ${
+                isLight ? 'border-black' : 'border-white/20'
+              }`}
+            >
+              <span className="text-[11px] font-black uppercase tracking-wider block">
                 Subscription Benefits
               </span>
-              <div className="space-y-2 text-xs text-zinc-300">
+              <div className="space-y-2 text-xs font-medium">
                 <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-zinc-400 shrink-0" />
-                  <span>Instant unlock for all exclusive manga (Silent Heads & Chintu)</span>
+                  <Check className="w-4 h-4 shrink-0" />
+                  <span>Instant unlock for all exclusive manga (Silent Heads &amp; Chintu)</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-zinc-400 shrink-0" />
+                  <Check className="w-4 h-4 shrink-0" />
                   <span>100% Ad-Free uninterrupted reading experience</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-zinc-400 shrink-0" />
+                  <Check className="w-4 h-4 shrink-0" />
                   <span>70% royalty directly paid to original creators</span>
                 </div>
               </div>
             </div>
 
             {errorMessage && (
-              <div className="flex items-center gap-2 p-3 text-xs text-rose-300 bg-rose-950/30 border border-rose-800/50 rounded-xl">
+              <div
+                className={`flex items-center gap-2 p-3 text-xs border rounded-xl font-medium ${
+                  isLight
+                    ? 'bg-white text-black border-black'
+                    : 'bg-black text-white border-white/30'
+                }`}
+              >
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{errorMessage}</span>
               </div>
@@ -239,15 +323,26 @@ export const RazorpayCheckoutModal: React.FC<RazorpayCheckoutModalProps> = ({
                 type="button"
                 onClick={handleLaunchRazorpay}
                 disabled={isProcessing}
-                className="w-full py-3.5 px-4 bg-white hover:bg-zinc-200 text-zinc-950 font-bold text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer active:scale-[0.98]"
+                className={`w-full py-3.5 px-4 font-black text-xs uppercase tracking-wider rounded-xl border transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer active:scale-[0.98] ${
+                  isLight
+                    ? 'bg-black text-white border-black light-invert-pill'
+                    : 'bg-white text-black border-white'
+                }`}
               >
                 {isProcessing ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-zinc-950/30 border-t-zinc-950 rounded-full animate-spin" />
+                    <div
+                      className={`w-4 h-4 border-2 rounded-full animate-spin ${
+                        isLight
+                          ? 'border-white/30 border-t-white'
+                          : 'border-black/30 border-t-black'
+                      }`}
+                    />
                     <span>
                       {status === 'initiating' && 'Connecting to Razorpay gateway...'}
                       {status === 'opened' && 'Payment window active...'}
-                      {(status === 'idle' || status === 'completed' || status === 'failed') && 'Processing payment...'}
+                      {(status === 'idle' || status === 'completed' || status === 'failed') &&
+                        'Processing payment...'}
                     </span>
                   </>
                 ) : (
@@ -260,15 +355,20 @@ export const RazorpayCheckoutModal: React.FC<RazorpayCheckoutModalProps> = ({
             </div>
 
             {/* Trust Footer */}
-            <div className="flex items-center justify-between text-[11px] text-zinc-500 pt-3 border-t border-zinc-800/80">
-              <span className="flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-zinc-400" /> Razorpay Secure Payment
+            <div
+              className={`flex items-center justify-between text-[11px] font-mono pt-3 border-t ${
+                isLight ? 'border-black' : 'border-white/20'
+              }`}
+            >
+              <span className="flex items-center gap-1.5 font-semibold">
+                <ShieldCheck className="w-3.5 h-3.5" /> Razorpay Secure Payment
               </span>
-              <span>UPI · Cards · Netbanking</span>
+              <span className="font-semibold">UPI · Cards · Netbanking</span>
             </div>
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

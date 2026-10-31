@@ -182,6 +182,7 @@ html.dark .text-slate-500,
 html.dark .text-gray-300,
 html.dark .text-gray-400,
 html.dark .text-gray-500,
+html.dark .text-\[\#fafafa\],
 html.dark p,
 html.dark h1,
 html.dark h2,
@@ -194,6 +195,11 @@ html.dark label,
 html.dark td,
 html.dark th {
   color: #ffffff !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: rgba(255, 255, 255, 0.6) !important;
 }
 
 /* Keep White Buttons in Dark Mode with Crisp Black Text */
@@ -226,41 +232,66 @@ html.light aside,
 html.light .bg-black,
 html.light .bg-black\/95,
 html.light .bg-black\/90,
+html.light .bg-black\/85,
 html.light .bg-black\/80,
+html.light .bg-black\/75,
 html.light .bg-black\/70,
 html.light .bg-black\/60,
 html.light .bg-black\/50,
 html.light .bg-black\/40,
 html.light .bg-zinc-950,
+html.light .bg-zinc-950\/95,
+html.light .bg-zinc-950\/90,
+html.light .bg-zinc-950\/80,
+html.light .bg-zinc-950\/70,
 html.light .bg-zinc-950\/60,
+html.light .bg-zinc-950\/50,
 html.light .bg-zinc-950\/40,
+html.light .bg-zinc-950\/30,
 html.light .bg-zinc-900,
+html.light .bg-zinc-900\/95,
 html.light .bg-zinc-900\/90,
 html.light .bg-zinc-900\/80,
+html.light .bg-zinc-900\/75,
 html.light .bg-zinc-900\/70,
 html.light .bg-zinc-900\/60,
 html.light .bg-zinc-900\/50,
 html.light .bg-zinc-900\/40,
 html.light .bg-zinc-900\/30,
+html.light .bg-zinc-900\/20,
 html.light .bg-zinc-800,
+html.light .bg-zinc-800\/90,
 html.light .bg-zinc-800\/80,
+html.light .bg-zinc-800\/70,
 html.light .bg-zinc-800\/60,
 html.light .bg-zinc-800\/50,
 html.light .bg-zinc-800\/40,
+html.light .bg-zinc-800\/30,
 html.light .bg-zinc-700,
+html.light .bg-zinc-600,
+html.light .bg-zinc-200,
 html.light .bg-zinc-100,
 html.light .bg-zinc-50,
 html.light .bg-stone-950,
 html.light .bg-stone-900,
 html.light .bg-stone-800,
+html.light .bg-stone-700,
+html.light .bg-stone-200,
+html.light .bg-stone-100,
 html.light .bg-slate-950,
 html.light .bg-slate-900,
+html.light .bg-slate-800,
+html.light .bg-\[\#050608\],
 html.light .bg-\[\#09090b\],
 html.light .bg-\[\#0b0f17\],
+html.light .bg-\[\#0c0c0e\],
+html.light .bg-\[\#0c0d10\],
+html.light .bg-\[\#0c0d12\],
 html.light .bg-\[\#0e0e12\],
 html.light .bg-\[\#101014\],
 html.light .bg-\[\#111827\],
 html.light .bg-\[\#121215\],
+html.light .bg-\[\#18181b\],
 html.light .bg-\[\#f8fafc\],
 html.light .bg-white\/\[0\.01\],
 html.light .bg-white\/\[0\.02\],
@@ -294,7 +325,9 @@ html.light input,
 html.light select,
 html.light textarea,
 html.light button,
+html.light strong,
 html.light .text-white,
+html.light .text-\[\#fafafa\],
 html.light .text-zinc-100,
 html.light .text-zinc-200,
 html.light .text-zinc-300,
@@ -318,6 +351,11 @@ html.light .text-slate-500 {
   color: #000000 !important;
 }
 
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: rgba(0, 0, 0, 0.55) !important;
+}
+
 /* MangaWild Logo Wordmark in White Mode: Crisp Black */
 html.light .font-rockidz-3d {
   color: #000000 !important;
@@ -327,6 +365,8 @@ html.light .font-rockidz-3d {
 /* Primary Action Buttons in White Mode: Invert to Solid Black Background + Crisp White Text */
 html.light button.bg-white,
 html.light a.bg-white,
+html.light button.bg-black.text-white,
+html.light a.bg-black.text-white,
 html.light .btn-primary-mono,
 html.light .light-invert-pill {
   background-color: #000000 !important;
@@ -336,6 +376,8 @@ html.light .light-invert-pill {
 
 html.light button.bg-white *,
 html.light a.bg-white *,
+html.light button.bg-black.text-white *,
+html.light a.bg-black.text-white *,
 html.light .btn-primary-mono *,
 html.light .light-invert-pill * {
   color: #ffffff !important;

@@ -296,7 +296,7 @@ const INITIAL_SERIES: MangaSeries[] = [
     "totalReads": 0,
     "rating": 4.9,
     "releaseYear": 2026,
-    "isExclusive": true,
+    "isExclusive": false,
     "isTrending": true,
     "rankNumber": 1,
     "tags": [
@@ -402,7 +402,7 @@ const INITIAL_SERIES: MangaSeries[] = [
     "totalReads": 0,
     "rating": 4.8,
     "releaseYear": 2026,
-    "isExclusive": true,
+    "isExclusive": false,
     "isTrending": true,
     "rankNumber": 4,
     "tags": [
@@ -2289,8 +2289,7 @@ export const StorageService = {
   getSeries(): MangaSeries[] {
     const list = getStored<MangaSeries[]>(STORAGE_KEYS.SERIES, INITIAL_SERIES);
     return list.map(s => {
-      // ONLY Silent Heads and Chintu are Exclusive
-      const isTargetExclusive =
+      const isPreviewFreeSeries =
         s.id === 'series_silent_heads' ||
         s.id === 'series_chitrakatha_chintu' ||
         s.slug === 'silent-heads' ||
@@ -2299,7 +2298,7 @@ export const StorageService = {
       const isApproved = s.isApprovedByAdmin ?? (s.moderationStatus === 'approved');
       return {
         ...s,
-        isExclusive: isTargetExclusive,
+        isExclusive: isPreviewFreeSeries ? false : false,
         readingFormat: s.readingFormat || (s.id === 'series_chitrakatha_chintu' ? 'manga_horizontal' : 'webtoon_vertical'),
         ageRating: s.ageRating || '13+',
         isApprovedByAdmin: isApproved,
@@ -2464,17 +2463,19 @@ export const StorageService = {
     const all = getStored<Chapter[]>(STORAGE_KEYS.CHAPTERS, INITIAL_CHAPTERS);
     const seriesList = this.getSeries();
     const mapped = all.map(c => {
-      const isExclusiveSeries =
+      const isPreviewFreeSeries =
         c.seriesId === 'series_silent_heads' ||
         c.seriesId === 'series_chitrakatha_chintu';
-      const isVIP = c.isExclusiveVIP ?? isExclusiveSeries;
-      const monetization: 'free' | 'vip' | 'coin' = c.monetizationType || (isVIP ? 'vip' : 'free');
+      const isVIP = isPreviewFreeSeries ? false : Boolean(c.isExclusiveVIP);
+      const monetization: 'free' | 'vip' | 'coin' = isPreviewFreeSeries
+        ? 'free'
+        : (c.monetizationType || (isVIP ? 'vip' : 'free'));
       const parentSeries = seriesList.find(s => s.id === c.seriesId);
       const isParentApproved = parentSeries?.isApprovedByAdmin || parentSeries?.moderationStatus === 'approved';
       
       return {
         ...c,
-        isExclusiveVIP: monetization === 'vip' || isVIP,
+        isExclusiveVIP: isPreviewFreeSeries ? false : (monetization === 'vip' || isVIP),
         monetizationType: monetization,
         coinCost: c.coinCost ?? (monetization === 'coin' ? 10 : 0),
         tippingEnabled: c.tippingEnabled ?? true,

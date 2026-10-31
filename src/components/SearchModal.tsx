@@ -49,8 +49,8 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 modal-backdrop-overlay bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-2xl bg-[#101014] text-[#fafafa] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] animate-scale-up">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 modal-backdrop-overlay bg-black/80 backdrop-blur-md animate-fade-in">
+      <div className="relative w-full max-w-2xl bg-black text-white border border-white/25 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] animate-scale-up">
         {/* Search Input Bar */}
         <div className="p-4 border-b border-white/10 flex items-center gap-3 bg-white/[0.02]">
           <Search className="w-5 h-5 text-stone-300 shrink-0" />

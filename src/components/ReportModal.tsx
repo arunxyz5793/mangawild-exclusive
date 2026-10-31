@@ -85,11 +85,11 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 modal-backdrop-overlay bg-black/80 backdrop-blur-md animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-lg bg-[#0c0d12] border border-zinc-800 rounded-3xl shadow-2xl p-6 sm:p-8 text-white select-none"
+        className="relative w-full max-w-lg bg-black border border-white/25 rounded-3xl shadow-2xl p-6 sm:p-8 text-white select-none"
         onClick={e => e.stopPropagation()}
       >
         {/* Close Button */}
