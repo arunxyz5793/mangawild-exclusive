@@ -97,22 +97,16 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
     isDifferentChapter: boolean;
   } | null>(null);
 
-  const handleZoomIn = () => {
-    setZoomLevel(prev => Math.min(prev + 25, 300));
-  };
+  const zoomStateRef = useRef<{ zoom: number; x: number; y: number }>({ zoom: 100, x: 0, y: 0 });
+  const applyZoomAndPan = useCallback((nextZoom: number, nextX: number, nextY: number) => {
+    zoomStateRef.current = { zoom: nextZoom, x: nextX, y: nextY };
+    setZoomLevel(nextZoom);
+    setPanOffset({ x: nextX, y: nextY });
+  }, []);
 
-  const handleZoomOut = () => {
-    setZoomLevel(prev => {
-      const next = Math.max(prev - 25, 50);
-      if (next <= 100) setPanOffset({ x: 0, y: 0 });
-      return next;
-    });
-  };
-
-  const handleZoomReset = () => {
-    setZoomLevel(100);
-    setPanOffset({ x: 0, y: 0 });
-  };
+  const handleZoomReset = useCallback(() => {
+    applyZoomAndPan(100, 0, 0);
+  }, [applyZoomAndPan]);
 
   const handleSendTip = () => {
     setRefreshTipsKey(k => k + 1);
@@ -121,9 +115,14 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
   };
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const webtoonStripRef = useRef<HTMLDivElement>(null);
+  const flipViewportRef = useRef<HTMLDivElement>(null);
+  const flipZoomTargetRef = useRef<HTMLDivElement>(null);
   const pinchStartDistRef = useRef<number | null>(null);
   const pinchStartZoomRef = useRef<number>(100);
-  const lastTapTimeRef = useRef<number>(0);
+  const pinchStartPanRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const pinchStartMidRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number }>({ x: 0, y: 0, offsetX: 0, offsetY: 0 });
+  const wasPinchingRef = useRef<boolean>(false);
   const panStartRef = useRef<{ x: number; y: number; origX: number; origY: number } | null>(null);
 
   // Sync state if props change, restore prior progress, and initialize tracking
@@ -381,8 +380,9 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
       return;
     }
     // Instant switch to next page without animation delay
+    applyZoomAndPan(100, 0, 0);
     setActivePanelIndex(prev => prev + 1);
-  }, [activePanelIndex, currentChapter.panels.length, nextChapter, onNavigate, seriesId]);
+  }, [activePanelIndex, currentChapter.panels.length, nextChapter, onNavigate, seriesId, applyZoomAndPan]);
 
   const handleFlipPrev = useCallback(() => {
     const now = Date.now();
@@ -392,8 +392,9 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
 
     if (activePanelIndex <= 0) return;
     // Instant switch to previous page without animation delay
+    applyZoomAndPan(100, 0, 0);
     setActivePanelIndex(prev => prev - 1);
-  }, [activePanelIndex]);
+  }, [activePanelIndex, applyZoomAndPan]);
 
   // Preload adjacent panels for instantaneous, shutter-free page turns
   useEffect(() => {
@@ -407,79 +408,171 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
     });
   }, [activePanelIndex, currentChapter?.panels]);
 
-  // High-precision Single-Swipe, Pinch-to-Zoom & Pan Detection
+  const clampPanOffset = useCallback((x: number, y: number, targetZoom: number) => {
+    if (targetZoom <= 100) return { x: 0, y: 0 };
+    const target = readingMode === 'webtoon' ? webtoonStripRef.current : flipZoomTargetRef.current;
+    const scale = targetZoom / 100;
+    const baseW = target?.offsetWidth || window.innerWidth;
+    const baseH = target?.offsetHeight || window.innerHeight;
+    const minPanX = -baseW * (scale - 1);
+    const maxPanX = 0;
+
+    if (readingMode === 'webtoon' && target) {
+      const rect = target.getBoundingClientRect();
+      const unscaledTop = rect.top - zoomStateRef.current.y;
+      const maxPanY = Math.max(0, -unscaledTop);
+      const minPanY = Math.min(0, window.innerHeight - unscaledTop - baseH * scale);
+      return {
+        x: Math.min(maxPanX, Math.max(minPanX, x)),
+        y: Math.min(maxPanY, Math.max(minPanY, y)),
+      };
+    }
+
+    const minPanY = -baseH * (scale - 1);
+    const maxPanY = 0;
+    return {
+      x: Math.min(maxPanX, Math.max(minPanX, x)),
+      y: Math.min(maxPanY, Math.max(minPanY, y)),
+    };
+  }, [readingMode]);
+
+  const initTwoFingerPinch = (touches: React.TouchList) => {
+    const t0 = touches[0];
+    const t1 = touches[1];
+    const dx = t0.clientX - t1.clientX;
+    const dy = t0.clientY - t1.clientY;
+    const midX = (t0.clientX + t1.clientX) / 2;
+    const midY = (t0.clientY + t1.clientY) / 2;
+    const target = readingMode === 'webtoon' ? webtoonStripRef.current : flipZoomTargetRef.current;
+    const rect = target?.getBoundingClientRect();
+
+    pinchStartDistRef.current = Math.max(10, Math.hypot(dx, dy));
+    pinchStartZoomRef.current = zoomStateRef.current.zoom;
+    pinchStartPanRef.current = { x: zoomStateRef.current.x, y: zoomStateRef.current.y };
+    pinchStartMidRef.current = {
+      x: midX,
+      y: midY,
+      offsetX: rect ? midX - rect.left : midX,
+      offsetY: rect ? midY - rect.top : midY,
+    };
+    wasPinchingRef.current = true;
+    touchStartRef.current = null;
+    touchCurrentRef.current = null;
+    panStartRef.current = null;
+  };
+
+  // Natural Two-Finger Pinch-to-Zoom & Single-Swipe Detection
   const handleTouchStart = (e: React.TouchEvent) => {
     lastTouchTimestampRef.current = Date.now();
-    if (e.touches.length === 2) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      pinchStartDistRef.current = Math.hypot(dx, dy);
-      pinchStartZoomRef.current = zoomLevel;
-      touchStartRef.current = null;
+    if (e.touches.length >= 2) {
+      initTwoFingerPinch(e.touches);
       return;
     }
 
     const touch = e.touches[0];
-    const now = Date.now();
-    if (now - lastTapTimeRef.current < 280) {
-      // Double-tap zoom toggle
-      setZoomLevel(prev => {
-        if (prev > 100) {
-          setPanOffset({ x: 0, y: 0 });
-          return 100;
-        }
-        return 175;
-      });
-      lastTapTimeRef.current = 0;
-      return;
-    }
-    lastTapTimeRef.current = now;
-
-    if (zoomLevel > 100 && readingMode === 'page_flip') {
+    if (zoomStateRef.current.zoom > 100) {
       panStartRef.current = {
         x: touch.clientX,
         y: touch.clientY,
-        origX: panOffset.x,
-        origY: panOffset.y,
+        origX: zoomStateRef.current.x,
+        origY: zoomStateRef.current.y,
       };
       return;
     }
 
-    touchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
-    touchCurrentRef.current = { x: touch.clientX, y: touch.clientY };
+    if (readingMode === 'page_flip') {
+      touchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
+      touchCurrentRef.current = { x: touch.clientX, y: touch.clientY };
+    }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 2 && pinchStartDistRef.current) {
-      const dx = e.touches[0].clientX - e.touches[1].clientX;
-      const dy = e.touches[0].clientY - e.touches[1].clientY;
-      const dist = Math.hypot(dx, dy);
-      const scale = dist / pinchStartDistRef.current;
-      const nextZoom = Math.round(Math.min(300, Math.max(50, pinchStartZoomRef.current * scale)));
-      setZoomLevel(nextZoom);
-      if (nextZoom <= 100) setPanOffset({ x: 0, y: 0 });
+    if (e.touches.length >= 2) {
+      if (!pinchStartDistRef.current) {
+        initTwoFingerPinch(e.touches);
+        return;
+      }
+      const t0 = e.touches[0];
+      const t1 = e.touches[1];
+      const dx = t0.clientX - t1.clientX;
+      const dy = t0.clientY - t1.clientY;
+      const dist = Math.max(10, Math.hypot(dx, dy));
+      const midX = (t0.clientX + t1.clientX) / 2;
+      const midY = (t0.clientY + t1.clientY) / 2;
+
+      const nextZoom = Math.min(350, Math.max(100, (pinchStartZoomRef.current * dist) / pinchStartDistRef.current));
+      const scaleRatio = nextZoom / pinchStartZoomRef.current;
+      const { x: startMidX, y: startMidY, offsetX, offsetY } = pinchStartMidRef.current;
+      const { x: startPanX, y: startPanY } = pinchStartPanRef.current;
+      const rawPanX = startPanX + (midX - startMidX) - offsetX * (scaleRatio - 1);
+      const rawPanY = startPanY + (midY - startMidY) - offsetY * (scaleRatio - 1);
+
+      if (nextZoom <= 101) {
+        if (readingMode === 'webtoon' && Math.abs(rawPanY) > 1) {
+          if (isFullscreen && containerRef.current) {
+            containerRef.current.scrollTop += -rawPanY;
+          } else {
+            window.scrollBy(0, -rawPanY);
+          }
+        }
+        applyZoomAndPan(100, 0, 0);
+      } else {
+        const clamped = clampPanOffset(rawPanX, rawPanY, nextZoom);
+        applyZoomAndPan(nextZoom, clamped.x, clamped.y);
+      }
       return;
     }
 
-    if (zoomLevel > 100 && readingMode === 'page_flip' && panStartRef.current && e.touches.length === 1) {
+    if (zoomStateRef.current.zoom > 100 && panStartRef.current && e.touches.length === 1) {
       const touch = e.touches[0];
-      setPanOffset({
-        x: panStartRef.current.origX + (touch.clientX - panStartRef.current.x),
-        y: panStartRef.current.origY + (touch.clientY - panStartRef.current.y),
-      });
+      const nextX = panStartRef.current.origX + (touch.clientX - panStartRef.current.x);
+      const nextY = panStartRef.current.origY + (touch.clientY - panStartRef.current.y);
+      const clamped = clampPanOffset(nextX, nextY, zoomStateRef.current.zoom);
+      applyZoomAndPan(zoomStateRef.current.zoom, clamped.x, clamped.y);
       return;
     }
 
-    if (!touchStartRef.current) return;
+    if (readingMode !== 'page_flip' || !touchStartRef.current || e.touches.length !== 1) return;
     const touch = e.touches[0];
     touchCurrentRef.current = { x: touch.clientX, y: touch.clientY };
   };
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (e?: React.TouchEvent) => {
+    if (e && e.touches.length === 1) {
+      // Transition smoothly from 2-finger pinch to 1-finger pan without jumping
+      pinchStartDistRef.current = null;
+      if (zoomStateRef.current.zoom > 100) {
+        panStartRef.current = {
+          x: e.touches[0].clientX,
+          y: e.touches[0].clientY,
+          origX: zoomStateRef.current.x,
+          origY: zoomStateRef.current.y,
+        };
+      }
+      return;
+    }
+
     pinchStartDistRef.current = null;
     panStartRef.current = null;
 
-    if (!touchStartRef.current || !touchCurrentRef.current) {
+    if (wasPinchingRef.current) {
+      wasPinchingRef.current = false;
+      touchStartRef.current = null;
+      touchCurrentRef.current = null;
+      if (zoomStateRef.current.zoom <= 102) {
+        if (readingMode === 'webtoon' && Math.abs(zoomStateRef.current.y) > 1) {
+          if (isFullscreen && containerRef.current) {
+            containerRef.current.scrollTop += -zoomStateRef.current.y;
+          } else {
+            window.scrollBy(0, -zoomStateRef.current.y);
+          }
+        }
+        applyZoomAndPan(100, 0, 0);
+      }
+      return;
+    }
+
+    if (readingMode !== 'page_flip' || !touchStartRef.current || !touchCurrentRef.current) {
       touchStartRef.current = null;
       touchCurrentRef.current = null;
       return;
@@ -492,17 +585,16 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
     touchStartRef.current = null;
     touchCurrentRef.current = null;
 
-    if (zoomLevel > 100) return;
+    const nativeScale = window.visualViewport?.scale ?? 1;
+    if (zoomStateRef.current.zoom > 100 || nativeScale > 1.02) return;
 
     const isHorizontal = Math.abs(deltaX) > Math.abs(deltaY) * 1.2;
-    const isSwipe = Math.abs(deltaX) >= 30;
+    const isSwipe = Math.abs(deltaX) >= 35;
 
     if (isHorizontal && isSwipe) {
       if (deltaX < 0) {
-        setPanOffset({ x: 0, y: 0 });
         handleFlipNext();
       } else {
-        setPanOffset({ x: 0, y: 0 });
         handleFlipPrev();
       }
     }
@@ -511,6 +603,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
   const handleTouchCancel = () => {
     pinchStartDistRef.current = null;
     panStartRef.current = null;
+    wasPinchingRef.current = false;
     touchStartRef.current = null;
     touchCurrentRef.current = null;
   };
@@ -518,12 +611,12 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
   const handleMouseDown = (e: React.MouseEvent) => {
     if (Date.now() - lastTouchTimestampRef.current < 1000) return;
     isMouseDownRef.current = true;
-    if (zoomLevel > 100 && readingMode === 'page_flip') {
+    if (zoomStateRef.current.zoom > 100 && readingMode === 'page_flip') {
       panStartRef.current = {
         x: e.clientX,
         y: e.clientY,
-        origX: panOffset.x,
-        origY: panOffset.y,
+        origX: zoomStateRef.current.x,
+        origY: zoomStateRef.current.y,
       };
       return;
     }
@@ -533,11 +626,11 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isMouseDownRef.current) return;
-    if (zoomLevel > 100 && readingMode === 'page_flip' && panStartRef.current) {
-      setPanOffset({
-        x: panStartRef.current.origX + (e.clientX - panStartRef.current.x),
-        y: panStartRef.current.origY + (e.clientY - panStartRef.current.y),
-      });
+    if (zoomStateRef.current.zoom > 100 && readingMode === 'page_flip' && panStartRef.current) {
+      const nextX = panStartRef.current.origX + (e.clientX - panStartRef.current.x);
+      const nextY = panStartRef.current.origY + (e.clientY - panStartRef.current.y);
+      const clamped = clampPanOffset(nextX, nextY, zoomStateRef.current.zoom);
+      applyZoomAndPan(zoomStateRef.current.zoom, clamped.x, clamped.y);
       return;
     }
     if (!touchStartRef.current) return;
@@ -634,23 +727,19 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
         e.preventDefault();
         return false;
       }}
-      onTouchStart={readingMode === 'webtoon' ? handleTouchStart : undefined}
-      onTouchMove={readingMode === 'webtoon' ? handleTouchMove : undefined}
-      onTouchEnd={readingMode === 'webtoon' ? handleTouchEnd : undefined}
       className={`flex flex-col relative select-none w-full outline-none transition-colors ${
         isLight ? 'bg-white text-black' : 'bg-black text-white'
       } ${
         isFullscreen
           ? 'fixed inset-0 z-50 h-screen w-screen overflow-y-auto overflow-x-hidden'
-          : 'min-h-screen overflow-y-auto overflow-x-hidden'
+          : 'min-h-screen'
       }`}
       style={{
         height: isFullscreen ? '100vh' : 'auto',
         minHeight: '100vh',
-        overflowY: 'auto',
-        overflowX: 'hidden',
+        overflowY: isFullscreen ? 'auto' : 'visible',
         WebkitOverflowScrolling: 'touch',
-        touchAction: readingMode === 'webtoon' ? 'pan-y pinch-zoom' : 'none',
+        touchAction: readingMode === 'webtoon' ? 'auto' : 'pan-y pinch-zoom',
       }}
     >
       {/* Strict Monochrome Pinned Reading Progress Bar */}
@@ -667,7 +756,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
         />
       </div>
 
-      {/* Fullscreen Floating Controls Bar with Clean - / + Zoom, Mode Switch & Exit */}
+      {/* Fullscreen Floating Controls Bar with Mode Switch & Exit */}
       {isFullscreen && (
         <div
           className={`fixed top-3 right-3 z-50 flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-full border shadow-2xl select-none animate-fade-in ${
@@ -676,50 +765,13 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
               : 'bg-black/90 text-white border-white/25 backdrop-blur-md'
           }`}
         >
-          <button
-            type="button"
-            onClick={handleZoomOut}
-            className={`w-6 h-6 rounded-full font-mono font-black text-sm flex items-center justify-center border transition-colors cursor-pointer ${
-              isLight
-                ? 'border-black/30 hover:bg-black hover:text-white'
-                : 'border-white/25 hover:bg-white hover:text-black'
-            }`}
-            title="Zoom Out (-)"
-          >
-            -
-          </button>
-          <span className="text-xs font-mono font-bold min-w-[40px] text-center">
-            {zoomLevel}%
-          </span>
-          <button
-            type="button"
-            onClick={handleZoomIn}
-            className={`w-6 h-6 rounded-full font-mono font-black text-sm flex items-center justify-center border transition-colors cursor-pointer ${
-              isLight
-                ? 'border-black/30 hover:bg-black hover:text-white'
-                : 'border-white/25 hover:bg-white hover:text-black'
-            }`}
-            title="Zoom In (+)"
-          >
-            +
-          </button>
-          {zoomLevel !== 100 && (
-            <button
-              type="button"
-              onClick={handleZoomReset}
-              className="p-1 rounded-full hover:opacity-75 transition-opacity cursor-pointer"
-              title="Reset Zoom (100%)"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
-          )}
-
-          <div className={`w-[1px] h-4 mx-0.5 ${isLight ? 'bg-black/20' : 'bg-white/20'}`} />
-
           {/* Reading Mode Switcher in Fullscreen */}
           <button
             type="button"
-            onClick={() => setReadingMode(prev => prev === 'webtoon' ? 'page_flip' : 'webtoon')}
+            onClick={() => {
+              setReadingMode(prev => prev === 'webtoon' ? 'page_flip' : 'webtoon');
+              handleZoomReset();
+            }}
             className={`px-2.5 py-0.5 text-[11px] font-mono font-bold rounded-full border transition-colors cursor-pointer ${
               isLight
                 ? 'bg-black text-white border-black'
@@ -845,49 +897,8 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
           </button>
         </div>
 
-        {/* Reader Display Mode, Manual Zoom (- / +) & Controls */}
+        {/* Reader Display Mode & Controls */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-          {/* Clean - / + Zoom Pill (No redundant spyglass icons) */}
-          <div
-            className={`hidden md:flex items-center gap-1 rounded-lg p-0.5 text-xs font-mono border ${
-              isLight ? 'bg-white text-black border-black' : 'bg-zinc-900 text-white border-white/20'
-            }`}
-          >
-            <button
-              type="button"
-              onClick={handleZoomOut}
-              className={`w-6 h-6 rounded font-bold flex items-center justify-center transition-colors cursor-pointer ${
-                isLight ? 'hover:bg-black hover:text-white' : 'hover:bg-white hover:text-black'
-              }`}
-              title="Zoom Out (-)"
-            >
-              -
-            </button>
-            <span className="px-1 text-[11px] font-bold min-w-[38px] text-center">
-              {zoomLevel}%
-            </span>
-            <button
-              type="button"
-              onClick={handleZoomIn}
-              className={`w-6 h-6 rounded font-bold flex items-center justify-center transition-colors cursor-pointer ${
-                isLight ? 'hover:bg-black hover:text-white' : 'hover:bg-white hover:text-black'
-              }`}
-              title="Zoom In (+)"
-            >
-              +
-            </button>
-            {zoomLevel !== 100 && (
-              <button
-                type="button"
-                onClick={handleZoomReset}
-                className="p-1 rounded hover:opacity-70 transition-opacity cursor-pointer"
-                title="Reset Zoom"
-              >
-                <RotateCcw className="w-3 h-3" />
-              </button>
-            )}
-          </div>
-
           {/* Mode toggle (Vertical / Flip) */}
           <div
             className={`flex items-center p-0.5 rounded-lg border text-[11px] sm:text-xs shrink-0 ${
@@ -898,7 +909,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
               type="button"
               onClick={() => {
                 setReadingMode('webtoon');
-                setPanOffset({ x: 0, y: 0 });
+                handleZoomReset();
               }}
               className={`px-2 py-1 rounded-md transition-colors cursor-pointer font-bold ${
                 readingMode === 'webtoon'
@@ -914,7 +925,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
               type="button"
               onClick={() => {
                 setReadingMode('page_flip');
-                setPanOffset({ x: 0, y: 0 });
+                handleZoomReset();
               }}
               className={`px-2 py-1 rounded-md transition-colors cursor-pointer font-bold ${
                 readingMode === 'page_flip'
@@ -1044,20 +1055,6 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
         }`}
         style={brightness !== 100 ? { filter: `brightness(${brightness}%)` } : undefined}
         onClick={() => setShowControls(!showControls)}
-        onWheel={(e) => {
-          if (e.ctrlKey || e.metaKey) {
-            e.preventDefault();
-            if (e.deltaY < 0) {
-              handleZoomIn();
-            } else {
-              handleZoomOut();
-            }
-            return;
-          }
-          if (readingMode === 'webtoon' && containerRef.current) {
-            containerRef.current.scrollTop += e.deltaY;
-          }
-        }}
       >
         {/* Exclusive Lock Wall */}
         {isLocked ? (
@@ -1114,15 +1111,22 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
             </div>
           </div>
         ) : readingMode === 'webtoon' ? (
-          /* Webtoon Seamless Continuous Flow (Gapless vertical webtoon layout with large desktop & zoom support) */
+          /* Webtoon Seamless Continuous Flow (Gapless vertical webtoon layout with natural two-finger zoom) */
           <div
-            className="w-full space-y-0 gap-0 p-0 my-0 flex flex-col items-center webtoon-scroll transition-all duration-200 select-none leading-none"
+            ref={webtoonStripRef}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchCancel}
+            className="w-full max-w-4xl space-y-0 gap-0 p-0 my-0 flex flex-col items-center webtoon-scroll select-none leading-none"
             style={{
-              maxWidth:
-                fitMode === 'width'
-                  ? `${Math.round((zoomLevel / 100) * 1024)}px`
-                  : `${Math.round((zoomLevel / 100) * 760)}px`,
-              width: zoomLevel > 100 ? `${zoomLevel}%` : '100%',
+              touchAction: zoomLevel > 100 ? 'none' : 'pan-y',
+              transform:
+                zoomLevel > 100
+                  ? `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${zoomLevel / 100})`
+                  : 'none',
+              transformOrigin: '0 0',
+              willChange: zoomLevel > 100 ? 'transform' : 'auto',
             }}
           >
             {currentChapter.panels.map((panel, idx) => (
@@ -1368,7 +1372,8 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
             ) : (
               currentChapter.panels[activePanelIndex] && (
                 <div
-                  className={`relative select-none flex items-center justify-center cursor-grab active:cursor-grabbing overflow-hidden ${
+                  ref={flipViewportRef}
+                  className={`relative select-none flex items-center justify-center overflow-hidden ${
                     isFullscreen
                       ? 'w-screen h-screen rounded-none border-0'
                       : 'w-full max-w-6xl h-[calc(100vh-105px)] sm:h-[calc(100vh-92px)] min-h-[520px] rounded-none sm:rounded-2xl border'
@@ -1386,18 +1391,20 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                   onMouseMove={handleMouseMove}
                   onMouseUp={handleMouseUp}
                   onMouseLeave={handleMouseUp}
-                  onDoubleClick={() => {
-                    setZoomLevel(prev => {
-                      if (prev > 100) {
-                        setPanOffset({ x: 0, y: 0 });
-                        return 100;
-                      }
-                      return 175;
-                    });
-                  }}
                 >
-                  {/* Full-screen Panel Image Layer with Smooth Manual Zoom & Pan */}
-                  <div className="relative z-0 w-full h-full flex items-center justify-center select-none overflow-hidden">
+                  {/* Full-screen Panel Image Layer with Natural Two-Finger Pinch-to-Zoom & Pan */}
+                  <div
+                    ref={flipZoomTargetRef}
+                    className="relative z-0 w-full h-full flex items-center justify-center select-none overflow-hidden"
+                    style={{
+                      transform:
+                        zoomLevel > 100
+                          ? `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${zoomLevel / 100})`
+                          : 'none',
+                      transformOrigin: '0 0',
+                      willChange: zoomLevel > 100 ? 'transform' : 'auto',
+                    }}
+                  >
                     <BlurUpMangaImage
                       key={currentChapter.panels[activePanelIndex].id || activePanelIndex}
                       src={currentChapter.panels[activePanelIndex].imageUrl}
@@ -1406,8 +1413,6 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                       panelNumber={activePanelIndex + 1}
                       className="w-full h-full flex items-center justify-center bg-transparent"
                       imgStyle={{
-                        transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel / 100})`,
-                        transformOrigin: 'center center',
                         maxHeight: isFullscreen ? '100vh' : 'calc(100vh - 110px)',
                         maxWidth: '100%',
                         width: 'auto',
@@ -1420,7 +1425,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
 
                     {/* Anti-Download Transparent Security Shield */}
                     <div
-                      className="absolute inset-0 z-20 bg-transparent select-none cursor-grab active:cursor-grabbing"
+                      className="absolute inset-0 z-20 bg-transparent select-none"
                       onContextMenu={(e) => e.preventDefault()}
                       onDragStart={(e) => e.preventDefault()}
                       aria-hidden="true"
@@ -1466,7 +1471,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
               )
             )}
 
-            {/* Page Index indicator, Mobile Zoom (- / +), & Quick Chapter Switch */}
+            {/* Page Index indicator & Quick Chapter Switch */}
             {!isFullscreen && (
               <div className="mt-2.5 px-3 flex flex-wrap items-center justify-center gap-2.5 text-xs font-mono">
                 <span className="font-bold">
@@ -1474,34 +1479,6 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                     ? 'Chapter Completed'
                     : `Page ${activePanelIndex + 1} / ${currentChapter.panels.length}`}
                 </span>
-                <span>·</span>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleZoomOut();
-                    }}
-                    className={`w-6 h-6 rounded border font-bold flex items-center justify-center cursor-pointer ${
-                      isLight ? 'border-black text-black hover:bg-black hover:text-white' : 'border-white/25 text-white hover:bg-white hover:text-black'
-                    }`}
-                  >
-                    -
-                  </button>
-                  <span className="text-[11px] font-bold min-w-[38px] text-center">{zoomLevel}%</span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleZoomIn();
-                    }}
-                    className={`w-6 h-6 rounded border font-bold flex items-center justify-center cursor-pointer ${
-                      isLight ? 'border-black text-black hover:bg-black hover:text-white' : 'border-white/25 text-white hover:bg-white hover:text-black'
-                    }`}
-                  >
-                    +
-                  </button>
-                </div>
                 <span>·</span>
                 <button
                   type="button"
