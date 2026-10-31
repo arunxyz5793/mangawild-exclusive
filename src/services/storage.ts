@@ -2053,15 +2053,24 @@ export const WORLDWIDE_MANGA_NEWS: WorldwideMangaNews[] = [
   }
 ];
 
-// Helper to get from local storage or fallback to seed
+// In-memory cache to avoid repeated synchronous localStorage.getItem + JSON.parse of large chapter/panel data
+const memoryCache = new Map<string, unknown>();
+
+// Helper to get from local storage or fallback to seed (with O(1) in-memory cache)
 function getStored<T>(key: string, defaultVal: T): T {
+  if (memoryCache.has(key)) {
+    return memoryCache.get(key) as T;
+  }
   try {
     const item = localStorage.getItem(key);
     if (!item) {
       localStorage.setItem(key, JSON.stringify(defaultVal));
+      memoryCache.set(key, defaultVal);
       return defaultVal;
     }
-    return JSON.parse(item);
+    const parsed = JSON.parse(item) as T;
+    memoryCache.set(key, parsed);
+    return parsed;
   } catch {
     return defaultVal;
   }
@@ -2094,6 +2103,7 @@ try {
 }
 
 function setStored<T>(key: string, val: T): void {
+  memoryCache.set(key, val);
   try {
     localStorage.setItem(key, JSON.stringify(val));
   } catch (e) {
@@ -3459,6 +3469,12 @@ export const StorageService = {
       this.saveCreators(creators);
 
       // 4. Clear user liked series, followed creators, payments, tips, daily views log, and reading history
+      memoryCache.delete(STORAGE_KEYS.LIKED_SERIES);
+      memoryCache.delete(STORAGE_KEYS.FOLLOWED_CREATORS);
+      memoryCache.delete(STORAGE_KEYS.PAYMENTS);
+      memoryCache.delete(STORAGE_KEYS.TIPS);
+      memoryCache.delete('mw_daily_views_log');
+      memoryCache.delete(STORAGE_KEYS.READING_HISTORY);
       localStorage.removeItem(STORAGE_KEYS.LIKED_SERIES);
       localStorage.removeItem(STORAGE_KEYS.FOLLOWED_CREATORS);
       localStorage.removeItem(STORAGE_KEYS.PAYMENTS);
@@ -3550,6 +3566,7 @@ export const StorageService = {
 
   // Reset to Factory Seed
   resetToFactorySeed(): void {
+    memoryCache.clear();
     localStorage.removeItem(STORAGE_KEYS.USERS);
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
     localStorage.removeItem(STORAGE_KEYS.SERIES);

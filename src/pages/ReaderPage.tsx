@@ -175,44 +175,49 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
     }
   }, [seriesId, chapterId, user.id]);
 
-  // Webtoon Continuous Scroll Reading Progress Tracking
+  // Webtoon Continuous Scroll Reading Progress Tracking (rAF-throttled for 60fps scrolling)
   useEffect(() => {
     if (readingMode !== 'webtoon' || !currentChapter || !series) return;
 
+    let rafId: number | null = null;
+
     const computeWebtoonScroll = () => {
-      const el = containerRef.current;
-      let scrollTop = window.scrollY;
-      let scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        const el = containerRef.current;
+        let scrollTop = window.scrollY;
+        let scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
 
-      if (el && isFullscreen) {
-        scrollTop = el.scrollTop;
-        scrollHeight = el.scrollHeight - el.clientHeight;
-      }
+        if (el && isFullscreen) {
+          scrollTop = el.scrollTop;
+          scrollHeight = el.scrollHeight - el.clientHeight;
+        }
 
-      if (scrollHeight <= 0) {
-        setReadingProgress(100);
-        return;
-      }
+        if (scrollHeight <= 0) {
+          setReadingProgress(prev => (prev === 100 ? prev : 100));
+          return;
+        }
 
-      const ratio = Math.min(1, Math.max(0, scrollTop / scrollHeight));
-      const pct = Math.min(100, Math.max(1, Math.round(ratio * 100)));
-      const totalPanels = currentChapter.panels.length;
-      const currentPanel = Math.min(totalPanels, Math.max(1, Math.ceil(ratio * totalPanels)));
-      const isCompleted = pct >= 92;
+        const ratio = Math.min(1, Math.max(0, scrollTop / scrollHeight));
+        const pct = Math.min(100, Math.max(1, Math.round(ratio * 100)));
+        const totalPanels = currentChapter.panels.length;
+        const currentPanel = Math.min(totalPanels, Math.max(1, Math.ceil(ratio * totalPanels)));
 
-      setReadingProgress(pct);
+        setReadingProgress(prev => (prev === pct ? prev : pct));
 
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-      saveTimeoutRef.current = setTimeout(() => {
-        StorageService.saveReadingProgress(user.id, {
-          seriesId: series.id,
-          chapterId: currentChapter.id,
-          chapterNumber: currentChapter.chapterNumber,
-          panelIndex: currentPanel,
-          totalPanels,
-          updatedAt: new Date().toISOString(),
-        });
-      }, 500);
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = setTimeout(() => {
+          StorageService.saveReadingProgress(user.id, {
+            seriesId: series.id,
+            chapterId: currentChapter.id,
+            chapterNumber: currentChapter.chapterNumber,
+            panelIndex: currentPanel,
+            totalPanels,
+            updatedAt: new Date().toISOString(),
+          });
+        }, 600);
+      });
     };
 
     window.addEventListener('scroll', computeWebtoonScroll, { passive: true });
@@ -222,6 +227,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
     }
 
     return () => {
+      if (rafId !== null) window.cancelAnimationFrame(rafId);
       window.removeEventListener('scroll', computeWebtoonScroll);
       if (el) {
         el.removeEventListener('scroll', computeWebtoonScroll);

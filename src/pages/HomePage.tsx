@@ -195,20 +195,14 @@ export const HomePage: React.FC<HomePageProps> = ({
                 : 'bg-zinc-950 border-white/20 hover:border-white/40 shadow-xl'
             }`}
           >
-            {/* Ambient Background Gradient Glow */}
-            <div
-              key={`bg-${featuredSpotlight.id}`}
-              className="absolute inset-0 bg-cover bg-center blur-3xl opacity-20 scale-110 pointer-events-none transition-all duration-700 group-hover:opacity-30"
-              style={{ backgroundImage: `url(${featuredSpotlight.bannerUrl || featuredSpotlight.coverUrl})` }}
-            />
-
             {/* Main Cover Artwork with Gentle Zoom */}
             <img
               key={`img-${featuredSpotlight.id}`}
               src={featuredSpotlight.coverUrl || featuredSpotlight.bannerUrl}
               alt={featuredSpotlight.title}
+              decoding="async"
               draggable={false}
-              className="absolute inset-0 w-full h-full object-cover sm:object-contain sm:object-right-top transition-all duration-700 ease-out group-hover:scale-[1.02] z-0 opacity-85 sm:opacity-95 pointer-events-none"
+              className="absolute inset-0 w-full h-full object-cover sm:object-contain sm:object-right-top transition-transform duration-500 ease-out group-hover:scale-[1.02] z-0 opacity-85 sm:opacity-95 pointer-events-none"
             />
 
             {/* Seamless Vignette Overlay for Readability (In Light theme, only fade bottom ~42% up to artist name so upper manga panel is 100% clear) */}
@@ -446,7 +440,9 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <img
                     src={series.coverUrl}
                     alt={series.title}
-                    className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-500 ease-out"
+                    loading="lazy"
+                    decoding="async"
+                    className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-300 ease-out"
                   />
 
                   {/* Top-Left Rank Pill (#1, #2, #3, ...) */}
@@ -528,6 +524,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <img
                     src={series.coverUrl}
                     alt={series.title}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover group-hover:scale-104 transition-transform duration-300"
                   />
 

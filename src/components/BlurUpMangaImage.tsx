@@ -103,7 +103,7 @@ export const BlurUpMangaImage: React.FC<BlurUpMangaImageProps> = ({
           </button>
         </div>
       ) : (
-        /* 3. Actual Image with Blur-Up Transition Filter */
+        /* 3. Actual Image with Lightweight GPU Opacity Transition */
         <img
           key={`${src}_${retryKey}`}
           ref={imgRef}
@@ -117,14 +117,9 @@ export const BlurUpMangaImage: React.FC<BlurUpMangaImageProps> = ({
           onContextMenu={(e) => e.preventDefault()}
           onDragStart={(e) => e.preventDefault()}
           data-protected-img="true"
-          style={{
-            ...imgStyle,
-            transition: 'filter 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease',
-          }}
-          className={`block w-full h-auto select-none pointer-events-none transition-all duration-500 ${
-            isLoaded
-              ? 'blur-0 scale-100 opacity-100'
-              : 'blur-xl scale-105 opacity-40'
+          style={imgStyle}
+          className={`block w-full h-auto select-none pointer-events-none transition-opacity duration-200 ease-out ${
+            isLoaded ? 'opacity-100' : 'opacity-0'
           } ${imgClassName}`}
         />
       )}
