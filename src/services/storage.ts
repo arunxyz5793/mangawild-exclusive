@@ -3139,13 +3139,9 @@ export const StorageService = {
         userId: series.creatorId || `user_${clean.replace(/[^a-z0-9]/g, '_')}`,
         penName: series.author,
         handle: `@${clean.replace(/\s+/g, '_')}`,
-        bio: `Original Mangaka of "${series.title}" on MangaWild. Serializing original chapters with weekly updates.`,
-        avatarUrl: series.coverUrl,
-        socialLinks: {
-          instagram: `https://instagram.com/${clean.replace(/\s+/g, '_')}`,
-          twitter: `https://x.com/${clean.replace(/\s+/g, '_')}`,
-          website: 'https://mangawild.com',
-        },
+        bio: '',
+        avatarUrl: '',
+        socialLinks: {},
         followersCount: 0,
         seriesCount: 1,
         totalReads: series.totalReads ?? 0,
@@ -3432,12 +3428,12 @@ export const StorageService = {
     allTips.unshift(newTip);
     setStored(STORAGE_KEYS.TIPS, allTips);
 
-    // Also increment creator monthlyEarningsInr (e.g. ₹0.50 per coin)
+    // Increment creator monthlyEarningsInr directly in Rupees (₹)
     const creators = this.getCreators();
     const creator = creators.find(c => c.id === tipData.creatorId || c.userId === tipData.creatorId);
+    const inrAmount = tipData.amountInr ?? tipData.coins;
     if (creator) {
-      const addedInr = Math.round(tipData.coins * 0.5);
-      creator.monthlyEarningsInr = (creator.monthlyEarningsInr || 0) + addedInr;
+      creator.monthlyEarningsInr = (creator.monthlyEarningsInr || 0) + inrAmount;
       this.saveCreators(creators);
     }
 
@@ -3446,7 +3442,7 @@ export const StorageService = {
       id: `notif_tip_${Date.now()}`,
       userId: tipData.creatorId,
       title: 'New Tip Received!',
-      message: `${tipData.supporterName} tipped you ${tipData.coins} coins! ${tipData.message ? `"${tipData.message}"` : ''}`,
+      message: `${tipData.supporterName} tipped you ₹${inrAmount}! ${tipData.message ? `"${tipData.message}"` : ''}`,
       type: 'payment',
       read: false,
       createdAt: new Date().toISOString(),

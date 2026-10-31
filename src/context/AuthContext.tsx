@@ -5,6 +5,7 @@ import { PlatformNotification } from '../types/manga';
 import { authenticateWithGoogleOAuth } from '../services/googleAuth';
 import { testFirestoreConnection, auth, createUserWithEmailAndPassword } from '../services/firebase';
 import { processSubscriptionSuccess } from '../services/razorpay';
+import { DEFAULT_USER_AVATAR } from '../utils/avatar';
 
 interface AuthContextType {
   user: User;
@@ -139,8 +140,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           userId: user.id,
           penName: user.username || user.name || 'Mangaka',
           handle: `@${user.username || user.name.toLowerCase().replace(/\s+/g, '_')}`,
-          bio: 'Original Manga Creator publishing on MangaWild.',
-          avatarUrl: user.avatarUrl || '/avatars/creator.svg',
+          bio: '',
+          avatarUrl: user.avatarUrl || DEFAULT_USER_AVATAR,
           followersCount: 0,
           seriesCount: 0,
           totalReads: 0,
@@ -196,8 +197,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             userId: user.id,
             penName: user.username,
             handle: `@${user.username}`,
-            bio: 'Original Manga Creator publishing on MangaWild.',
-            avatarUrl: user.avatarUrl || '/avatars/creator.svg',
+            bio: '',
+            avatarUrl: user.avatarUrl || DEFAULT_USER_AVATAR,
             followersCount: 0,
             seriesCount: 0,
             totalReads: 0,
@@ -283,7 +284,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: OFFICIAL_ADMIN.email,
           password: OFFICIAL_ADMIN.password,
           role: 'admin',
-          avatarUrl: '/avatars/admin.svg',
+          avatarUrl: DEFAULT_USER_AVATAR,
           isVIP: true,
           createdAt: '2026-01-01T00:00:00Z',
         };
@@ -333,8 +334,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           userId: found.id,
           penName: found.username,
           handle: `@${found.username}`,
-          bio: 'Original Manga Creator publishing on MangaWild.',
-          avatarUrl: found.avatarUrl || '/avatars/creator.svg',
+          bio: '',
+          avatarUrl: found.avatarUrl || DEFAULT_USER_AVATAR,
           followersCount: 0,
           seriesCount: 0,
           totalReads: 0,
@@ -428,8 +429,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         userId: newUser.id,
         penName: cleanUsername,
         handle: `@${cleanUsername}`,
-        bio: 'Original Manga Creator publishing on MangaWild.',
-        avatarUrl: '/avatars/creator.svg',
+        bio: '',
+        avatarUrl: DEFAULT_USER_AVATAR,
         followersCount: 0,
         seriesCount: 0,
         totalReads: 0,
@@ -500,8 +501,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             userId: found.id,
             penName: found.name,
             handle: `@${found.username}`,
-            bio: 'Original Manga Artist on MangaWild',
-            avatarUrl: found.avatarUrl || '',
+            bio: '',
+            avatarUrl: found.avatarUrl || DEFAULT_USER_AVATAR,
             followersCount: 0,
             seriesCount: 0,
             totalReads: 0,
@@ -548,7 +549,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: name || cleanEmail.split('@')[0],
         username,
         email: cleanEmail,
-        avatarUrl: '/avatars/avatar-1.svg',
+        avatarUrl: DEFAULT_USER_AVATAR,
         role: assignedRole,
         isVIP: assignedRole === 'admin' || assignedRole === 'subscriber',
         createdAt: new Date().toISOString(),

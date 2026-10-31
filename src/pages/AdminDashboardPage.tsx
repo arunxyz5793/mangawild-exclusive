@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Shield,
   CheckCircle,
@@ -35,13 +36,17 @@ import {
   ExternalLink,
   Package,
   RotateCcw,
+  Plus,
+  Edit3,
+  Upload,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { StorageService } from '../services/storage';
-import { MangaSeries, Chapter, SeriesReview, PaymentRecord, CreatorProfile } from '../types/manga';
+import { MangaSeries, Chapter, ChapterPanel, SeriesReview, PaymentRecord, CreatorProfile, MangaGenre, ModerationStatus } from '../types/manga';
 import { User, UserRole } from '../types/auth';
 import { AuthModal } from '../components/AuthModal';
+import { getAvatarUrl, readImageFileAsDataUrl } from '../utils/avatar';
 
 interface AdminDashboardPageProps {
   onNavigate: (view: string, params?: Record<string, string>) => void;
@@ -81,6 +86,47 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   const [rejectionFeedback, setRejectionFeedback] = useState('');
   const [showRejectPrompt, setShowRejectPrompt] = useState<'series' | 'chapter' | null>(null);
 
+  // Admin Full Catalog & Chapter Studio States
+  const [catalogSearchQuery, setCatalogSearchQuery] = useState('');
+  const [isCreatingSeries, setIsCreatingSeries] = useState(false);
+  const [editingSeries, setEditingSeries] = useState<MangaSeries | null>(null);
+  const [seriesForm, setSeriesForm] = useState<{
+    title: string;
+    author: string;
+    synopsis: string;
+    genres: string;
+    status: 'ongoing' | 'completed' | 'hiatus';
+    readingFormat: 'webtoon_vertical' | 'manga_horizontal';
+    isExclusive: boolean;
+    coverUrl: string;
+    moderationStatus: ModerationStatus;
+  }>({
+    title: '',
+    author: '',
+    synopsis: '',
+    genres: 'Action, Fantasy',
+    status: 'ongoing',
+    readingFormat: 'webtoon_vertical',
+    isExclusive: false,
+    coverUrl: '',
+    moderationStatus: 'approved',
+  });
+
+  const [managingChaptersSeries, setManagingChaptersSeries] = useState<MangaSeries | null>(null);
+  const [editingChapter, setEditingChapter] = useState<Chapter | null>(null);
+  const [isCreatingChapter, setIsCreatingChapter] = useState(false);
+  const [chapterForm, setChapterForm] = useState<{
+    chapterNumber: number;
+    title: string;
+    isExclusiveVIP: boolean;
+    panels: ChapterPanel[];
+  }>({
+    chapterNumber: 1,
+    title: '',
+    isExclusiveVIP: false,
+    panels: [],
+  });
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
@@ -93,6 +139,265 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     setCreatorsList(StorageService.getCreators());
     setUsersList(StorageService.getUsers());
     setPaymentsList(StorageService.getPayments());
+  };
+
+  // Admin Series CRUD Handlers
+  const openCreateSeriesModal = () => {
+    setSeriesForm({
+      title: '',
+      author: user?.name || 'Admin',
+      synopsis: '',
+      genres: 'Action, Fantasy',
+      status: 'ongoing',
+      readingFormat: 'webtoon_vertical',
+      isExclusive: false,
+      coverUrl: '',
+      moderationStatus: 'approved',
+    });
+    setIsCreatingSeries(true);
+  };
+
+  const openEditSeriesModal = (s: MangaSeries) => {
+    setEditingSeries(s);
+    setSeriesForm({
+      title: s.title,
+      author: s.author,
+      synopsis: s.synopsis || '',
+      genres: (s.genres || []).join(', '),
+      status: s.status || 'ongoing',
+      readingFormat: s.readingFormat || 'webtoon_vertical',
+      isExclusive: Boolean(s.isExclusive),
+      coverUrl: s.coverUrl || '',
+      moderationStatus: s.moderationStatus || 'approved',
+    });
+  };
+
+  const handleCoverFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await readImageFileAsDataUrl(file);
+      setSeriesForm(prev => ({ ...prev, coverUrl: dataUrl }));
+      showToast('Cover image loaded from device');
+    } catch {
+      showToast('Failed to read cover image file');
+    }
+  };
+
+  const handleSaveAdminSeries = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!seriesForm.title.trim()) {
+      showToast('Please enter a series title');
+      return;
+    }
+    const parsedGenres = seriesForm.genres
+      .split(',')
+      .map(g => g.trim())
+      .filter(Boolean) as MangaGenre[];
+
+    if (editingSeries) {
+      StorageService.updateSeries(editingSeries.id, {
+        title: seriesForm.title.trim(),
+        author: seriesForm.author.trim() || editingSeries.author,
+        artist: seriesForm.author.trim() || editingSeries.artist,
+        synopsis: seriesForm.synopsis.trim(),
+        genres: parsedGenres.length > 0 ? parsedGenres : ['Action'],
+        status: seriesForm.status,
+        readingFormat: seriesForm.readingFormat,
+        isExclusive: seriesForm.isExclusive,
+        coverUrl: seriesForm.coverUrl || editingSeries.coverUrl,
+        moderationStatus: seriesForm.moderationStatus,
+        isApprovedByAdmin: seriesForm.moderationStatus === 'approved',
+      });
+      setEditingSeries(null);
+      refreshData();
+      showToast(`Updated "${seriesForm.title.trim()}"`);
+    } else if (isCreatingSeries) {
+      const created = StorageService.createSeries({
+        title: seriesForm.title.trim(),
+        author: seriesForm.author.trim() || 'MangaWild Official',
+        creatorId: user?.id || 'user_admin_01',
+        synopsis: seriesForm.synopsis.trim(),
+        genres: parsedGenres.length > 0 ? parsedGenres : ['Action'],
+        status: seriesForm.status,
+        readingFormat: seriesForm.readingFormat,
+        isExclusive: seriesForm.isExclusive,
+        coverUrl: seriesForm.coverUrl || undefined,
+      });
+      StorageService.updateSeries(created.id, {
+        moderationStatus: 'approved',
+        isApprovedByAdmin: true,
+        status: seriesForm.status,
+      });
+      setIsCreatingSeries(false);
+      refreshData();
+      showToast(`Created & published "${created.title}"`);
+    }
+  };
+
+  const handleAdminDeleteSeries = (s: MangaSeries) => {
+    StorageService.deleteSeries(s.id);
+    // Also clean up chapters for this series
+    const seriesChapters = StorageService.getChapters(s.id);
+    seriesChapters.forEach(ch => StorageService.deleteChapter(ch.id));
+    refreshData();
+    showToast(`Deleted series "${s.title}"`);
+  };
+
+  const handleToggleSeriesExclusive = (s: MangaSeries) => {
+    StorageService.updateSeries(s.id, { isExclusive: !s.isExclusive });
+    refreshData();
+    showToast(`"${s.title}" marked as ${!s.isExclusive ? 'Exclusive' : 'Free'}`);
+  };
+
+  // Admin Chapter & Panel Management Handlers
+  const openManageChaptersModal = (s: MangaSeries) => {
+    setManagingChaptersSeries(s);
+    setEditingChapter(null);
+    setIsCreatingChapter(false);
+  };
+
+  const startCreateAdminChapter = (s: MangaSeries) => {
+    const existing = StorageService.getChapters(s.id);
+    const nextNum = existing.length > 0 ? Math.max(...existing.map(c => c.chapterNumber)) + 1 : 1;
+    setEditingChapter(null);
+    setIsCreatingChapter(true);
+    setChapterForm({
+      chapterNumber: nextNum,
+      title: `Episode ${nextNum}`,
+      isExclusiveVIP: Boolean(s.isExclusive),
+      panels: [],
+    });
+  };
+
+  const startEditAdminChapter = (ch: Chapter) => {
+    setIsCreatingChapter(false);
+    setEditingChapter(ch);
+    setChapterForm({
+      chapterNumber: ch.chapterNumber,
+      title: ch.title,
+      isExclusiveVIP: Boolean(ch.isExclusiveVIP || ch.monetizationType === 'vip'),
+      panels: [...(ch.panels || [])],
+    });
+  };
+
+  const handleUploadChapterPanelsFromDevice = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    try {
+      const newPanels: ChapterPanel[] = [];
+      let startIdx = chapterForm.panels.length + 1;
+      for (const file of files) {
+        const dataUrl = await readImageFileAsDataUrl(file);
+        newPanels.push({
+          id: `panel_${Date.now()}_${startIdx}_${Math.random().toString(36).slice(2, 6)}`,
+          panelNumber: startIdx,
+          imageUrl: dataUrl,
+          caption: '',
+        });
+        startIdx++;
+      }
+      setChapterForm(prev => ({
+        ...prev,
+        panels: [...prev.panels, ...newPanels].map((p, i) => ({ ...p, panelNumber: i + 1 })),
+      }));
+      showToast(`Added ${newPanels.length} panel(s) from device`);
+    } catch {
+      showToast('Failed to read one or more panel image files');
+    }
+    e.target.value = '';
+  };
+
+  const handleReplaceSinglePanelFromDevice = async (panelIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await readImageFileAsDataUrl(file);
+      setChapterForm(prev => {
+        const copy = [...prev.panels];
+        if (copy[panelIndex]) {
+          copy[panelIndex] = { ...copy[panelIndex], imageUrl: dataUrl };
+        }
+        return { ...prev, panels: copy };
+      });
+      showToast(`Replaced Page #${panelIndex + 1}`);
+    } catch {
+      showToast('Failed to replace panel image');
+    }
+    e.target.value = '';
+  };
+
+  const handleMoveAdminPanel = (index: number, direction: 'up' | 'down') => {
+    setChapterForm(prev => {
+      const copy = [...prev.panels];
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= copy.length) return prev;
+      const temp = copy[index];
+      copy[index] = copy[targetIndex];
+      copy[targetIndex] = temp;
+      return {
+        ...prev,
+        panels: copy.map((p, idx) => ({ ...p, panelNumber: idx + 1 })),
+      };
+    });
+  };
+
+  const handleRemoveAdminPanel = (index: number) => {
+    setChapterForm(prev => ({
+      ...prev,
+      panels: prev.panels
+        .filter((_, idx) => idx !== index)
+        .map((p, idx) => ({ ...p, panelNumber: idx + 1 })),
+    }));
+  };
+
+  const handleSaveAdminChapter = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!managingChaptersSeries) return;
+    if (!chapterForm.title.trim()) {
+      showToast('Please enter a chapter title');
+      return;
+    }
+    if (chapterForm.panels.length === 0) {
+      showToast('Please upload at least 1 manga panel page from your device');
+      return;
+    }
+
+    if (editingChapter) {
+      StorageService.updateChapter(editingChapter.id, {
+        chapterNumber: Number(chapterForm.chapterNumber) || editingChapter.chapterNumber,
+        title: chapterForm.title.trim(),
+        isExclusiveVIP: chapterForm.isExclusiveVIP,
+        monetizationType: chapterForm.isExclusiveVIP ? 'vip' : 'free',
+        panels: chapterForm.panels,
+        moderationStatus: 'approved',
+      });
+      setEditingChapter(null);
+      refreshData();
+      showToast(`Updated Chapter ${chapterForm.chapterNumber}`);
+    } else if (isCreatingChapter) {
+      const created = StorageService.createChapter({
+        seriesId: managingChaptersSeries.id,
+        chapterNumber: Number(chapterForm.chapterNumber) || 1,
+        title: chapterForm.title.trim(),
+        isExclusiveVIP: chapterForm.isExclusiveVIP,
+        monetizationType: chapterForm.isExclusiveVIP ? 'vip' : 'free',
+        panels: chapterForm.panels,
+      });
+      StorageService.updateChapter(created.id, { moderationStatus: 'approved' });
+      setIsCreatingChapter(false);
+      refreshData();
+      showToast(`Published Chapter ${created.chapterNumber}`);
+    }
+  };
+
+  const handleDeleteAdminChapter = (ch: Chapter) => {
+    StorageService.deleteChapter(ch.id);
+    if (editingChapter?.id === ch.id) {
+      setEditingChapter(null);
+    }
+    refreshData();
+    showToast(`Deleted Chapter ${ch.chapterNumber}`);
   };
 
   // Series Approval / Rejection Handlers
@@ -801,43 +1106,138 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
           </div>
         )}
 
-        {/* TAB 3: CATALOG & RANKS */}
+        {/* TAB 3: CATALOG & FULL MANGA STUDIO */}
         {activeTab === 'catalog' && (
-          <div className="space-y-4">
-            <h2 className="text-base font-bold uppercase tracking-wider font-mono">
-              Catalog Management & Leaderboard Ranks
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {seriesList.map(s => (
-                <div key={s.id} className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 space-y-3">
-                  <div className="flex gap-3">
-                    <img src={s.coverUrl} alt={s.title} className="w-16 h-24 object-cover rounded-xl" />
-                    <div>
-                      <p className="text-xs font-bold text-white truncate">{s.title}</p>
-                      <p className="text-[11px] text-zinc-400">{s.author}</p>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded uppercase font-bold bg-zinc-800 text-zinc-300 mt-1 inline-block">
-                        {s.moderationStatus}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs pt-2 border-t border-zinc-800">
-                    <span className="text-zinc-400 font-mono">Trending Rank:</span>
-                    <select
-                      value={s.rankNumber || ''}
-                      onChange={e => handleSetTrendingRank(s.id, e.target.value ? parseInt(e.target.value) : undefined)}
-                      className="px-2 py-1 rounded-lg bg-zinc-800 text-white font-mono text-xs"
-                    >
-                      <option value="">None</option>
-                      <option value="1">Rank #1</option>
-                      <option value="2">Rank #2</option>
-                      <option value="3">Rank #3</option>
-                      <option value="4">Rank #4</option>
-                      <option value="5">Rank #5</option>
-                    </select>
-                  </div>
+          <div className="space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-bold uppercase tracking-wider font-mono">
+                  Full Manga Catalog, Chapters &amp; Leaderboard Control
+                </h2>
+                <p className="text-xs text-zinc-400">
+                  Admin full access: create, edit, or delete any manga series, cover artwork, chapters, and pages.
+                </p>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={catalogSearchQuery}
+                    onChange={e => setCatalogSearchQuery(e.target.value)}
+                    placeholder="Search title or author..."
+                    className="pl-8 pr-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white"
+                  />
                 </div>
-              ))}
+                <button
+                  onClick={openCreateSeriesModal}
+                  className="px-4 py-2 rounded-xl bg-white text-black hover:bg-zinc-200 font-bold text-xs flex items-center gap-1.5 cursor-pointer shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>New Series</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {seriesList
+                .filter(
+                  s =>
+                    !catalogSearchQuery.trim() ||
+                    s.title.toLowerCase().includes(catalogSearchQuery.toLowerCase()) ||
+                    s.author.toLowerCase().includes(catalogSearchQuery.toLowerCase())
+                )
+                .map(s => {
+                  const seriesChaptersCount = chaptersList.filter(c => c.seriesId === s.id).length;
+                  return (
+                    <div
+                      key={s.id}
+                      className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 flex flex-col justify-between space-y-3"
+                    >
+                      <div className="flex gap-3">
+                        <img
+                          src={s.coverUrl}
+                          alt={s.title}
+                          className="w-16 h-24 object-cover rounded-xl border border-zinc-800 shrink-0"
+                        />
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-xs font-bold text-white truncate">{s.title}</p>
+                            {s.isExclusive && (
+                              <span className="text-[9px] font-mono uppercase font-black px-1.5 py-0.5 rounded bg-white text-black shrink-0">
+                                Exclusive
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-zinc-400 truncate">By {s.author}</p>
+                          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded uppercase font-bold bg-zinc-800 text-zinc-300">
+                              {s.moderationStatus}
+                            </span>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">
+                              {seriesChaptersCount} Ch
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs pt-2 border-t border-zinc-800/80">
+                        <span className="text-zinc-400 font-mono text-[11px]">Trending Rank:</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleToggleSeriesExclusive(s)}
+                            className={`px-2 py-1 rounded-lg text-[10px] font-mono font-bold uppercase border cursor-pointer transition-colors ${
+                              s.isExclusive
+                                ? 'bg-white text-black border-white'
+                                : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:text-white'
+                            }`}
+                          >
+                            {s.isExclusive ? 'Exclusive' : 'Free'}
+                          </button>
+                          <select
+                            value={s.rankNumber || ''}
+                            onChange={e =>
+                              handleSetTrendingRank(s.id, e.target.value ? parseInt(e.target.value) : undefined)
+                            }
+                            className="px-2 py-1 rounded-lg bg-zinc-800 text-white font-mono text-xs"
+                          >
+                            <option value="">No Rank</option>
+                            <option value="1">Rank #1</option>
+                            <option value="2">Rank #2</option>
+                            <option value="3">Rank #3</option>
+                            <option value="4">Rank #4</option>
+                            <option value="5">Rank #5</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Admin Full Edit / Chapters / Delete Controls */}
+                      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-zinc-800/80">
+                        <button
+                          onClick={() => openEditSeriesModal(s)}
+                          className="px-2.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>Edit Info</span>
+                        </button>
+                        <button
+                          onClick={() => openManageChaptersModal(s)}
+                          className="px-2.5 py-1.5 rounded-xl bg-white text-black hover:bg-zinc-200 text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer"
+                        >
+                          <Layers className="w-3.5 h-3.5" />
+                          <span>Chapters</span>
+                        </button>
+                        <button
+                          onClick={() => handleAdminDeleteSeries(s)}
+                          className="px-2.5 py-1.5 rounded-xl border border-zinc-800 hover:border-red-500/50 text-red-400 hover:bg-red-950/30 text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
           </div>
         )}
@@ -851,7 +1251,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {creatorsList.map(creator => (
                 <div key={creator.id} className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/40 flex gap-4">
-                  <img src={creator.avatarUrl} alt={creator.penName} className="w-16 h-16 rounded-2xl object-cover bg-zinc-800" />
+                  <img src={getAvatarUrl(creator.avatarUrl)} alt={creator.penName} className="w-16 h-16 rounded-2xl object-cover bg-zinc-800" />
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-bold text-white">{creator.penName}</p>
@@ -918,7 +1318,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                             className="px-2 py-1 rounded-lg bg-zinc-800 text-white font-mono text-xs cursor-pointer hover:bg-zinc-700 transition-colors"
                           >
                             <option value="free_user">Free Reader</option>
-                            <option value="subscriber">VIP Subscriber</option>
+                            <option value="subscriber">Exclusive Subscriber</option>
                             <option value="creator">Creator</option>
                           </select>
                         )}
@@ -947,7 +1347,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
               <div className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/40">
                 <p className="text-[11px] font-mono text-zinc-400 uppercase">Gross Platform Volume</p>
                 <p className="text-3xl font-black text-white mt-1">₹{grossVolume.toLocaleString('en-IN')}</p>
-                <p className="text-[10px] text-zinc-500 font-mono mt-1">VIP All-Access Subscriptions &amp; Tips</p>
+                <p className="text-[10px] text-zinc-500 font-mono mt-1">Exclusive All-Access Subscriptions &amp; Tips</p>
               </div>
 
               <div className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/40">
@@ -1317,6 +1717,395 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
             </div>
           </div>
         )}
+
+        {/* ADMIN CREATE / EDIT SERIES MODAL */}
+        {(isCreatingSeries || editingSeries) &&
+          typeof document !== 'undefined' &&
+          createPortal(
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
+              <form
+                onSubmit={handleSaveAdminSeries}
+                className="w-full max-w-lg rounded-3xl border border-zinc-700 bg-[#0a0a0a] text-white p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+              >
+                <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+                  <div>
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold">
+                      Admin Editorial Override
+                    </span>
+                    <h3 className="text-lg font-black text-white">
+                      {editingSeries ? `Edit Series: ${editingSeries.title}` : 'Create New Manga Series'}
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCreatingSeries(false);
+                      setEditingSeries(null);
+                    }}
+                    className="p-1.5 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Cover Upload from Device */}
+                <div className="flex items-center gap-4">
+                  <div className="w-20 h-28 rounded-xl border border-zinc-700 bg-zinc-900 overflow-hidden flex items-center justify-center shrink-0">
+                    {seriesForm.coverUrl ? (
+                      <img src={seriesForm.coverUrl} alt="Cover" className="w-full h-full object-cover" />
+                    ) : (
+                      <BookOpen className="w-6 h-6 text-zinc-500" />
+                    )}
+                  </div>
+                  <div className="space-y-2 flex-1">
+                    <label className="text-xs font-bold text-white block">Series Cover Image (Device Upload)</label>
+                    <label className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs font-bold cursor-pointer">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Upload Cover From Device</span>
+                      <input type="file" accept="image/*" onChange={handleCoverFileChange} className="hidden" />
+                    </label>
+                    <p className="text-[10px] text-zinc-400">Select JPG, PNG, or WEBP directly from your device.</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">Manga Title *</label>
+                    <input
+                      type="text"
+                      required
+                      value={seriesForm.title}
+                      onChange={e => setSeriesForm(prev => ({ ...prev, title: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white focus:outline-none focus:border-white"
+                      placeholder="Enter manga title"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">Author / Artist *</label>
+                    <input
+                      type="text"
+                      required
+                      value={seriesForm.author}
+                      onChange={e => setSeriesForm(prev => ({ ...prev, author: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white focus:outline-none focus:border-white"
+                      placeholder="Creator pen name"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">Synopsis</label>
+                  <textarea
+                    rows={3}
+                    value={seriesForm.synopsis}
+                    onChange={e => setSeriesForm(prev => ({ ...prev, synopsis: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white focus:outline-none focus:border-white"
+                    placeholder="Story description..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">Genres (comma sep)</label>
+                    <input
+                      type="text"
+                      value={seriesForm.genres}
+                      onChange={e => setSeriesForm(prev => ({ ...prev, genres: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white focus:outline-none focus:border-white"
+                      placeholder="Action, Horror"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">Status</label>
+                    <select
+                      value={seriesForm.status}
+                      onChange={e =>
+                        setSeriesForm(prev => ({
+                          ...prev,
+                          status: e.target.value as 'ongoing' | 'completed' | 'hiatus',
+                        }))
+                      }
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white"
+                    >
+                      <option value="ongoing">Ongoing</option>
+                      <option value="completed">Completed</option>
+                      <option value="hiatus">Hiatus</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">Access Tier</label>
+                    <button
+                      type="button"
+                      onClick={() => setSeriesForm(prev => ({ ...prev, isExclusive: !prev.isExclusive }))}
+                      className={`w-full px-3 py-2 rounded-xl border text-xs font-bold cursor-pointer ${
+                        seriesForm.isExclusive
+                          ? 'bg-white text-black border-white'
+                          : 'bg-zinc-900 text-zinc-300 border-zinc-700'
+                      }`}
+                    >
+                      {seriesForm.isExclusive ? 'Exclusive Series' : 'Free Series'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCreatingSeries(false);
+                      setEditingSeries(null);
+                    }}
+                    className="px-4 py-2 rounded-xl border border-zinc-700 text-zinc-300 text-xs font-bold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs font-black cursor-pointer"
+                  >
+                    {editingSeries ? 'Save Changes' : 'Publish Series'}
+                  </button>
+                </div>
+              </form>
+            </div>,
+            document.body
+          )}
+
+        {/* ADMIN MANAGE CHAPTERS & PANELS MODAL */}
+        {managingChaptersSeries &&
+          typeof document !== 'undefined' &&
+          createPortal(
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
+              <div className="w-full max-w-3xl rounded-3xl border border-zinc-700 bg-[#0a0a0a] text-white p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+                  <div>
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold">
+                      Admin Chapter &amp; Panel Studio
+                    </span>
+                    <h3 className="text-lg font-black text-white">
+                      {managingChaptersSeries.title} — Chapters
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {!isCreatingChapter && !editingChapter && (
+                      <button
+                        type="button"
+                        onClick={() => startCreateAdminChapter(managingChaptersSeries)}
+                        className="px-3.5 py-1.5 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Chapter</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setManagingChaptersSeries(null);
+                        setEditingChapter(null);
+                        setIsCreatingChapter(false);
+                      }}
+                      className="p-1.5 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white cursor-pointer"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+
+                {isCreatingChapter || editingChapter ? (
+                  <form onSubmit={handleSaveAdminChapter} className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">
+                          Chapter Number *
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          min={1}
+                          value={chapterForm.chapterNumber}
+                          onChange={e =>
+                            setChapterForm(prev => ({ ...prev, chapterNumber: parseInt(e.target.value) || 1 }))
+                          }
+                          className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">
+                          Chapter Title *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={chapterForm.title}
+                          onChange={e => setChapterForm(prev => ({ ...prev, title: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">Access</label>
+                        <button
+                          type="button"
+                          onClick={() => setChapterForm(prev => ({ ...prev, isExclusiveVIP: !prev.isExclusiveVIP }))}
+                          className={`w-full px-3 py-2 rounded-xl border text-xs font-bold cursor-pointer ${
+                            chapterForm.isExclusiveVIP
+                              ? 'bg-white text-black border-white'
+                              : 'bg-zinc-900 text-zinc-300 border-zinc-700'
+                          }`}
+                        >
+                          {chapterForm.isExclusiveVIP ? 'Exclusive Chapter' : 'Free Chapter'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Upload Panels from Device */}
+                    <div className="p-4 rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/50 flex flex-col sm:flex-row items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-bold text-white">
+                          Chapter Pages ({chapterForm.panels.length} uploaded)
+                        </p>
+                        <p className="text-[11px] text-zinc-400">
+                          Upload one or multiple sequential manga pages directly from your device.
+                        </p>
+                      </div>
+                      <label className="px-4 py-2 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Select Pages From Device</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleUploadChapterPanelsFromDevice}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+
+                    {chapterForm.panels.length > 0 && (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-h-80 overflow-y-auto p-1">
+                        {chapterForm.panels.map((p, idx) => (
+                          <div
+                            key={p.id || idx}
+                            className="p-2 rounded-xl border border-zinc-800 bg-zinc-900 space-y-2"
+                          >
+                            <div className="aspect-3/4 rounded-lg overflow-hidden bg-black border border-zinc-800">
+                              <img src={p.imageUrl} alt={`Page ${idx + 1}`} className="w-full h-full object-cover" />
+                            </div>
+                            <div className="flex items-center justify-between text-[10px] font-mono text-zinc-300">
+                              <span>Page #{idx + 1}</span>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveAdminPanel(idx, 'up')}
+                                  disabled={idx === 0}
+                                  className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30"
+                                >
+                                  <ChevronUp className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveAdminPanel(idx, 'down')}
+                                  disabled={idx === chapterForm.panels.length - 1}
+                                  className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30"
+                                >
+                                  <ChevronDown className="w-3 h-3" />
+                                </button>
+                                <label className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 cursor-pointer" title="Replace Page">
+                                  <Upload className="w-3 h-3" />
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={e => handleReplaceSinglePanelFromDevice(idx, e)}
+                                    className="hidden"
+                                  />
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveAdminPanel(idx)}
+                                  className="p-1 rounded bg-zinc-800 hover:bg-red-950 text-red-400"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingChapter(null);
+                          setIsCreatingChapter(false);
+                        }}
+                        className="px-4 py-2 rounded-xl border border-zinc-700 text-zinc-300 text-xs font-bold cursor-pointer"
+                      >
+                        Back to Chapters
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-5 py-2 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs font-black cursor-pointer"
+                      >
+                        {editingChapter ? 'Save Chapter Changes' : 'Publish Chapter'}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="space-y-2.5">
+                    {chaptersList.filter(c => c.seriesId === managingChaptersSeries.id).length === 0 ? (
+                      <p className="text-xs text-zinc-400 py-8 text-center">
+                        No chapters found for this series. Click &ldquo;Add Chapter&rdquo; to upload pages.
+                      </p>
+                    ) : (
+                      chaptersList
+                        .filter(c => c.seriesId === managingChaptersSeries.id)
+                        .map(ch => (
+                          <div
+                            key={ch.id}
+                            className="p-3.5 rounded-2xl border border-zinc-800 bg-zinc-900/50 flex items-center justify-between gap-3"
+                          >
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-white">
+                                  Chapter {ch.chapterNumber}: {ch.title}
+                                </span>
+                                {(ch.isExclusiveVIP || ch.monetizationType === 'vip') && (
+                                  <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-white text-black font-black">
+                                    Exclusive
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-zinc-400 font-mono">
+                                {ch.panels?.length || 0} pages • Released {ch.releaseDate}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => startEditAdminChapter(ch)}
+                                className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                                <span>Edit Pages</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteAdminChapter(ch)}
+                                className="p-2 rounded-xl border border-zinc-800 hover:border-red-500/50 text-red-400 hover:bg-red-950/30 cursor-pointer"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>,
+            document.body
+          )}
       </div>
     </div>
   );

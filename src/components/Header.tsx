@@ -18,12 +18,14 @@ import {
   ChevronRight,
   Sun,
   Moon,
+  Upload,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { StorageService } from '../services/storage';
 import { MangaWildLogo } from './MangaWildLogo';
 import { AuthModal } from './AuthModal';
+import { getAvatarUrl, readImageFileAsDataUrl } from '../utils/avatar';
 
 interface HeaderProps {
   currentView: string;
@@ -123,18 +125,16 @@ export const Header: React.FC<HeaderProps> = ({
   const [newUsernameInput, setNewUsernameInput] = useState(user.username || '');
   const [usernameError, setUsernameError] = useState<string | null>(null);
 
-  // Avatar picker state
-  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
-  const [customAvatarUrl, setCustomAvatarUrl] = useState('');
-
-  const AVATAR_OPTIONS = [
-    { id: 'av1', url: '/avatars/avatar-1.svg', name: 'Hero' },
-    { id: 'av2', url: '/avatars/avatar-2.svg', name: 'Cyber' },
-    { id: 'av3', url: '/avatars/avatar-3.svg', name: 'Artist' },
-    { id: 'av4', url: '/avatars/avatar-4.svg', name: 'Anime' },
-    { id: 'av5', url: '/avatars/avatar-5.svg', name: 'Ronin' },
-    { id: 'av6', url: '/avatars/avatar-6.svg', name: 'Chibi' },
-  ];
+  const handleAvatarFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await readImageFileAsDataUrl(file, 512, 0.85);
+      updateUser({ avatarUrl: dataUrl });
+    } catch {
+      // ignore error
+    }
+  };
 
   // Only display Creator Studio for creators or admins
   const isCreatorOrAdmin = user.role === 'creator' || user.role === 'admin';
@@ -142,7 +142,7 @@ export const Header: React.FC<HeaderProps> = ({
   const navLinks = [
     { id: 'browse', label: 'Browse', icon: Compass },
     { id: 'new_series', label: 'New Releases', icon: Sparkles },
-    { id: 'membership', label: 'VIP Pass', icon: Crown, highlight: true },
+    { id: 'membership', label: 'Exclusive', icon: Crown, highlight: true },
     ...(isCreatorOrAdmin ? [{ id: 'creator', label: 'Creator Studio', icon: PenTool }] : []),
     { id: 'news', label: 'Manga News', icon: Flame },
     { id: 'library', label: 'My Library', icon: BookOpen },
@@ -307,7 +307,7 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
               </button>
 
-              {/* VIP Button */}
+              {/* Exclusive Button */}
               <button
                 type="button"
                 onClick={() => onNavigate('membership')}
@@ -316,13 +316,13 @@ export const Header: React.FC<HeaderProps> = ({
                     ? 'border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-zinc-900'
                     : 'border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] text-zinc-200 hover:text-white'
                 }`}
-                title="MangaWild VIP Pass & Membership"
+                title="MangaWild Exclusive Membership"
               >
                 <Crown className="w-3.5 h-3.5 shrink-0" />
-                <span className="hidden sm:inline tracking-wide">VIP</span>
+                <span className="hidden sm:inline tracking-wide">Exclusive</span>
                 {isVIP && (
                   <span className="hidden sm:inline text-[8px] tracking-wider uppercase bg-white/15 px-1 py-0.2 rounded font-bold">
-                    PRO
+                    ACTIVE
                   </span>
                 )}
               </button>
@@ -435,7 +435,7 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="p-5 border-b border-zinc-800/80 bg-zinc-900/40">
                 <div className="flex items-start gap-3.5">
                   <img
-                    src={user.avatarUrl || '/avatars/avatar-1.svg'}
+                    src={getAvatarUrl(user.avatarUrl)}
                     alt={user.username}
                     className="w-13 h-13 rounded-2xl object-cover bg-zinc-800 border-2 border-zinc-700 shadow-md shrink-0"
                   />
@@ -521,70 +521,22 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                 </div>
 
-                {/* Minimal Avatar Selector */}
-                <div className="mt-3 pt-3 border-t border-zinc-800/80">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-mono text-zinc-400">Profile Avatar</span>
-                    <button
-                      type="button"
-                      onClick={() => setShowAvatarPicker(!showAvatarPicker)}
-                      className="text-[10px] text-zinc-400 hover:text-white flex items-center gap-1 font-mono hover:underline cursor-pointer"
-                    >
-                      <Edit2 className="w-2.5 h-2.5" />
-                      <span>{showAvatarPicker ? 'Hide Avatars' : 'Change Avatar'}</span>
-                    </button>
-                  </div>
-
-                  {showAvatarPicker && (
-                    <div className="mt-2.5 p-2.5 bg-zinc-950 rounded-xl border border-zinc-800 space-y-2.5">
-                      <p className="text-[10px] text-zinc-400 font-mono">Select a minimal avatar:</p>
-                      <div className="grid grid-cols-6 gap-1.5">
-                        {AVATAR_OPTIONS.map(av => (
-                          <button
-                            key={av.id}
-                            type="button"
-                            onClick={() => {
-                              updateUser({ avatarUrl: av.url });
-                            }}
-                            className={`p-1 rounded-xl border transition-all cursor-pointer flex flex-col items-center ${
-                              user.avatarUrl === av.url
-                                ? 'border-white bg-zinc-800 ring-1 ring-white'
-                                : 'border-zinc-800 hover:border-zinc-600 bg-zinc-900'
-                            }`}
-                            title={av.name}
-                          >
-                            <img src={av.url} alt={av.name} className="w-7 h-7 rounded-lg object-cover" />
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Custom image URL input */}
-                      <div className="pt-2 border-t border-zinc-900 flex items-center gap-1.5">
-                        <input
-                          type="url"
-                          value={customAvatarUrl}
-                          onChange={e => setCustomAvatarUrl(e.target.value)}
-                          placeholder="Or paste custom image URL..."
-                          className="w-full px-2 py-1 text-[11px] rounded-lg bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500 font-mono"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (customAvatarUrl.trim()) {
-                              updateUser({ avatarUrl: customAvatarUrl.trim() });
-                              setCustomAvatarUrl('');
-                            }
-                          }}
-                          className="px-2.5 py-1 text-[10px] font-bold bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 transition-colors cursor-pointer shrink-0"
-                        >
-                          Apply
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                {/* Profile Photo Upload from Device Only */}
+                <div className="mt-3 pt-3 border-t border-zinc-800/80 flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-mono text-zinc-400">Profile Photo</span>
+                  <label className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-colors">
+                    <Upload className="w-3 h-3" />
+                    <span>Upload Photo</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarFileUpload}
+                      className="hidden"
+                    />
+                  </label>
                 </div>
 
-                {/* Active VIP Subscription Card in Drawer */}
+                {/* Active Exclusive Subscription Card in Drawer */}
                 {isVIP && (
                   <div className="mt-3.5 p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-md">
                     <div className="flex items-center justify-between gap-2">
@@ -595,7 +547,7 @@ export const Header: React.FC<HeaderProps> = ({
                         <div>
                           <div className="flex items-center gap-1.5">
                             <p className="text-xs font-bold text-white">
-                              {user.subscription?.planId === 'yearly' ? 'Annual VIP Pass' : 'Monthly VIP Pass'}
+                              {user.subscription?.planId === 'yearly' ? 'Annual Exclusive' : 'Monthly Exclusive'}
                             </p>
                             <span className="text-[9px] bg-white text-zinc-950 px-1.5 py-0.5 font-mono font-bold rounded">
                               ACTIVE
@@ -604,7 +556,7 @@ export const Header: React.FC<HeaderProps> = ({
                           <p className="text-[10px] text-zinc-400 font-mono mt-0.5">
                             {user.subscription?.expiresAt
                               ? `Expires: ${new Date(user.subscription.expiresAt).toLocaleDateString()}`
-                              : 'All VIP perks unlocked'}
+                              : 'All Exclusive perks unlocked'}
                           </p>
                         </div>
                       </div>
@@ -784,10 +736,10 @@ export const Header: React.FC<HeaderProps> = ({
                       <div>
                         <div className="flex items-center gap-1.5">
                           <span className="text-xs font-black text-white group-hover:text-zinc-200">
-                            VIP Pass
+                            Exclusive Membership
                           </span>
                           <span className="text-[9px] bg-white text-black px-1.5 py-0.5 rounded font-black font-mono uppercase">
-                            VIP
+                            Exclusive
                           </span>
                         </div>
                         <p className="text-[11px] text-zinc-400 font-mono mt-0.5">

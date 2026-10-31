@@ -16,21 +16,22 @@ import {
   Search,
   MessageSquare,
   Lock,
-  ZoomIn,
-  ZoomOut,
   RotateCcw,
   Volume2,
   Cloud,
   Coins,
+  Share2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 import { StorageService } from '../services/storage';
 import { Chapter, MangaSeries } from '../types/manga';
 import { MangaWildLogo } from '../components/MangaWildLogo';
 import { MangaCommentsSection } from '../components/MangaCommentsSection';
 import { BlurUpMangaImage } from '../components/BlurUpMangaImage';
 import { CreatorTipJar } from '../components/CreatorTipJar';
+import { ShareModal } from '../components/ShareModal';
 
 interface ReaderPageProps {
   seriesId: string;
@@ -47,6 +48,8 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
 }) => {
   const { user, isVIP, isAuthenticated } = useAuth();
   const { t } = useLanguage();
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
 
   const [series, setSeries] = useState<MangaSeries | undefined>(() =>
     StorageService.getSeriesById(seriesId)
@@ -66,11 +69,13 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
   const [fitMode, setFitMode] = useState<'width' | 'screen'>('width');
   const [brightness, setBrightness] = useState<number>(100);
   const [zoomLevel, setZoomLevel] = useState<number>(100);
+  const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [activePanelIndex, setActivePanelIndex] = useState<number>(0);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [showControls, setShowControls] = useState<boolean>(true);
   const [showSettingsMenu, setShowSettingsMenu] = useState<boolean>(false);
   const [showChaptersDrawer, setShowChaptersDrawer] = useState<boolean>(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
   const [chapterSearchQuery, setChapterSearchQuery] = useState<string>('');
   const [tipToast, setTipToast] = useState<string | null>(null);
   const [refreshTipsKey, setRefreshTipsKey] = useState<number>(0);
@@ -93,24 +98,33 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
   } | null>(null);
 
   const handleZoomIn = () => {
-    setZoomLevel(prev => Math.min(prev + 25, 250));
+    setZoomLevel(prev => Math.min(prev + 25, 300));
   };
 
   const handleZoomOut = () => {
-    setZoomLevel(prev => Math.max(prev - 25, 50));
+    setZoomLevel(prev => {
+      const next = Math.max(prev - 25, 50);
+      if (next <= 100) setPanOffset({ x: 0, y: 0 });
+      return next;
+    });
   };
 
   const handleZoomReset = () => {
     setZoomLevel(100);
+    setPanOffset({ x: 0, y: 0 });
   };
 
-  const handleSendTip = (coins: number) => {
+  const handleSendTip = () => {
     setRefreshTipsKey(k => k + 1);
-    setTipToast(`Tipped +${coins} coins to ${series?.author || 'the mangaka'}! Thank you for supporting indie creators!`);
+    setTipToast(`Tip sent to ${series?.author || 'the mangaka'}! Thank you for supporting indie creators!`);
     setTimeout(() => setTipToast(null), 3500);
   };
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const pinchStartDistRef = useRef<number | null>(null);
+  const pinchStartZoomRef = useRef<number>(100);
+  const lastTapTimeRef = useRef<number>(0);
+  const panStartRef = useRef<{ x: number; y: number; origX: number; origY: number } | null>(null);
 
   // Sync state if props change, restore prior progress, and initialize tracking
   useEffect(() => {
@@ -387,21 +401,78 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
     });
   }, [activePanelIndex, currentChapter?.panels]);
 
-  // High-precision Single-Swipe Detection (Triggers once per gesture, immune to double swipe)
+  // High-precision Single-Swipe, Pinch-to-Zoom & Pan Detection
   const handleTouchStart = (e: React.TouchEvent) => {
     lastTouchTimestampRef.current = Date.now();
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchStartDistRef.current = Math.hypot(dx, dy);
+      pinchStartZoomRef.current = zoomLevel;
+      touchStartRef.current = null;
+      return;
+    }
+
     const touch = e.touches[0];
+    const now = Date.now();
+    if (now - lastTapTimeRef.current < 280) {
+      // Double-tap zoom toggle
+      setZoomLevel(prev => {
+        if (prev > 100) {
+          setPanOffset({ x: 0, y: 0 });
+          return 100;
+        }
+        return 175;
+      });
+      lastTapTimeRef.current = 0;
+      return;
+    }
+    lastTapTimeRef.current = now;
+
+    if (zoomLevel > 100 && readingMode === 'page_flip') {
+      panStartRef.current = {
+        x: touch.clientX,
+        y: touch.clientY,
+        origX: panOffset.x,
+        origY: panOffset.y,
+      };
+      return;
+    }
+
     touchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
     touchCurrentRef.current = { x: touch.clientX, y: touch.clientY };
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && pinchStartDistRef.current) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      const scale = dist / pinchStartDistRef.current;
+      const nextZoom = Math.round(Math.min(300, Math.max(50, pinchStartZoomRef.current * scale)));
+      setZoomLevel(nextZoom);
+      if (nextZoom <= 100) setPanOffset({ x: 0, y: 0 });
+      return;
+    }
+
+    if (zoomLevel > 100 && readingMode === 'page_flip' && panStartRef.current && e.touches.length === 1) {
+      const touch = e.touches[0];
+      setPanOffset({
+        x: panStartRef.current.origX + (touch.clientX - panStartRef.current.x),
+        y: panStartRef.current.origY + (touch.clientY - panStartRef.current.y),
+      });
+      return;
+    }
+
     if (!touchStartRef.current) return;
     const touch = e.touches[0];
     touchCurrentRef.current = { x: touch.clientX, y: touch.clientY };
   };
 
   const handleTouchEnd = () => {
+    pinchStartDistRef.current = null;
+    panStartRef.current = null;
+
     if (!touchStartRef.current || !touchCurrentRef.current) {
       touchStartRef.current = null;
       touchCurrentRef.current = null;
@@ -415,44 +486,62 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
     touchStartRef.current = null;
     touchCurrentRef.current = null;
 
-    // Direct single-swipe evaluation:
-    // 1. Dominant horizontal intent: horizontal travel must clearly exceed vertical travel (deltaX > 1.2 * deltaY)
-    // 2. Minimum 30px distance to prevent accidental micro-touches
+    if (zoomLevel > 100) return;
+
     const isHorizontal = Math.abs(deltaX) > Math.abs(deltaY) * 1.2;
     const isSwipe = Math.abs(deltaX) >= 30;
 
     if (isHorizontal && isSwipe) {
       if (deltaX < 0) {
-        // Swiped Left -> Next Page
+        setPanOffset({ x: 0, y: 0 });
         handleFlipNext();
       } else {
-        // Swiped Right -> Previous Page
+        setPanOffset({ x: 0, y: 0 });
         handleFlipPrev();
       }
     }
   };
 
   const handleTouchCancel = () => {
+    pinchStartDistRef.current = null;
+    panStartRef.current = null;
     touchStartRef.current = null;
     touchCurrentRef.current = null;
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    // If touch was recently active (mobile touch emulating mouse), completely ignore mouse
     if (Date.now() - lastTouchTimestampRef.current < 1000) return;
     isMouseDownRef.current = true;
+    if (zoomLevel > 100 && readingMode === 'page_flip') {
+      panStartRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        origX: panOffset.x,
+        origY: panOffset.y,
+      };
+      return;
+    }
     touchStartRef.current = { x: e.clientX, y: e.clientY, time: Date.now() };
     touchCurrentRef.current = { x: e.clientX, y: e.clientY };
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isMouseDownRef.current || !touchStartRef.current) return;
+    if (!isMouseDownRef.current) return;
+    if (zoomLevel > 100 && readingMode === 'page_flip' && panStartRef.current) {
+      setPanOffset({
+        x: panStartRef.current.origX + (e.clientX - panStartRef.current.x),
+        y: panStartRef.current.origY + (e.clientY - panStartRef.current.y),
+      });
+      return;
+    }
+    if (!touchStartRef.current) return;
     touchCurrentRef.current = { x: e.clientX, y: e.clientY };
   };
 
   const handleMouseUp = () => {
     if (!isMouseDownRef.current) return;
     isMouseDownRef.current = false;
+    panStartRef.current = null;
     if (Date.now() - lastTouchTimestampRef.current < 1000) return;
     handleTouchEnd();
   };
@@ -539,80 +628,106 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
         e.preventDefault();
         return false;
       }}
-      className={`bg-[#050608] text-white flex flex-col relative select-none w-full outline-none ${
+      onTouchStart={readingMode === 'webtoon' ? handleTouchStart : undefined}
+      onTouchMove={readingMode === 'webtoon' ? handleTouchMove : undefined}
+      onTouchEnd={readingMode === 'webtoon' ? handleTouchEnd : undefined}
+      className={`flex flex-col relative select-none w-full outline-none transition-colors ${
+        isLight ? 'bg-white text-black' : 'bg-black text-white'
+      } ${
         isFullscreen
           ? 'fixed inset-0 z-50 h-screen w-screen overflow-y-auto overflow-x-hidden'
           : 'min-h-screen overflow-y-auto overflow-x-hidden'
       }`}
       style={{
-        filter: `brightness(${brightness}%)`,
         height: isFullscreen ? '100vh' : 'auto',
         minHeight: '100vh',
         overflowY: 'auto',
         overflowX: 'hidden',
         WebkitOverflowScrolling: 'touch',
-        touchAction: readingMode === 'webtoon' ? 'pan-y' : 'pan-x',
+        touchAction: readingMode === 'webtoon' ? 'pan-y pinch-zoom' : 'none',
       }}
     >
-      {/* High-Precision MangaWild Pinned Reading Progress Bar */}
-      <div className="fixed top-0 left-0 right-0 z-50 h-[3.5px] bg-zinc-950/80 pointer-events-none">
+      {/* Strict Monochrome Pinned Reading Progress Bar */}
+      <div
+        className={`fixed top-0 left-0 right-0 z-50 h-[3px] pointer-events-none ${
+          isLight ? 'bg-black/10' : 'bg-white/10'
+        }`}
+      >
         <div
-          className="h-full bg-gradient-to-r from-sky-400 via-white to-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.9)] transition-all duration-150 ease-out"
+          className={`h-full transition-all duration-150 ease-out ${
+            isLight ? 'bg-black' : 'bg-white'
+          }`}
           style={{ width: `${readingProgress}%` }}
         />
       </div>
 
-      {/* Fullscreen Floating Controls Bar with Interactive Zoom, Mode Switch & Exit */}
+      {/* Fullscreen Floating Controls Bar with Clean - / + Zoom, Mode Switch & Exit */}
       {isFullscreen && (
-        <div className="fixed top-4 right-4 z-50 flex items-center gap-1.5 sm:gap-2 bg-black/90 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/20 shadow-2xl text-white select-none animate-fade-in">
+        <div
+          className={`fixed top-3 right-3 z-50 flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-full border shadow-2xl select-none animate-fade-in ${
+            isLight
+              ? 'bg-white/95 text-black border-black'
+              : 'bg-black/90 text-white border-white/25 backdrop-blur-md'
+          }`}
+        >
           <button
             type="button"
             onClick={handleZoomOut}
-            className="p-1.5 text-zinc-300 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+            className={`w-6 h-6 rounded-full font-mono font-black text-sm flex items-center justify-center border transition-colors cursor-pointer ${
+              isLight
+                ? 'border-black/30 hover:bg-black hover:text-white'
+                : 'border-white/25 hover:bg-white hover:text-black'
+            }`}
             title="Zoom Out (-)"
           >
-            <ZoomOut className="w-4 h-4" />
+            -
           </button>
-          <span className="text-xs font-mono font-bold min-w-[42px] text-center text-zinc-100">
+          <span className="text-xs font-mono font-bold min-w-[40px] text-center">
             {zoomLevel}%
           </span>
           <button
             type="button"
             onClick={handleZoomIn}
-            className="p-1.5 text-zinc-300 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+            className={`w-6 h-6 rounded-full font-mono font-black text-sm flex items-center justify-center border transition-colors cursor-pointer ${
+              isLight
+                ? 'border-black/30 hover:bg-black hover:text-white'
+                : 'border-white/25 hover:bg-white hover:text-black'
+            }`}
             title="Zoom In (+)"
           >
-            <ZoomIn className="w-4 h-4" />
+            +
           </button>
           {zoomLevel !== 100 && (
             <button
               type="button"
               onClick={handleZoomReset}
-              className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-1 rounded-full hover:opacity-75 transition-opacity cursor-pointer"
               title="Reset Zoom (100%)"
             >
               <RotateCcw className="w-3.5 h-3.5" />
             </button>
           )}
 
-          <div className="w-[1px] h-4 bg-white/20 mx-1" />
+          <div className={`w-[1px] h-4 mx-0.5 ${isLight ? 'bg-black/20' : 'bg-white/20'}`} />
 
           {/* Reading Mode Switcher in Fullscreen */}
           <button
             type="button"
             onClick={() => setReadingMode(prev => prev === 'webtoon' ? 'page_flip' : 'webtoon')}
-            className="px-2 py-1 text-[11px] font-mono font-semibold rounded-lg bg-white/10 hover:bg-white/20 text-zinc-200 transition-colors cursor-pointer"
+            className={`px-2.5 py-0.5 text-[11px] font-mono font-bold rounded-full border transition-colors cursor-pointer ${
+              isLight
+                ? 'bg-black text-white border-black'
+                : 'bg-white text-black border-white'
+            }`}
             title="Toggle Mode"
           >
             {readingMode === 'webtoon' ? 'Vertical' : 'Flip'}
           </button>
 
-          <div className="w-[1px] h-4 bg-white/20 mx-0.5" />
-
           <button
             type="button"
             onClick={toggleFullscreen}
-            className="p-1.5 text-zinc-300 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+            className="p-1 rounded-full hover:opacity-75 transition-opacity cursor-pointer"
             title="Exit Fullscreen"
           >
             <Minimize2 className="w-4 h-4" />
@@ -620,111 +735,146 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
         </div>
       )}
 
-      {/* 1. Floating Top Reader Bar */}
+      {/* 1. Top Reader Header Bar — 100% Visible in Both White and Black Themes */}
       <header
-        className={`sticky top-0 z-40 bg-[#090b12]/95 backdrop-blur-md border-b border-white/10 px-2 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-1 sm:gap-3 transition-transform duration-300 max-w-full overflow-hidden box-border ${
-          showControls ? 'translate-y-0' : '-translate-y-full'
-        }`}
+        className={`sticky top-0 z-40 border-b px-2 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-1 sm:gap-3 transition-transform duration-300 max-w-full overflow-visible box-border ${
+          isLight
+            ? 'bg-white text-black border-black'
+            : 'bg-black/95 backdrop-blur-md text-white border-white/15'
+        } ${showControls ? 'translate-y-0' : '-translate-y-full'}`}
       >
         <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
           <button
+            type="button"
             onClick={() => onNavigate('series', { id: seriesId })}
-            className="p-1 sm:p-1.5 text-stone-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors cursor-pointer shrink-0"
+            className={`p-1.5 rounded-lg border transition-colors cursor-pointer shrink-0 ${
+              isLight
+                ? 'bg-white text-black border-black hover:bg-black hover:text-white'
+                : 'bg-zinc-900 text-white border-white/20 hover:bg-white hover:text-black'
+            }`}
             title="Back to Series"
+            aria-label="Back to Series"
           >
-            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+            <ArrowLeft className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
           </button>
           <button
+            type="button"
             onClick={() => onNavigate('home')}
-            className="hidden md:flex items-center cursor-pointer transition-transform duration-150 active:scale-95 drop-shadow-md hover:opacity-90"
+            className="hidden md:flex items-center cursor-pointer transition-transform duration-150 active:scale-95 hover:opacity-90"
             title="MangaWild Home"
           >
             <MangaWildLogo size="sm" />
           </button>
-          <div className="max-w-[85px] xs:max-w-[120px] sm:max-w-xs truncate min-w-0">
-            <h1 className="text-xs sm:text-sm font-bold text-white leading-tight truncate">
-              <span className="truncate">{series.title}</span>
+          <div className="max-w-[100px] xs:max-w-[140px] sm:max-w-xs truncate min-w-0">
+            <h1
+              className={`text-xs sm:text-sm font-black leading-tight truncate ${
+                isLight ? 'text-black' : 'text-white'
+              }`}
+            >
+              {series.title}
             </h1>
-            <p className="text-[10px] sm:text-[11px] text-stone-400 truncate">
-              Ch. {currentChapter.chapterNumber} · {currentChapter.title}
+            <p
+              className={`text-[10px] sm:text-[11px] font-medium truncate ${
+                isLight ? 'text-black/75' : 'text-white/75'
+              }`}
+            >
+              by {series.author} · Ch. {currentChapter.chapterNumber}
             </p>
           </div>
         </div>
 
         {/* Center Chapter Switcher & Directory Opener */}
-        <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           <button
+            type="button"
             disabled={!prevChapter}
             onClick={(e) => {
               e.stopPropagation();
               prevChapter && onNavigate('read', { seriesId, chapterId: prevChapter.id });
             }}
-            className="p-1.5 rounded-lg text-stone-400 hover:text-white hover:bg-white/10 disabled:opacity-20 disabled:hover:bg-transparent cursor-pointer transition-colors"
+            className={`p-1.5 rounded-lg border disabled:opacity-25 cursor-pointer transition-colors ${
+              isLight
+                ? 'text-black border-black/25 hover:border-black hover:bg-black hover:text-white'
+                : 'text-white border-white/15 hover:border-white hover:bg-white hover:text-black'
+            }`}
             title="Previous Chapter"
           >
-            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+            <ChevronLeft className="w-4 h-4" />
           </button>
 
-          {/* Chapters Directory Button (Always visible on mobile & desktop) */}
+          {/* Chapters Directory Button */}
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               setShowChaptersDrawer(true);
             }}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700/80 hover:border-zinc-500 text-white font-mono text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95 hover:bg-zinc-800"
+            className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border font-mono text-xs font-bold transition-all cursor-pointer active:scale-95 ${
+              isLight
+                ? 'bg-white text-black border-black hover:bg-black hover:text-white'
+                : 'bg-zinc-900 text-white border-white/25 hover:bg-white hover:text-black'
+            }`}
             title="Open Chapters Directory"
           >
-            <List className="w-3.5 h-3.5 text-zinc-300" />
+            <List className="w-3.5 h-3.5 shrink-0" />
             <span className="hidden sm:inline">Chapters</span>
-            <span className="text-[11px] text-zinc-300">
-              Ch. {currentChapter.chapterNumber}
-            </span>
-            <span className="hidden sm:inline text-[10px] text-zinc-500 font-normal">
-              /{chapters.length}
-            </span>
+            <span className="text-[11px]">Ch.{currentChapter.chapterNumber}</span>
           </button>
 
           <button
+            type="button"
             disabled={!nextChapter}
             onClick={(e) => {
               e.stopPropagation();
               nextChapter && onNavigate('read', { seriesId, chapterId: nextChapter.id });
             }}
-            className="p-1.5 rounded-lg text-stone-400 hover:text-white hover:bg-white/10 disabled:opacity-20 disabled:hover:bg-transparent cursor-pointer transition-colors"
+            className={`p-1.5 rounded-lg border disabled:opacity-25 cursor-pointer transition-colors ${
+              isLight
+                ? 'text-black border-black/25 hover:border-black hover:bg-black hover:text-white'
+                : 'text-white border-white/15 hover:border-white hover:bg-white hover:text-black'
+            }`}
             title="Next Chapter"
           >
-            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Reader Display Mode, Zoom & Controls */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Zoom controls (Header desktop pill) */}
-          <div className="hidden lg:flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-0.5 text-xs font-mono">
+        {/* Reader Display Mode, Manual Zoom (- / +) & Controls */}
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          {/* Clean - / + Zoom Pill (No redundant spyglass icons) */}
+          <div
+            className={`hidden md:flex items-center gap-1 rounded-lg p-0.5 text-xs font-mono border ${
+              isLight ? 'bg-white text-black border-black' : 'bg-zinc-900 text-white border-white/20'
+            }`}
+          >
             <button
               type="button"
               onClick={handleZoomOut}
-              className="p-1 text-zinc-400 hover:text-white rounded hover:bg-zinc-800 transition-colors cursor-pointer"
-              title="Zoom Out"
+              className={`w-6 h-6 rounded font-bold flex items-center justify-center transition-colors cursor-pointer ${
+                isLight ? 'hover:bg-black hover:text-white' : 'hover:bg-white hover:text-black'
+              }`}
+              title="Zoom Out (-)"
             >
-              <ZoomOut className="w-3.5 h-3.5" />
+              -
             </button>
-            <span className="px-1 text-[11px] font-bold text-zinc-300 min-w-[36px] text-center">
+            <span className="px-1 text-[11px] font-bold min-w-[38px] text-center">
               {zoomLevel}%
             </span>
             <button
               type="button"
               onClick={handleZoomIn}
-              className="p-1 text-zinc-400 hover:text-white rounded hover:bg-zinc-800 transition-colors cursor-pointer"
-              title="Zoom In"
+              className={`w-6 h-6 rounded font-bold flex items-center justify-center transition-colors cursor-pointer ${
+                isLight ? 'hover:bg-black hover:text-white' : 'hover:bg-white hover:text-black'
+              }`}
+              title="Zoom In (+)"
             >
-              <ZoomIn className="w-3.5 h-3.5" />
+              +
             </button>
             {zoomLevel !== 100 && (
               <button
                 type="button"
                 onClick={handleZoomReset}
-                className="p-1 text-zinc-400 hover:text-white rounded hover:bg-zinc-800 transition-colors cursor-pointer"
+                className="p-1 rounded hover:opacity-70 transition-opacity cursor-pointer"
                 title="Reset Zoom"
               >
                 <RotateCcw className="w-3 h-3" />
@@ -732,72 +882,131 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
             )}
           </div>
 
-
-          {/* Mode toggle (Available across mobile and desktop so readers can switch anytime) */}
-          <div className="flex items-center p-0.5 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] sm:text-xs shrink-0">
+          {/* Mode toggle (Vertical / Flip) */}
+          <div
+            className={`flex items-center p-0.5 rounded-lg border text-[11px] sm:text-xs shrink-0 ${
+              isLight ? 'bg-white border-black text-black' : 'bg-zinc-900 border-white/20 text-white'
+            }`}
+          >
             <button
-              onClick={() => setReadingMode('webtoon')}
-              className={`px-2 py-1 rounded-md transition-colors cursor-pointer ${
-                readingMode === 'webtoon' ? 'bg-white text-zinc-950 font-bold' : 'text-zinc-400 hover:text-white'
+              type="button"
+              onClick={() => {
+                setReadingMode('webtoon');
+                setPanOffset({ x: 0, y: 0 });
+              }}
+              className={`px-2 py-1 rounded-md transition-colors cursor-pointer font-bold ${
+                readingMode === 'webtoon'
+                  ? isLight
+                    ? 'bg-black text-white'
+                    : 'bg-white text-black'
+                  : 'opacity-70 hover:opacity-100'
               }`}
             >
               Vertical
             </button>
             <button
-              onClick={() => setReadingMode('page_flip')}
-              className={`px-2 py-1 rounded-md transition-colors cursor-pointer ${
-                readingMode === 'page_flip' ? 'bg-white text-zinc-950 font-bold' : 'text-zinc-400 hover:text-white'
+              type="button"
+              onClick={() => {
+                setReadingMode('page_flip');
+                setPanOffset({ x: 0, y: 0 });
+              }}
+              className={`px-2 py-1 rounded-md transition-colors cursor-pointer font-bold ${
+                readingMode === 'page_flip'
+                  ? isLight
+                    ? 'bg-black text-white'
+                    : 'bg-white text-black'
+                  : 'opacity-70 hover:opacity-100'
               }`}
             >
               Flip
             </button>
           </div>
 
+          {/* Share Button */}
+          <button
+            type="button"
+            onClick={() => setIsShareModalOpen(true)}
+            className={`p-2 rounded-lg border transition-colors cursor-pointer hidden sm:flex items-center justify-center ${
+              isLight
+                ? 'border-black/25 text-black hover:border-black hover:bg-black hover:text-white'
+                : 'border-white/20 text-white hover:bg-white hover:text-black'
+            }`}
+            title="Share Chapter"
+          >
+            <Share2 className="w-4 h-4" />
+          </button>
+
           {/* Quick Settings Drawer Toggle */}
           <div className="relative">
             <button
+              type="button"
               onClick={() => setShowSettingsMenu(!showSettingsMenu)}
-              className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
-              title="Reader Settings"
+              className={`p-2 rounded-lg border transition-colors cursor-pointer ${
+                isLight
+                  ? 'border-black/25 text-black hover:border-black hover:bg-black hover:text-white'
+                  : 'border-white/20 text-white hover:bg-white hover:text-black'
+              }`}
+              title="Reader Settings & Zoom"
             >
               <Sliders className="w-4 h-4" />
             </button>
 
             {showSettingsMenu && (
-              <div className="absolute right-0 mt-2 w-64 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl p-4 space-y-4 z-50 animate-in fade-in">
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider font-mono">
-                  Viewer Settings
-                </h4>
+              <div
+                className={`absolute right-0 mt-2 w-64 rounded-2xl border shadow-2xl p-4 space-y-4 z-50 animate-in fade-in ${
+                  isLight
+                    ? 'bg-white text-black border-black'
+                    : 'bg-black text-white border-white/25'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black uppercase tracking-wider font-mono">
+                    Reader Settings
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => setShowSettingsMenu(false)}
+                    className="p-1 rounded hover:opacity-70"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
 
                 {/* Zoom Level in Settings */}
                 <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs text-zinc-400 font-mono">
-                    <span className="flex items-center gap-1">
-                      <ZoomIn className="w-3.5 h-3.5" /> Zoom Level
-                    </span>
+                  <div className="flex justify-between text-xs font-mono font-bold">
+                    <span>Zoom Level</span>
                     <span>{zoomLevel}%</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={handleZoomOut}
-                      className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-white cursor-pointer"
+                      className={`px-2.5 py-1 rounded-lg border text-xs font-bold cursor-pointer ${
+                        isLight
+                          ? 'border-black hover:bg-black hover:text-white'
+                          : 'border-white/25 hover:bg-white hover:text-black'
+                      }`}
                     >
                       -
                     </button>
                     <input
                       type="range"
                       min="50"
-                      max="250"
+                      max="300"
                       step="25"
                       value={zoomLevel}
                       onChange={e => setZoomLevel(Number(e.target.value))}
-                      className="flex-1 accent-white"
+                      className={`flex-1 ${isLight ? 'accent-black' : 'accent-white'}`}
                     />
                     <button
                       type="button"
                       onClick={handleZoomIn}
-                      className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-white cursor-pointer"
+                      className={`px-2.5 py-1 rounded-lg border text-xs font-bold cursor-pointer ${
+                        isLight
+                          ? 'border-black hover:bg-black hover:text-white'
+                          : 'border-white/25 hover:bg-white hover:text-black'
+                      }`}
                     >
                       +
                     </button>
@@ -805,7 +1014,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                       <button
                         type="button"
                         onClick={handleZoomReset}
-                        className="p-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white cursor-pointer"
+                        className="p-1 rounded-lg border border-current/25 cursor-pointer"
                         title="Reset"
                       >
                         <RotateCcw className="w-3 h-3" />
@@ -816,7 +1025,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
 
                 {/* Brightness Slider */}
                 <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs text-zinc-400 font-mono">
+                  <div className="flex justify-between text-xs font-mono font-bold">
                     <span className="flex items-center gap-1">
                       <Sun className="w-3.5 h-3.5" /> Brightness
                     </span>
@@ -828,74 +1037,86 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                     max="100"
                     value={brightness}
                     onChange={e => setBrightness(Number(e.target.value))}
-                    className="w-full accent-white"
+                    className={`w-full ${isLight ? 'accent-black' : 'accent-white'}`}
                   />
                 </div>
 
                 {/* Fit Mode */}
                 <div className="space-y-1.5">
-                  <span className="text-xs text-zinc-400 font-mono">Page Sizing</span>
+                  <span className="text-xs font-mono font-bold">Page Sizing</span>
                   <div className="grid grid-cols-2 gap-2 text-xs font-mono">
                     <button
+                      type="button"
                       onClick={() => setFitMode('width')}
-                      className={`p-1.5 rounded-lg border text-center cursor-pointer ${
-                        fitMode === 'width' ? 'border-white bg-white text-zinc-950 font-bold' : 'border-zinc-800 text-zinc-400'
+                      className={`p-1.5 rounded-lg border text-center cursor-pointer font-bold ${
+                        fitMode === 'width'
+                          ? isLight
+                            ? 'border-black bg-black text-white'
+                            : 'border-white bg-white text-black'
+                          : 'border-current/25 opacity-70'
                       }`}
                     >
-                      Fit Width
+                      Large Fit
                     </button>
                     <button
+                      type="button"
                       onClick={() => setFitMode('screen')}
-                      className={`p-1.5 rounded-lg border text-center cursor-pointer ${
-                        fitMode === 'screen' ? 'border-white bg-white text-zinc-950 font-bold' : 'border-zinc-800 text-zinc-400'
+                      className={`p-1.5 rounded-lg border text-center cursor-pointer font-bold ${
+                        fitMode === 'screen'
+                          ? isLight
+                            ? 'border-black bg-black text-white'
+                            : 'border-white bg-white text-black'
+                          : 'border-current/25 opacity-70'
                       }`}
                     >
-                      Fit Screen
+                      Compact Fit
                     </button>
                   </div>
                 </div>
 
-                {/* Mode Selector for Mobile */}
-                <div className="md:hidden space-y-1.5">
-                  <span className="text-xs text-zinc-400 font-mono">Scroll Direction</span>
-                  <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-                    <button
-                      onClick={() => setReadingMode('webtoon')}
-                      className={`p-1.5 rounded-lg border text-center ${
-                        readingMode === 'webtoon' ? 'border-white bg-white text-zinc-950 font-bold' : 'border-zinc-800 text-zinc-400'
-                      }`}
-                    >
-                      Vertical
-                    </button>
-                    <button
-                      onClick={() => setReadingMode('page_flip')}
-                      className={`p-1.5 rounded-lg border text-center ${
-                        readingMode === 'page_flip' ? 'border-white bg-white text-zinc-950 font-bold' : 'border-zinc-800 text-zinc-400'
-                      }`}
-                    >
-                      Page Flip
-                    </button>
-                  </div>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSettingsMenu(false);
+                    setIsShareModalOpen(true);
+                  }}
+                  className={`w-full py-2 px-3 rounded-xl border text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer ${
+                    isLight
+                      ? 'border-black hover:bg-black hover:text-white'
+                      : 'border-white/25 hover:bg-white hover:text-black'
+                  }`}
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>Share Chapter</span>
+                </button>
               </div>
             )}
           </div>
 
           <button
+            type="button"
             onClick={toggleFullscreen}
-            className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
+            className={`p-2 rounded-lg border transition-colors cursor-pointer ${
+              isLight
+                ? 'border-black/25 text-black hover:border-black hover:bg-black hover:text-white'
+                : 'border-white/20 text-white hover:bg-white hover:text-black'
+            }`}
             title="Toggle Fullscreen"
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
         </div>
       </header>
- 
+
       {/* Tip Toast Notification */}
       {tipToast && (
         <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-2">
-          <div className="bg-zinc-900 border border-white/20 text-white px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 text-xs font-medium">
-            <Coins className="w-4 h-4 text-white" />
+          <div
+            className={`border px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 text-xs font-bold ${
+              isLight ? 'bg-white text-black border-black' : 'bg-black text-white border-white/25'
+            }`}
+          >
+            <Coins className="w-4 h-4" />
             <span>{tipToast}</span>
           </div>
         </div>
@@ -904,18 +1125,26 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
       {/* Real-time Cross-Device Resume Banner */}
       {crossDevicePrompt?.show && (
         <div className="sticky top-12 z-35 w-full max-w-2xl mx-auto px-4 py-2 animate-fadeIn">
-          <div className="bg-zinc-900/95 border border-zinc-700 shadow-2xl rounded-2xl p-3 sm:p-4 flex items-center justify-between gap-3 backdrop-blur-md">
+          <div
+            className={`border shadow-2xl rounded-2xl p-3 sm:p-4 flex items-center justify-between gap-3 backdrop-blur-md ${
+              isLight ? 'bg-white text-black border-black' : 'bg-zinc-900/95 text-white border-zinc-700'
+            }`}
+          >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0 text-white">
-                <Cloud className="w-4 h-4 text-white" />
+              <div
+                className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 ${
+                  isLight ? 'bg-black text-white border-black' : 'bg-zinc-800 text-white border-zinc-700'
+                }`}
+              >
+                <Cloud className="w-4 h-4" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-bold text-white truncate">
+                <p className="text-xs font-bold truncate">
                   {crossDevicePrompt.isDifferentChapter
                     ? `Resume on other device: Ch. ${crossDevicePrompt.chapterNumber}`
                     : `Resume scroll position (${crossDevicePrompt.scrollPercent || 0}%)`}
                 </p>
-                <p className="text-[11px] text-zinc-400 font-mono truncate">
+                <p className="text-[11px] opacity-70 font-mono truncate">
                   {crossDevicePrompt.isDifferentChapter
                     ? `You were reading Chapter ${crossDevicePrompt.chapterNumber} on another device.`
                     : `Saved position from your previous session`}
@@ -936,14 +1165,16 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                   }
                   setCrossDevicePrompt(null);
                 }}
-                className="px-3 py-1.5 rounded-xl bg-white text-zinc-950 font-bold text-xs hover:bg-zinc-200 transition-all cursor-pointer shadow-sm active:scale-95"
+                className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer shadow-sm active:scale-95 ${
+                  isLight ? 'bg-black text-white' : 'bg-white text-black'
+                }`}
               >
                 Resume
               </button>
               <button
                 type="button"
                 onClick={() => setCrossDevicePrompt(null)}
-                className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
+                className="p-1.5 opacity-70 hover:opacity-100 rounded-lg transition-opacity"
                 title="Dismiss"
               >
                 <X className="w-4 h-4" />
@@ -955,32 +1186,54 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
 
       {/* 2. Main Reader Canvas */}
       <main
-        className={`flex-1 flex flex-col items-center p-2 sm:p-4 w-full ${
-          readingMode === 'webtoon' ? 'justify-start' : 'justify-center my-auto'
+        className={`flex-1 flex flex-col items-center w-full ${
+          readingMode === 'webtoon'
+            ? 'justify-start p-0 sm:p-2'
+            : isFullscreen
+            ? 'justify-center p-0 h-screen w-screen'
+            : 'justify-center p-0 sm:p-2 my-auto'
         }`}
+        style={brightness !== 100 ? { filter: `brightness(${brightness}%)` } : undefined}
         onClick={() => setShowControls(!showControls)}
         onWheel={(e) => {
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            if (e.deltaY < 0) {
+              handleZoomIn();
+            } else {
+              handleZoomOut();
+            }
+            return;
+          }
           if (readingMode === 'webtoon' && containerRef.current) {
             containerRef.current.scrollTop += e.deltaY;
           }
         }}
       >
-        {/* VIP Lock Wall */}
+        {/* Exclusive Lock Wall */}
         {isLocked ? (
-          <div className="max-w-md w-full my-16 p-8 rounded-2xl bg-zinc-900/90 border border-zinc-800 text-center space-y-6 shadow-2xl">
-            <div className="w-14 h-14 mx-auto rounded-xl bg-zinc-800 border border-zinc-700 text-white flex items-center justify-center">
+          <div
+            className={`max-w-md w-full my-16 p-8 rounded-2xl border text-center space-y-6 shadow-2xl ${
+              isLight ? 'bg-white text-black border-black' : 'bg-zinc-900/90 text-white border-zinc-800'
+            }`}
+          >
+            <div
+              className={`w-14 h-14 mx-auto rounded-xl border flex items-center justify-center ${
+                isLight ? 'bg-black text-white border-black' : 'bg-zinc-800 text-white border-zinc-700'
+              }`}
+            >
               <Lock className="w-6 h-6" />
             </div>
 
             <div className="space-y-2">
-              <span className="text-[11px] font-bold uppercase tracking-widest text-zinc-400 font-mono">
-                Exclusive VIP Manga
+              <span className="text-[11px] font-bold uppercase tracking-widest opacity-70 font-mono">
+                Exclusive Manga
               </span>
-              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              <h3 className="text-xl sm:text-2xl font-black tracking-tight">
                 {series?.title} · Chapter {currentChapter.chapterNumber}
               </h3>
-              <p className="text-xs text-zinc-400 leading-relaxed max-w-sm mx-auto">
-                This manga is part of MangaWild&apos;s Exclusive Series catalog. Get an active VIP subscription to read all chapters and support indie manga creators.
+              <p className="text-xs opacity-75 leading-relaxed max-w-sm mx-auto">
+                This manga is part of MangaWild&apos;s Exclusive Series catalog. Get an active Exclusive subscription to read all chapters and support indie manga creators.
               </p>
             </div>
 
@@ -991,36 +1244,41 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                   e.stopPropagation();
                   onOpenVIPModal?.();
                 }}
-                className="w-full py-3.5 px-5 bg-white hover:bg-zinc-200 text-zinc-950 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                className={`w-full py-3.5 px-5 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 ${
+                  isLight ? 'bg-black text-white hover:bg-black/90' : 'bg-white text-black hover:bg-zinc-200'
+                }`}
               >
                 <Lock className="w-4 h-4" />
-                <span>{isAuthenticated ? 'Get VIP Subscription to Read' : 'Sign In to Get VIP Subscription'}</span>
+                <span>{isAuthenticated ? 'Get Exclusive Subscription to Read' : 'Sign In to Get Exclusive'}</span>
               </button>
             </div>
 
-            <div className="text-[11px] text-zinc-500 border-t border-zinc-800/80 pt-3 flex items-center justify-between">
+            <div className="text-[11px] opacity-70 border-t border-current/15 pt-3 flex items-center justify-between">
               <span>Plans from ₹199/month</span>
               <button
                 type="button"
                 onClick={() => onNavigate('series', { id: seriesId })}
-                className="text-zinc-400 hover:text-white underline cursor-pointer"
+                className="underline cursor-pointer font-bold"
               >
                 Back to Series
               </button>
             </div>
           </div>
         ) : readingMode === 'webtoon' ? (
-          /* Webtoon Seamless Continuous Flow (Gapless vertical webtoon layout) */
+          /* Webtoon Seamless Continuous Flow (Gapless vertical webtoon layout with large desktop & zoom support) */
           <div
             className="w-full space-y-0 gap-0 p-0 my-0 flex flex-col items-center webtoon-scroll transition-all duration-200 select-none leading-none"
             style={{
-              maxWidth: fitMode === 'width' ? `${(zoomLevel / 100) * 850}px` : `${(zoomLevel / 100) * 650}px`,
-              width: `${zoomLevel}%`,
+              maxWidth:
+                fitMode === 'width'
+                  ? `${Math.round((zoomLevel / 100) * 1024)}px`
+                  : `${Math.round((zoomLevel / 100) * 760)}px`,
+              width: zoomLevel > 100 ? `${zoomLevel}%` : '100%',
             }}
           >
             {currentChapter.panels.map((panel, idx) => (
               <div
-                key={panel.id}
+                key={panel.id || idx}
                 className="w-full shadow-none relative group select-none overflow-hidden m-0 p-0 block leading-none"
               >
                 <BlurUpMangaImage
@@ -1032,7 +1290,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                   imgClassName="w-full h-auto block select-none pointer-events-none m-0 p-0 leading-none align-middle"
                 />
                 {panel.hasError && (
-                  <div className="absolute top-2 right-2 z-20 bg-zinc-800/90 border border-zinc-700 text-zinc-300 text-[10px] font-bold px-2 py-0.5 rounded shadow">
+                  <div className="absolute top-2 right-2 z-20 bg-black/90 border border-white/25 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow">
                     Scan Issue Flagged
                   </div>
                 )}
@@ -1043,34 +1301,41 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
             {currentChapter.tippingEnabled !== false && (
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-xl mx-auto my-6"
+                className="w-full max-w-xl mx-auto my-6 px-3"
               >
                 <CreatorTipJar
                   creatorId={series.creatorId || `creator_${series.author.toLowerCase().replace(/\s+/g, '_')}`}
                   creatorName={series.author}
                   seriesId={series.id}
                   seriesTitle={series.title}
-                  chapterId={currentChapter.id}
                   chapterNumber={currentChapter.chapterNumber}
                   onTipSent={handleSendTip}
                 />
               </div>
             )}
 
-            {/* Vertical Chapter Completion Section - appears vertically after the last page */}
+            {/* Vertical Chapter Completion Section */}
             {!isLocked && (
-              <div className="w-full max-w-2xl py-12 px-4 text-center space-y-4 mt-4 border-t border-zinc-800/80">
-                <div className="w-12 h-12 mx-auto rounded-full bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center justify-center shadow-md">
-                  <CheckCircle className="w-6 h-6 text-zinc-300" />
+              <div className="w-full max-w-2xl py-12 px-4 text-center space-y-4 mt-4 border-t border-current/15">
+                <div
+                  className={`w-12 h-12 mx-auto rounded-full border flex items-center justify-center shadow-md ${
+                    isLight ? 'bg-black text-white border-black' : 'bg-zinc-800 text-white border-zinc-700'
+                  }`}
+                >
+                  <CheckCircle className="w-6 h-6" />
                 </div>
                 <div>
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold bg-zinc-800/80 px-2.5 py-1 rounded-full border border-zinc-700">
+                  <span
+                    className={`text-[10px] font-mono uppercase tracking-wider font-bold px-2.5 py-1 rounded-full border ${
+                      isLight ? 'bg-white text-black border-black' : 'bg-zinc-800/80 text-zinc-300 border-zinc-700'
+                    }`}
+                  >
                     Chapter Completed
                   </span>
-                  <h3 className="text-2xl font-black text-white mt-2">
+                  <h3 className="text-2xl font-black mt-2">
                     You&apos;ve completed Chapter {currentChapter.chapterNumber}!
                   </h3>
-                  <p className="text-xs text-zinc-400 mt-1 font-mono">
+                  <p className="text-xs opacity-70 mt-1 font-mono">
                     {series.title} · {currentChapter.panels.length} Pages Read
                   </p>
                 </div>
@@ -1078,49 +1343,61 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                 <div className="flex flex-wrap items-center justify-center gap-3 pt-3">
                   {prevChapter && (
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         onNavigate('read', { seriesId, chapterId: prevChapter.id });
                       }}
-                      className="px-4 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-semibold text-zinc-300 transition-colors cursor-pointer"
+                      className={`px-4 py-2.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
+                        isLight ? 'border-black text-black hover:bg-black hover:text-white' : 'border-white/20 text-white hover:bg-white hover:text-black'
+                      }`}
                     >
                       ← Chapter {prevChapter.chapterNumber}
                     </button>
                   )}
 
                   <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowChaptersDrawer(true);
                     }}
-                    className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-xl text-xs font-semibold text-zinc-200 transition-colors cursor-pointer flex items-center gap-1.5"
+                    className={`px-4 py-2.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                      isLight ? 'border-black text-black hover:bg-black hover:text-white' : 'border-white/20 text-white hover:bg-white hover:text-black'
+                    }`}
                   >
-                    <List className="w-4 h-4 text-zinc-300" />
+                    <List className="w-4 h-4" />
                     <span>All Chapters ({chapters.length})</span>
                   </button>
 
                   <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       onNavigate('series', { id: seriesId });
                     }}
-                    className="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-xs font-semibold text-white transition-colors cursor-pointer"
+                    className={`px-4 py-2.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
+                      isLight ? 'border-black text-black hover:bg-black hover:text-white' : 'border-white/20 text-white hover:bg-white hover:text-black'
+                    }`}
                   >
                     Series Overview
                   </button>
 
                   {nextChapter ? (
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         onNavigate('read', { seriesId, chapterId: nextChapter.id });
                       }}
-                      className="px-6 py-2.5 bg-white hover:bg-zinc-200 rounded-xl text-xs font-bold text-zinc-950 shadow-md cursor-pointer transition-all active:scale-95"
+                      className={`px-6 py-2.5 rounded-xl text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95 ${
+                        isLight ? 'bg-black text-white hover:bg-black/90' : 'bg-white text-black hover:bg-zinc-200'
+                      }`}
                     >
                       Chapter {nextChapter.chapterNumber} →
                     </button>
                   ) : (
-                    <span className="text-xs text-zinc-500 font-mono px-3 py-2 bg-zinc-900 rounded-xl border border-zinc-800">
+                    <span className="text-xs opacity-60 font-mono px-3 py-2 rounded-xl border border-current/20">
                       End of available chapters
                     </span>
                   )}
@@ -1130,7 +1407,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
 
             {/* Reader Comments Section in Webtoon Mode */}
             <div
-              className="w-full max-w-2xl px-4 py-8 mt-4 border-t border-zinc-800 text-left"
+              className="w-full max-w-2xl px-4 py-8 mt-4 border-t border-current/15 text-left"
               onClick={e => e.stopPropagation()}
             >
               <MangaCommentsSection
@@ -1142,22 +1419,34 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
             </div>
           </div>
         ) : (
-          /* Page Flip Mode (Single Panel or Horizontal End-Card) */
-          <div className="relative flex flex-col items-center justify-center max-w-4xl w-full my-auto">
+          /* Page Flip Mode (Full-Screen Large Panel View + Manual Zoom & Pan) */
+          <div className="relative flex flex-col items-center justify-center w-full max-w-6xl my-auto">
             {activePanelIndex >= currentChapter.panels.length ? (
-              /* Horizontal End-Card Slide - Only shown after the last page! */
-              <div className="relative flex flex-col items-center justify-center p-8 sm:p-12 rounded-3xl bg-zinc-900/90 border border-zinc-800 shadow-2xl max-w-xl w-full my-auto text-center space-y-5">
-                <div className="w-16 h-16 mx-auto rounded-full bg-slate-800 border border-slate-700 text-slate-300 flex items-center justify-center shadow-lg">
+              /* Horizontal End-Card Slide */
+              <div
+                className={`relative flex flex-col items-center justify-center p-8 sm:p-12 rounded-3xl border shadow-2xl max-w-xl w-full my-auto text-center space-y-5 ${
+                  isLight ? 'bg-white text-black border-black' : 'bg-zinc-900/90 text-white border-zinc-800'
+                }`}
+              >
+                <div
+                  className={`w-16 h-16 mx-auto rounded-full border flex items-center justify-center shadow-lg ${
+                    isLight ? 'bg-black text-white border-black' : 'bg-zinc-800 text-white border-zinc-700'
+                  }`}
+                >
                   <CheckCircle className="w-8 h-8" />
                 </div>
                 <div>
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-300 font-bold bg-slate-800/90 px-3 py-1 rounded-full border border-slate-700">
+                  <span
+                    className={`text-[10px] font-mono uppercase tracking-wider font-bold px-3 py-1 rounded-full border ${
+                      isLight ? 'bg-white text-black border-black' : 'bg-zinc-800 text-zinc-200 border-zinc-700'
+                    }`}
+                  >
                     Chapter Completed
                   </span>
-                  <h3 className="text-2xl font-black text-white mt-2">
+                  <h3 className="text-2xl font-black mt-2">
                     You&apos;ve completed Chapter {currentChapter.chapterNumber}!
                   </h3>
-                  <p className="text-xs text-zinc-400 mt-1 font-mono">
+                  <p className="text-xs opacity-70 mt-1 font-mono">
                     {series.title} • {currentChapter.panels.length} Pages Read
                   </p>
                 </div>
@@ -1173,7 +1462,6 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                       creatorName={series.author}
                       seriesId={series.id}
                       seriesTitle={series.title}
-                      chapterId={currentChapter.id}
                       chapterNumber={currentChapter.chapterNumber}
                       onTipSent={handleSendTip}
                     />
@@ -1187,7 +1475,9 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                       e.stopPropagation();
                       setActivePanelIndex(currentChapter.panels.length - 1);
                     }}
-                    className="w-full sm:w-auto px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-xs font-semibold text-zinc-300 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                    className={`w-full sm:w-auto px-4 py-2.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
+                      isLight ? 'border-black text-black hover:bg-black hover:text-white' : 'border-white/25 text-white hover:bg-white hover:text-black'
+                    }`}
                   >
                     <ChevronLeft className="w-4 h-4" />
                     <span>Back to Page {currentChapter.panels.length}</span>
@@ -1199,21 +1489,12 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                       e.stopPropagation();
                       setShowChaptersDrawer(true);
                     }}
-                    className="w-full sm:w-auto px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-xl text-xs font-semibold text-zinc-200 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                    className={`w-full sm:w-auto px-4 py-2.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
+                      isLight ? 'border-black text-black hover:bg-black hover:text-white' : 'border-white/25 text-white hover:bg-white hover:text-black'
+                    }`}
                   >
-                    <List className="w-4 h-4 text-zinc-300" />
+                    <List className="w-4 h-4" />
                     <span>All Chapters ({chapters.length})</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNavigate('series', { id: seriesId });
-                    }}
-                    className="w-full sm:w-auto px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-xs font-semibold text-white transition-colors cursor-pointer"
-                  >
-                    Series Overview
                   </button>
 
                   {nextChapter ? (
@@ -1223,44 +1504,50 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                         e.stopPropagation();
                         onNavigate('read', { seriesId, chapterId: nextChapter.id });
                       }}
-                      className="w-full sm:w-auto px-6 py-2.5 bg-white hover:bg-zinc-200 rounded-xl text-xs font-bold text-zinc-950 shadow-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                      className={`w-full sm:w-auto px-6 py-2.5 rounded-xl text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5 ${
+                        isLight ? 'bg-black text-white hover:bg-black/90' : 'bg-white text-black hover:bg-zinc-200'
+                      }`}
                     >
                       <span>Chapter {nextChapter.chapterNumber}</span>
                       <ChevronRight className="w-4 h-4" />
                     </button>
                   ) : (
-                    <span className="text-xs text-zinc-500 font-mono py-2">No more chapters</span>
+                    <span className="text-xs opacity-60 font-mono py-2">No more chapters</span>
                   )}
                 </div>
-
-                {prevChapter && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNavigate('read', { seriesId, chapterId: prevChapter.id });
-                    }}
-                    className="text-xs text-zinc-500 hover:text-zinc-300 font-mono pt-1 cursor-pointer"
-                  >
-                    ← Read Chapter {prevChapter.chapterNumber}
-                  </button>
-                )}
               </div>
             ) : (
               currentChapter.panels[activePanelIndex] && (
                 <div
-                  className="relative select-none w-full max-w-4xl h-[78vh] sm:h-[82vh] min-h-[480px] flex items-center justify-center cursor-grab active:cursor-grabbing overflow-hidden rounded-2xl bg-[#06070a] border border-white/10 shadow-2xl"
+                  className={`relative select-none flex items-center justify-center cursor-grab active:cursor-grabbing overflow-hidden ${
+                    isFullscreen
+                      ? 'w-screen h-screen rounded-none border-0'
+                      : 'w-full max-w-6xl h-[calc(100vh-105px)] sm:h-[calc(100vh-92px)] min-h-[520px] rounded-none sm:rounded-2xl border'
+                  } ${
+                    isLight
+                      ? 'bg-white border-black/15'
+                      : 'bg-black border-white/10'
+                  }`}
                   style={{ touchAction: 'none' }}
                   onTouchStart={handleTouchStart}
                   onTouchMove={handleTouchMove}
                   onTouchEnd={handleTouchEnd}
-                  onTouchCancel={handleTouchEnd}
+                  onTouchCancel={handleTouchCancel}
                   onMouseDown={handleMouseDown}
                   onMouseMove={handleMouseMove}
                   onMouseUp={handleMouseUp}
                   onMouseLeave={handleMouseUp}
+                  onDoubleClick={() => {
+                    setZoomLevel(prev => {
+                      if (prev > 100) {
+                        setPanOffset({ x: 0, y: 0 });
+                        return 100;
+                      }
+                      return 175;
+                    });
+                  }}
                 >
-                  {/* Instant Static Panel Layer (Zero Animation Delay, Instant Page Switch with Blur-Up Loading) */}
+                  {/* Full-screen Panel Image Layer with Smooth Manual Zoom & Pan */}
                   <div className="relative z-0 w-full h-full flex items-center justify-center select-none overflow-hidden">
                     <BlurUpMangaImage
                       key={currentChapter.panels[activePanelIndex].id || activePanelIndex}
@@ -1268,16 +1555,18 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                       alt={`Panel ${activePanelIndex + 1}`}
                       loading="eager"
                       panelNumber={activePanelIndex + 1}
-                      className="max-h-[80vh] w-auto max-w-[95%] mx-auto flex items-center justify-center bg-transparent"
+                      className="w-full h-full flex items-center justify-center bg-transparent"
                       imgStyle={{
-                        transform: `scale(${zoomLevel / 100})`,
+                        transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomLevel / 100})`,
                         transformOrigin: 'center center',
-                        maxHeight: '80vh',
-                        maxWidth: '95%',
+                        maxHeight: isFullscreen ? '100vh' : 'calc(100vh - 110px)',
+                        maxWidth: '100%',
+                        width: 'auto',
+                        height: 'auto',
                         objectFit: 'contain',
                         margin: '0 auto',
                       }}
-                      imgClassName="max-h-[80vh] w-auto max-w-[95%] object-contain mx-auto block select-none pointer-events-none"
+                      imgClassName="max-h-full max-w-full w-auto h-auto object-contain mx-auto block select-none pointer-events-none"
                     />
 
                     {/* Anti-Download Transparent Security Shield */}
@@ -1295,120 +1584,180 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                     disabled={activePanelIndex === 0}
                     onClick={(e) => {
                       e.stopPropagation();
+                      setPanOffset({ x: 0, y: 0 });
                       handleFlipPrev();
                     }}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-black/70 hover:bg-zinc-700 text-white disabled:opacity-0 transition-all cursor-pointer shadow-xl hover:scale-105 active:scale-95 border border-white/10"
+                    className={`absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3 rounded-full border disabled:opacity-0 transition-all cursor-pointer shadow-xl hover:scale-105 active:scale-95 ${
+                      isLight
+                        ? 'bg-white/90 text-black border-black hover:bg-black hover:text-white'
+                        : 'bg-black/80 text-white border-white/25 hover:bg-white hover:text-black'
+                    }`}
                     title="Previous Page (← Swipe Right)"
                   >
-                    <ChevronLeft className="w-6 h-6" />
+                    <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
                   </button>
 
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
+                      setPanOffset({ x: 0, y: 0 });
                       handleFlipNext();
                     }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 z-20 p-3 rounded-full bg-black/70 hover:bg-zinc-700 text-white transition-all cursor-pointer shadow-xl hover:scale-105 active:scale-95 border border-white/10"
+                    className={`absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-30 p-2.5 sm:p-3 rounded-full border transition-all cursor-pointer shadow-xl hover:scale-105 active:scale-95 ${
+                      isLight
+                        ? 'bg-white/90 text-black border-black hover:bg-black hover:text-white'
+                        : 'bg-black/80 text-white border-white/25 hover:bg-white hover:text-black'
+                    }`}
                     title="Next Page (Swipe Left →)"
                   >
-                    <ChevronRight className="w-6 h-6" />
+                    <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
                   </button>
                 </div>
               )
             )}
 
-            {/* Tactile gesture hint */}
-            <div className="mt-2 flex items-center gap-1.5 text-[11px] text-zinc-500 font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
-              <span>Slide finger or use arrow keys to flip pages</span>
-            </div>
-
-            {/* Page Index indicator & Quick Chapter Switch */}
-            <div className="mt-3 flex items-center gap-2.5 text-xs text-stone-400 font-mono">
-              <span>
-                {activePanelIndex >= currentChapter.panels.length
-                  ? 'Chapter Completed'
-                  : `Page ${activePanelIndex + 1} of ${currentChapter.panels.length}`}
-              </span>
-              <span>·</span>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowChaptersDrawer(true);
-                }}
-                className="text-zinc-400 hover:text-white flex items-center gap-1 cursor-pointer bg-zinc-900/90 hover:bg-zinc-800 px-2 py-0.5 rounded-lg border border-zinc-800 hover:border-zinc-600 transition-colors"
-                title="View All Chapters"
-              >
-                <List className="w-3.5 h-3.5 text-zinc-300" />
-                <span>Chapters ({chapters.length})</span>
-              </button>
-            </div>
+            {/* Page Index indicator, Mobile Zoom (- / +), & Quick Chapter Switch */}
+            {!isFullscreen && (
+              <div className="mt-2.5 px-3 flex flex-wrap items-center justify-center gap-2.5 text-xs font-mono">
+                <span className="font-bold">
+                  {activePanelIndex >= currentChapter.panels.length
+                    ? 'Chapter Completed'
+                    : `Page ${activePanelIndex + 1} / ${currentChapter.panels.length}`}
+                </span>
+                <span>·</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleZoomOut();
+                    }}
+                    className={`w-6 h-6 rounded border font-bold flex items-center justify-center cursor-pointer ${
+                      isLight ? 'border-black text-black hover:bg-black hover:text-white' : 'border-white/25 text-white hover:bg-white hover:text-black'
+                    }`}
+                  >
+                    -
+                  </button>
+                  <span className="text-[11px] font-bold min-w-[38px] text-center">{zoomLevel}%</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleZoomIn();
+                    }}
+                    className={`w-6 h-6 rounded border font-bold flex items-center justify-center cursor-pointer ${
+                      isLight ? 'border-black text-black hover:bg-black hover:text-white' : 'border-white/25 text-white hover:bg-white hover:text-black'
+                    }`}
+                  >
+                    +
+                  </button>
+                </div>
+                <span>·</span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowChaptersDrawer(true);
+                  }}
+                  className={`flex items-center gap-1 cursor-pointer px-2.5 py-1 rounded-lg border font-bold transition-colors ${
+                    isLight
+                      ? 'bg-white text-black border-black hover:bg-black hover:text-white'
+                      : 'bg-zinc-900 text-white border-white/20 hover:bg-white hover:text-black'
+                  }`}
+                  title="View All Chapters"
+                >
+                  <List className="w-3.5 h-3.5" />
+                  <span>Chapters ({chapters.length})</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </main>
 
-      {/* Dynamic Reading Progress & Firestore Sync Floating HUD */}
+      {/* Dynamic Reading Progress Floating HUD */}
       <div
         className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-40 transition-all duration-300 ${
           showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
         }`}
       >
-        <div className="flex items-center gap-2.5 bg-zinc-900/90 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-zinc-700/80 shadow-2xl text-xs font-mono select-none">
-          {/* Progress Percentage & Panel Count */}
-          <span className="font-bold text-white flex items-center gap-1.5">
-            <span className="text-white font-black">{readingProgress}%</span>
-            <span className="text-zinc-500">•</span>
-            <span className="text-zinc-300 text-[11px]">
-              {readingMode === 'webtoon' ? 'Scroll Progress' : `Panel ${activePanelIndex + 1}/${currentChapter.panels.length}`}
+        <div
+          className={`flex items-center gap-2.5 px-3.5 py-1.5 rounded-full border shadow-2xl text-xs font-mono select-none ${
+            isLight
+              ? 'bg-white/95 text-black border-black'
+              : 'bg-black/90 backdrop-blur-md text-white border-white/25'
+          }`}
+        >
+          <span className="font-bold flex items-center gap-1.5">
+            <span className="font-black">{readingProgress}%</span>
+            <span className="opacity-50">•</span>
+            <span className="text-[11px] opacity-85">
+              {readingMode === 'webtoon' ? 'Scroll' : `Page ${Math.min(currentChapter.panels.length, activePanelIndex + 1)}/${currentChapter.panels.length}`}
             </span>
           </span>
         </div>
       </div>
 
-      {/* 3. Chapters Directory Slide-Over Drawer */}
+      {/* 3. Chapters Directory Slide-Over Drawer (Strictly Monochrome Black & White — Zero Purple) */}
       {showChaptersDrawer && (
         <div
           className="fixed inset-0 z-50 flex justify-end bg-black/75 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setShowChaptersDrawer(false)}
         >
           <div
-            className="w-full max-w-md h-full bg-[#0d0f17] border-l border-zinc-800 flex flex-col shadow-2xl animate-in slide-in-from-right duration-250 select-none"
+            className={`w-full max-w-md h-full border-l flex flex-col shadow-2xl animate-in slide-in-from-right duration-250 select-none ${
+              isLight
+                ? 'bg-white text-black border-black'
+                : 'bg-black text-white border-white/20'
+            }`}
             onClick={e => e.stopPropagation()}
           >
             {/* Drawer Header */}
-            <div className="p-4 border-b border-zinc-800/80 flex items-center justify-between bg-zinc-950/60">
+            <div
+              className={`p-4 border-b flex items-center justify-between ${
+                isLight ? 'border-black bg-white' : 'border-white/15 bg-black'
+              }`}
+            >
               <div className="flex items-center gap-2.5 min-w-0">
-                <BookOpen className="w-5 h-5 text-purple-400 shrink-0" />
+                <BookOpen className="w-5 h-5 shrink-0" />
                 <div className="min-w-0">
-                  <h3 className="text-sm font-bold text-white leading-tight truncate">
+                  <h3 className="text-sm font-black leading-tight truncate">
                     {series.title}
                   </h3>
-                  <p className="text-[11px] text-zinc-400 font-mono">
+                  <p className="text-[11px] opacity-70 font-mono">
                     All Chapters ({chapters.length})
                   </p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setShowChaptersDrawer(false)}
-                className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+                className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+                  isLight
+                    ? 'border-black/20 hover:bg-black hover:text-white'
+                    : 'border-white/20 hover:bg-white hover:text-black'
+                }`}
                 title="Close"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Search Filter */}
-            <div className="p-3 border-b border-zinc-800/80 bg-zinc-900/30">
+            <div className={`p-3 border-b ${isLight ? 'border-black/15' : 'border-white/15'}`}>
               <div className="relative">
-                <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-2.5" />
+                <Search className="w-4 h-4 opacity-50 absolute left-3 top-2.5" />
                 <input
                   type="text"
                   value={chapterSearchQuery}
                   onChange={e => setChapterSearchQuery(e.target.value)}
                   placeholder="Search chapter title or number..."
-                  className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500"
+                  className={`w-full pl-9 pr-3 py-1.5 rounded-xl border text-xs focus:outline-none ${
+                    isLight
+                      ? 'bg-white text-black border-black/30 focus:border-black placeholder-black/45'
+                      : 'bg-zinc-950 text-white border-white/20 focus:border-white placeholder-white/45'
+                  }`}
                 />
               </div>
             </div>
@@ -1416,7 +1765,7 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
             {/* Chapters List */}
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
               {filteredChapters.length === 0 ? (
-                <p className="text-xs text-zinc-500 py-8 text-center">No matching chapters found</p>
+                <p className="text-xs opacity-60 py-8 text-center">No matching chapters found</p>
               ) : (
                 filteredChapters.map(ch => {
                   const isCurrent = ch.id === currentChapter.id;
@@ -1429,37 +1778,51 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                       }}
                       className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
                         isCurrent
-                          ? 'bg-purple-950/40 border-purple-500/80 shadow-md ring-1 ring-purple-500/50'
-                          : 'bg-zinc-900/60 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900'
+                          ? isLight
+                            ? 'bg-black text-white border-black shadow-md'
+                            : 'bg-white text-black border-white shadow-md'
+                          : isLight
+                          ? 'bg-white text-black border-black/20 hover:border-black'
+                          : 'bg-zinc-950 text-white border-white/15 hover:border-white'
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <span
-                          className={`w-8 h-8 rounded-lg font-mono font-bold text-xs flex items-center justify-center shrink-0 ${
+                          className={`w-8 h-8 rounded-lg font-mono font-bold text-xs flex items-center justify-center shrink-0 border ${
                             isCurrent
-                              ? 'bg-purple-600 text-white'
-                              : 'bg-zinc-800 text-zinc-300'
+                              ? isLight
+                                ? 'bg-white text-black border-white'
+                                : 'bg-black text-white border-black'
+                              : isLight
+                              ? 'bg-white text-black border-black/30'
+                              : 'bg-zinc-900 text-white border-white/20'
                           }`}
                         >
                           {ch.chapterNumber}
                         </span>
                         <div className="min-w-0">
-                          <h4 className="text-xs font-bold text-white truncate flex items-center gap-1.5">
+                          <h4 className="text-xs font-bold truncate flex items-center gap-1.5">
                             <span className="truncate">{ch.title}</span>
                             {isCurrent && (
-                              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 shrink-0">
+                              <span
+                                className={`text-[9px] font-mono px-1.5 py-0.5 rounded border shrink-0 uppercase font-black ${
+                                  isLight
+                                    ? 'bg-white text-black border-white'
+                                    : 'bg-black text-white border-black'
+                                }`}
+                              >
                                 Reading
                               </span>
                             )}
                           </h4>
-                          <p className="text-[10px] text-zinc-400 font-mono mt-0.5">
+                          <p className="text-[10px] opacity-70 font-mono mt-0.5">
                             {ch.panels?.length || 0} pages {ch.releaseDate ? `· ${ch.releaseDate}` : ''}
                           </p>
                         </div>
                       </div>
 
                       <div className="shrink-0 flex items-center gap-1.5 ml-2">
-                        <span className={`text-xs font-mono ${isCurrent ? 'text-purple-400 font-bold' : 'text-zinc-400'}`}>
+                        <span className="text-xs font-mono font-bold">
                           {isCurrent ? 'Current' : 'Read →'}
                         </span>
                       </div>
@@ -1471,6 +1834,14 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
           </div>
         </div>
       )}
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        title={`${series.title} - Chapter ${currentChapter.chapterNumber}`}
+        text={`Read "${series.title}" Chapter ${currentChapter.chapterNumber}: ${currentChapter.title} on MangaWild!`}
+      />
     </div>
   );
 };

@@ -156,7 +156,7 @@ export const BrowsePage: React.FC<BrowsePageProps> = ({
               }`}
             >
               <Lock className="w-3 h-3 text-current" />
-              <span>VIP Only</span>
+              <span>Exclusive</span>
             </button>
           </div>
 
@@ -237,7 +237,7 @@ export const BrowsePage: React.FC<BrowsePageProps> = ({
                   />
                   {series.isExclusive && (
                     <span className="absolute top-2 right-2 bg-zinc-950 text-white text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded border border-zinc-700 font-mono">
-                      VIP
+                      Exclusive
                     </span>
                   )}
                 </div>

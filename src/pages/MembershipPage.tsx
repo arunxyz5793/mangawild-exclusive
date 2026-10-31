@@ -85,7 +85,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
     e.preventDefault();
     cancelSubscription();
     setIsCancelModalOpen(false);
-    showToast('Your VIP subscription has been cancelled immediately.');
+    showToast('Your Exclusive subscription has been cancelled immediately.');
   };
 
   const handleSendSupportTicket = (e: React.FormEvent) => {
@@ -106,7 +106,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
     const clean = couponCode.trim().toUpperCase();
     if (!clean) return;
 
-    if (clean === 'MANGAWILD20' || clean === 'VIP20') {
+    if (clean === 'MANGAWILD20' || clean === 'VIP20' || clean === 'EXCLUSIVE20') {
       setCouponDiscount(20); // 20% discount
       setCouponMessage({ text: 'Coupon applied! 20% discount applied to your order.', isError: false });
     } else if (clean === 'FIRST50' || clean === 'SPECIAL50') {
@@ -122,7 +122,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
     try {
       activateSubscription(plan.id, 'UPI', `trial_free_7days_${Date.now()}`);
       setDetailsModalPlan(null);
-      showToast('🎉 Congratulations! Your 7-Day All-Access VIP Free Trial has been activated.');
+      showToast('🎉 Congratulations! Your 7-Day All-Access Exclusive Free Trial has been activated.');
     } catch {
       showToast('Could not activate trial. Please sign in first.');
     }
@@ -131,7 +131,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
   const handleSendGift = (e: React.FormEvent) => {
     e.preventDefault();
     if (!giftRecipient.trim()) return;
-    setGiftSuccess(`VIP Pass Gift successfully queued for ${giftRecipient.trim()}! An invitation link has been dispatched.`);
+    setGiftSuccess(`Exclusive Gift successfully queued for ${giftRecipient.trim()}! An invitation link has been dispatched.`);
     setTimeout(() => {
       setGiftSuccess(null);
       setIsGiftModalOpen(false);
@@ -217,19 +217,19 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
       {/* 1. Hero Header */}
       <div className="text-center space-y-3.5 max-w-3xl mx-auto">
         <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-zinc-300 bg-white/5 px-3 py-1 rounded-full border border-white/10 font-mono">
-          <Crown className="w-3.5 h-3.5 text-zinc-200" /> VIP PASS
+          <Crown className="w-3.5 h-3.5 text-zinc-200" /> EXCLUSIVE
         </span>
         <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
-          All-Access Pass
+          Exclusive Membership
         </h1>
         <p className="text-zinc-400 text-sm leading-relaxed max-w-lg mx-auto">
-          Unlimited VIP chapters, ad-free reading, and direct creator support.
+          Unlimited Exclusive chapters, ad-free reading, and direct creator support.
         </p>
 
         {isVIP && (
           <div className="inline-flex items-center gap-2 p-1.5 px-3.5 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs font-medium">
             <Check className="w-3.5 h-3.5 text-white" />
-            <span>VIP Subscription Active</span>
+            <span>Exclusive Subscription Active</span>
           </div>
         )}
 
@@ -290,8 +290,8 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
                 </div>
                 <h2 className="text-xl sm:text-2xl font-black text-white mt-1">
                   {activePlanId === 'yearly'
-                    ? 'Annual VIP Pass (₹1,499/year)'
-                    : 'Monthly VIP Pass (₹199/month)'}
+                    ? 'Annual Exclusive (₹1,499/year)'
+                    : 'Monthly Exclusive (₹199/month)'}
                 </h2>
               </div>
             </div>
@@ -313,7 +313,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-zinc-300">
               <div className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-white shrink-0" />
-                <span>All Exclusive VIP Chapters Unlocked</span>
+                <span>All Exclusive Chapters Unlocked</span>
               </div>
               <div className="flex items-center gap-2">
                 <Check className="w-4 h-4 text-white shrink-0" />
@@ -393,7 +393,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
                     )}
                   </div>
                   <p className="text-xs text-stone-400 mt-1">
-                    {plan.durationDays} days of total uninterrupted VIP reading
+                    {plan.durationDays} days of total uninterrupted Exclusive reading
                   </p>
                 </div>
 
@@ -444,10 +444,10 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
                   >
                     <span>
                       {isVIP
-                        ? 'Upgrade to Annual VIP'
+                        ? 'Upgrade to Annual Exclusive'
                         : isAuthenticated
                         ? `Subscribe for ₹${plan.priceInr}`
-                        : 'Sign In to Purchase VIP'}
+                        : 'Sign In to Get Exclusive'}
                     </span>
                   </button>
                 )}
@@ -570,12 +570,12 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
               <tr className="border-b border-zinc-800 font-mono text-[11px] uppercase text-zinc-400">
                 <th className="p-4">Feature / Benefit</th>
                 <th className="p-4 text-center">Free Reader</th>
-                <th className="p-4 text-center text-zinc-200 bg-zinc-900/60">VIP Pass Member</th>
+                <th className="p-4 text-center text-zinc-200 bg-zinc-900/60">Exclusive Member</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/80 font-mono text-zinc-300">
               <tr>
-                <td className="p-3.5 pl-4 font-sans font-medium text-white">Full Access to All Exclusive VIP Chapters</td>
+                <td className="p-3.5 pl-4 font-sans font-medium text-white">Full Access to All Exclusive Chapters</td>
                 <td className="p-3.5 text-center text-zinc-500">Locked / Previews only</td>
                 <td className="p-3.5 text-center text-white font-bold bg-zinc-900/30">✓ 100% Unrestricted</td>
               </tr>
@@ -600,9 +600,9 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
                 <td className="p-3.5 text-center text-white font-bold bg-zinc-900/30">✓ 70% Direct to Artists</td>
               </tr>
               <tr>
-                <td className="p-3.5 pl-4 font-sans font-medium text-white">VIP Badge on Profile & Comments</td>
+                <td className="p-3.5 pl-4 font-sans font-medium text-white">Exclusive Badge on Profile & Comments</td>
                 <td className="p-3.5 text-center text-zinc-500">None</td>
-                <td className="p-3.5 text-center text-zinc-200 font-bold bg-zinc-900/30">✓ VIP Reader Badge</td>
+                <td className="p-3.5 text-center text-zinc-200 font-bold bg-zinc-900/30">✓ Exclusive Badge</td>
               </tr>
             </tbody>
           </table>
@@ -683,7 +683,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
                 <ul className="space-y-2 text-xs text-zinc-300">
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-white shrink-0" />
-                    <span>Permanent access to all locked & VIP exclusive manga series</span>
+                    <span>Permanent access to all locked & Exclusive manga series</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-white shrink-0" />
@@ -703,7 +703,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-white shrink-0" />
-                    <span>Exclusive VIP badge on user profile, comments, and reviews</span>
+                    <span>Exclusive badge on user profile, comments, and reviews</span>
                   </li>
                 </ul>
               </div>
@@ -1018,7 +1018,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Gift className="w-5 h-5 text-zinc-300" />
-                  <h3 className="text-lg font-bold text-white">Gift a VIP Pass</h3>
+                  <h3 className="text-lg font-bold text-white">Gift an Exclusive Pass</h3>
                 </div>
                 <button
                   type="button"
@@ -1030,7 +1030,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
               </div>
 
               <p className="text-xs text-zinc-400 leading-relaxed">
-                Surprise a fellow manga enthusiast with an all-access VIP subscription pass. Enter their email address or MangaWild handle below:
+                Surprise a fellow manga enthusiast with an all-access Exclusive subscription pass. Enter their email address or MangaWild handle below:
               </p>
 
               {giftSuccess ? (
@@ -1060,7 +1060,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
                       type="submit"
                       className="px-5 py-2 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-bold text-xs cursor-pointer shadow-md transition-all active:scale-95"
                     >
-                      Send VIP Gift
+                      Send Exclusive Gift
                     </button>
                   </div>
                 </form>

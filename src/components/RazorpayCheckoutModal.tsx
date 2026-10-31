@@ -60,8 +60,8 @@ export const RazorpayCheckoutModal: React.FC<RazorpayCheckoutModalProps> = ({
       setIsProcessing(false);
       onClose();
       openAuthModal({
-        title: 'Sign In to Purchase VIP',
-        subtitle: `Sign in to activate your ${plan.name} (₹${plan.priceInr}) and unlock exclusive chapters.`,
+        title: 'Sign In to Get Exclusive',
+        subtitle: `Sign in to activate your ${plan.name} (₹${plan.priceInr}) and unlock Exclusive chapters.`,
         defaultMode: 'signin',
       });
       return;
@@ -146,7 +146,7 @@ export const RazorpayCheckoutModal: React.FC<RazorpayCheckoutModalProps> = ({
                 onClick={() => {
                   onClose();
                   openAuthModal({
-                    title: 'Sign In to Purchase VIP',
+                    title: 'Sign In to Get Exclusive',
                     subtitle: `Sign in to activate your ${plan.name} (₹${plan.priceInr}) membership.`,
                     defaultMode: 'signin',
                   });
@@ -160,7 +160,7 @@ export const RazorpayCheckoutModal: React.FC<RazorpayCheckoutModalProps> = ({
                 onClick={() => {
                   onClose();
                   openAuthModal({
-                    title: 'Create Account to Purchase VIP',
+                    title: 'Create Account to Get Exclusive',
                     subtitle: `Create an account to activate your ${plan.name} (₹${plan.priceInr}) membership.`,
                     defaultMode: 'signup',
                   });
@@ -180,7 +180,7 @@ export const RazorpayCheckoutModal: React.FC<RazorpayCheckoutModalProps> = ({
               Payment Successful!
             </h3>
             <p className="text-xs text-zinc-300 leading-relaxed max-w-sm mx-auto">
-              Your VIP Subscription is now active. All exclusive chapters (including Silent Heads & Chintu) are unlocked.
+              Your Exclusive Subscription is now active. All Exclusive chapters (including Silent Heads & Chintu) are unlocked.
             </p>
             <div className="text-xs text-zinc-400 font-mono bg-zinc-900 py-2 px-3 rounded-lg border border-zinc-800">
               Razorpay Ref: <strong className="text-white">{lastPaymentId}</strong>
@@ -193,7 +193,7 @@ export const RazorpayCheckoutModal: React.FC<RazorpayCheckoutModalProps> = ({
               <div className="flex justify-between items-start">
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 font-mono">
-                    VIP Subscription
+                    Exclusive Subscription
                   </span>
                   <h4 className="text-base font-bold text-white mt-0.5">{plan.name}</h4>
                   <p className="text-xs text-zinc-400">{plan.durationDays} Days Unrestricted Reading</p>

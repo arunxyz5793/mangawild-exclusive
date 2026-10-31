@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext';
 import { StorageService } from '../services/storage';
 import { Comment } from '../types/manga';
 import { useTheme } from '../context/ThemeContext';
+import { getAvatarUrl } from '../utils/avatar';
 
 interface MangaCommentsSectionProps {
   seriesId: string;
@@ -81,7 +82,7 @@ export const MangaCommentsSection: React.FC<MangaCommentsSectionProps> = ({
         chapterId,
         userId: user.id,
         userName: user.name,
-        userAvatar: user.avatarUrl || '/avatars/avatar-1.svg',
+        userAvatar: getAvatarUrl(user.avatarUrl),
         userRole: user.role,
         content: trimmed,
       });
@@ -145,31 +146,31 @@ export const MangaCommentsSection: React.FC<MangaCommentsSectionProps> = ({
     }
   };
 
-  // Helper to render user role cleanly
+  // Helper to render user role cleanly in strict monochrome
   const renderRoleBadge = (role?: string) => {
     if (role === 'creator') {
       return (
-        <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-800 font-bold uppercase tracking-wider">
+        <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-black text-white dark:bg-white dark:text-black border border-black dark:border-white font-bold uppercase tracking-wider">
           Creator
         </span>
       );
     }
     if (role === 'admin') {
       return (
-        <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-purple-950/80 text-purple-300 border border-purple-800 font-bold uppercase tracking-wider">
+        <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-black text-white dark:bg-white dark:text-black border border-black dark:border-white font-bold uppercase tracking-wider">
           Admin
         </span>
       );
     }
     if (role === 'subscriber') {
       return (
-        <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-amber-950/80 text-amber-300 border border-amber-800 font-bold uppercase tracking-wider">
-          Subscriber
+        <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-black text-white dark:bg-white dark:text-black border border-black dark:border-white font-bold uppercase tracking-wider">
+          Exclusive
         </span>
       );
     }
     return (
-      <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700 font-medium">
+      <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-black dark:text-white border border-black/15 dark:border-white/20 font-medium">
         Reader
       </span>
     );
@@ -224,7 +225,7 @@ export const MangaCommentsSection: React.FC<MangaCommentsSectionProps> = ({
 
       {/* Success Notification */}
       {successToast && (
-        <div className="p-3 bg-emerald-950/80 border border-emerald-800/80 text-emerald-300 text-xs rounded-xl flex items-center gap-2 font-mono">
+        <div className="p-3 bg-black text-white dark:bg-white dark:text-black border border-black/20 dark:border-white/20 text-xs rounded-xl flex items-center gap-2 font-mono">
           <Sparkles className="w-4 h-4 shrink-0" />
           <span>{successToast}</span>
         </div>
@@ -235,9 +236,9 @@ export const MangaCommentsSection: React.FC<MangaCommentsSectionProps> = ({
         <form onSubmit={handlePostComment} className="space-y-3">
           <div className="flex items-center gap-2.5">
             <img
-              src={user.avatarUrl || '/avatars/avatar-1.svg'}
+              src={getAvatarUrl(user.avatarUrl)}
               alt={user.name}
-              className="w-8 h-8 rounded-full object-cover border border-zinc-700 bg-zinc-800"
+              className="w-8 h-8 rounded-full object-cover border border-black/20 dark:border-white/20 bg-black/5 dark:bg-white/10"
             />
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold">{user.name}</span>
@@ -332,9 +333,9 @@ export const MangaCommentsSection: React.FC<MangaCommentsSectionProps> = ({
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2.5">
                     <img
-                      src={comment.userAvatar || '/avatars/avatar-1.svg'}
+                      src={getAvatarUrl(comment.userAvatar)}
                       alt={comment.userName}
-                      className="w-8 h-8 rounded-full object-cover bg-zinc-800 border border-zinc-700 shrink-0"
+                      className="w-8 h-8 rounded-full object-cover bg-black/5 dark:bg-white/10 border border-black/20 dark:border-white/20 shrink-0"
                     />
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">

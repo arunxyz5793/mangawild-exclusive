@@ -211,11 +211,11 @@ export const HomePage: React.FC<HomePageProps> = ({
               className="absolute inset-0 w-full h-full object-cover sm:object-contain sm:object-right-top transition-all duration-700 ease-out group-hover:scale-[1.02] z-0 opacity-85 sm:opacity-95 pointer-events-none"
             />
 
-            {/* Seamless Vignette Overlay for Readability (Adapts to Light/Dark Theme) */}
+            {/* Seamless Vignette Overlay for Readability (In Light theme, only fade bottom ~42% up to artist name so upper manga panel is 100% clear) */}
             <div
               className={`absolute inset-0 z-10 pointer-events-none ${
                 isLight
-                  ? 'bg-gradient-to-t from-white via-white/85 to-white/20 sm:bg-gradient-to-r sm:from-white sm:via-white/85 sm:to-transparent'
+                  ? 'bg-gradient-to-t from-white via-white/75 via-[36%] to-transparent to-[52%]'
                   : 'bg-gradient-to-t from-black via-black/75 to-black/30 sm:bg-gradient-to-r sm:from-black sm:via-black/80 sm:to-transparent'
               }`}
             />
@@ -252,7 +252,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                     }`}
                   >
                     <Crown className="w-2.5 h-2.5" />
-                    <span>VIP</span>
+                    <span>Exclusive</span>
                   </span>
                 )}
               </div>
@@ -542,7 +542,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                         }`}
                       >
                         <Crown className="w-2.5 h-2.5 fill-current" />
-                        <span>VIP</span>
+                        <span>Exclusive</span>
                       </span>
                     </div>
                   )}

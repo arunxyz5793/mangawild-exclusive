@@ -25,6 +25,8 @@ import { StorageService } from '../services/storage';
 import { CreatorTipJar } from '../components/CreatorTipJar';
 import { RatingReviewSection } from '../components/RatingReviewSection';
 import { MangaCommentsSection } from '../components/MangaCommentsSection';
+import { ShareModal } from '../components/ShareModal';
+import { DEFAULT_USER_AVATAR } from '../utils/avatar';
 import { MangaSeries, Chapter } from '../types/manga';
 
 interface SeriesDetailPageProps {
@@ -58,8 +60,8 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
         userId: `user_${encodeURIComponent(series.author.toLowerCase())}`,
         penName: series.author,
         handle: `@${series.author.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-        bio: `Original mangaka and graphic novel creator of "${series.title}".`,
-        avatarUrl: series.coverUrl || '/avatars/avatar-3.svg',
+        bio: '',
+        avatarUrl: DEFAULT_USER_AVATAR,
         verified: true,
         followersCount: 0,
         totalReads: series.totalReads ?? 0,
@@ -79,11 +81,12 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
   const creator = creatorProfile;
   const readingHistory = useMemo(() => StorageService.getReadingHistory(user.id), [user.id]);
 
-  const [shareCopied, setShareCopied] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [chapterSearchQuery, setChapterSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [likesCount, setLikesCount] = useState<number>(() => series?.likesCount ?? 0);
   const [isTipModalOpen, setIsTipModalOpen] = useState(false);
+  const [tipAnchorY, setTipAnchorY] = useState<number | null>(null);
 
   // Increment series views on view mount
   useEffect(() => {
@@ -137,9 +140,7 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
   const isFollowingCreator = creator ? followedCreators.includes(creator.id) : false;
 
   const handleShare = () => {
-    navigator.clipboard?.writeText(window.location.href);
-    setShareCopied(true);
-    setTimeout(() => setShareCopied(false), 2000);
+    setIsShareModalOpen(true);
   };
 
   const firstChapter = chapters[0];
@@ -173,7 +174,7 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
                   : 'bg-black text-white border-zinc-700'
               }`}>
                 <Lock className="w-3 h-3" />
-                {isVIP ? 'VIP UNLOCKED' : 'VIP EXCLUSIVE'}
+                <span>Exclusive</span>
               </span>
             )}
           </div>
@@ -326,7 +327,7 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
                 {Boolean(series.isExclusive && !isVIP && user.role !== 'admin' && !isCreatorOfSeries) ? (
                   <>
                     <Lock className="w-4 h-4 text-black" />
-                    <span>Unlock VIP to Read</span>
+                    <span>Unlock Exclusive to Read</span>
                   </>
                 ) : (
                   <>
@@ -386,9 +387,14 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
                 <span>{isBookmarked ? 'Saved' : 'Save'}</span>
               </button>
 
-              {/* Tip Artist Button (Single Minimal Entry Point) */}
+              {/* Tip Artist Button (Single Minimal Entry Point — Opens Popup Right Where Viewer Is) */}
               <button
-                onClick={() => setIsTipModalOpen(true)}
+                type="button"
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setTipAnchorY(rect.top + rect.height / 2);
+                  setIsTipModalOpen(true);
+                }}
                 className={`flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl border text-xs font-semibold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 min-w-[70px] max-w-full box-border ${
                   theme === 'dark'
                     ? 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700'
@@ -408,9 +414,9 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
                     ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700'
                     : 'bg-white border-zinc-300 text-zinc-600 hover:text-zinc-950 hover:bg-zinc-50 shadow-xs'
                 }`}
-                title="Share link"
+                title="Share manga"
               >
-                {shareCopied ? <Check className="w-3.5 h-3.5 text-white" /> : <Share2 className="w-3.5 h-3.5" />}
+                <Share2 className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -559,12 +565,12 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
                             className="text-[9px] font-mono px-1.5 py-0.5 rounded font-bold uppercase flex items-center gap-1 bg-zinc-800 text-zinc-300 border border-zinc-700"
                           >
                             <Lock className="w-2.5 h-2.5" />
-                            {hasVIPAccess ? 'VIP Unlocked' : 'VIP Locked'}
+                            <span>Exclusive</span>
                           </span>
                         )}
                       </div>
                       <span className={`text-[10px] font-mono ${theme === 'dark' ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                        {chapter.panels?.length || 0} pages · {isLocked ? 'VIP Subscription Required' : 'Unlocked to read'}
+                        {chapter.panels?.length || 0} pages · {isLocked ? 'Exclusive Subscription Required' : 'Unlocked to read'}
                       </span>
                     </div>
                   </div>
@@ -603,45 +609,25 @@ export const SeriesDetailPage: React.FC<SeriesDetailPageProps> = ({
         <RatingReviewSection seriesId={series.id} seriesTitle={series.title} />
       </div>
 
-      {/* Tip Artist Modal (Razorpay UPI & Cards) */}
-      {isTipModalOpen && (
-        <div
-          onClick={() => setIsTipModalOpen(false)}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-fade-in box-border"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-lg bg-zinc-950 border border-zinc-800 rounded-3xl p-6 shadow-2xl overflow-hidden box-border"
-          >
-            <button
-              onClick={() => setIsTipModalOpen(false)}
-              className="absolute top-5 right-5 p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors z-10 cursor-pointer"
-              aria-label="Close"
-            >
-              <X className="w-5 h-5" />
-            </button>
+      {/* Tip Artist Modal (Portaled & Positioned Right Where Viewer Clicked) */}
+      <CreatorTipJar
+        creatorId={creator?.id || series.creatorId}
+        creatorName={series.author}
+        seriesId={series.id}
+        seriesTitle={series.title}
+        isModalOpen={isTipModalOpen}
+        anchorY={tipAnchorY}
+        onClose={() => setIsTipModalOpen(false)}
+        onTipSent={() => setIsTipModalOpen(false)}
+      />
 
-            <div className="mb-4">
-              <h3 className="text-lg font-serif font-bold text-white">Tip Mangaka ({series.author})</h3>
-              <p className="text-xs text-zinc-400 font-mono">
-                Support the creator of &ldquo;{series.title}&rdquo; directly via Razorpay (UPI, GPay, Cards)
-              </p>
-            </div>
-
-            <CreatorTipJar
-              creatorId={creator?.id || series.creatorId}
-              creatorName={series.author}
-              seriesId={series.id}
-              seriesTitle={series.title}
-              directForm={true}
-              onClose={() => setIsTipModalOpen(false)}
-              onTipSent={() => {
-                setIsTipModalOpen(false);
-              }}
-            />
-          </div>
-        </div>
-      )}
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        title={`${series.title} by ${series.author}`}
+        text={`Read "${series.title}" by ${series.author} on MangaWild!`}
+      />
     </div>
   );
 };
