@@ -30,21 +30,32 @@ export const BlurUpMangaImage: React.FC<BlurUpMangaImageProps> = ({
   const [retryKey, setRetryKey] = useState(0);
   const imgRef = useRef<HTMLImageElement>(null);
 
-  // Check if image is already cached in browser on mount or src change
   useEffect(() => {
     setIsLoaded(false);
     setHasError(false);
 
-    if (imgRef.current && imgRef.current.complete && imgRef.current.naturalWidth > 0) {
-      setIsLoaded(true);
-      onLoad?.();
-    }
+    let timerId: number | undefined;
+    const rafId = requestAnimationFrame(() => {
+      if (imgRef.current && imgRef.current.complete && imgRef.current.naturalWidth > 0) {
+        timerId = window.setTimeout(() => {
+          setIsLoaded(true);
+          onLoad?.();
+        }, 45);
+      }
+    });
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      if (timerId !== undefined) clearTimeout(timerId);
+    };
   }, [src, retryKey]);
 
   const handleImageLoad = () => {
-    setIsLoaded(true);
     setHasError(false);
-    onLoad?.();
+    window.setTimeout(() => {
+      setIsLoaded(true);
+      onLoad?.();
+    }, 45);
   };
 
   const handleImageError = () => {
@@ -61,25 +72,10 @@ export const BlurUpMangaImage: React.FC<BlurUpMangaImageProps> = ({
 
   return (
     <div
-      className={`relative w-full overflow-hidden select-none bg-[#090b10] ${className}`}
+      className={`relative w-full overflow-hidden select-none ${className}`}
       style={style}
     >
-      {/* 1. Blur-up Background Skeleton & Placeholder */}
-      {!isLoaded && !hasError && (
-        <div className="absolute inset-0 z-0 flex flex-col items-center justify-center bg-gradient-to-b from-[#0e111a] via-[#090b10] to-[#0e111a] animate-pulse">
-          {/* Subtle Ambient Manga Grid Placeholder */}
-          <div className="flex flex-col items-center gap-2 opacity-50">
-            <ImageIcon className="w-8 h-8 text-zinc-600 animate-pulse" />
-            {panelNumber !== undefined && (
-              <span className="text-[11px] font-mono text-zinc-500 font-semibold tracking-wider uppercase">
-                Loading Page {panelNumber}...
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 2. Error Fallback State */}
+      {/* Error Fallback State */}
       {hasError ? (
         <div className="w-full min-h-[350px] flex flex-col items-center justify-center p-6 text-center bg-[#0d0f17] border border-red-900/30 rounded-xl space-y-3 z-10">
           <div className="w-12 h-12 rounded-xl bg-red-950/50 border border-red-800 text-red-400 flex items-center justify-center">
@@ -103,7 +99,7 @@ export const BlurUpMangaImage: React.FC<BlurUpMangaImageProps> = ({
           </button>
         </div>
       ) : (
-        /* 3. Actual Image with Lightweight GPU Opacity Transition */
+        /* Actual Image with Guaranteed Blur-to-Sharp Transition (No Loading Page Overlay) */
         <img
           key={`${src}_${retryKey}`}
           ref={imgRef}
@@ -117,14 +113,19 @@ export const BlurUpMangaImage: React.FC<BlurUpMangaImageProps> = ({
           onContextMenu={(e) => e.preventDefault()}
           onDragStart={(e) => e.preventDefault()}
           data-protected-img="true"
-          style={imgStyle}
-          className={`block w-full h-auto select-none pointer-events-none transition-opacity duration-200 ease-out ${
-            isLoaded ? 'opacity-100' : 'opacity-0'
-          } ${imgClassName}`}
+          style={{
+            ...imgStyle,
+            filter: isLoaded ? 'blur(0px)' : 'blur(18px)',
+            transform: isLoaded ? 'scale(1)' : 'scale(1.02)',
+            transition: isLoaded
+              ? 'filter 420ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1)'
+              : 'none',
+          }}
+          className={`block w-full h-auto select-none pointer-events-none ${imgClassName}`}
         />
       )}
 
-      {/* 4. Anti-Download Security Shield */}
+      {/* Anti-Download Security Shield */}
       <div
         className="absolute inset-0 z-10 bg-transparent select-none pointer-events-none"
         onContextMenu={(e) => e.preventDefault()}

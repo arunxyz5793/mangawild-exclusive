@@ -2811,10 +2811,11 @@ export const StorageService = {
   // Reviews and Ratings
   getReviews(seriesId?: string): SeriesReview[] {
     const all = getStored<SeriesReview[]>(STORAGE_KEYS.REVIEWS, INITIAL_REVIEWS);
+    const copy = Array.isArray(all) ? [...all] : [];
     if (seriesId) {
-      return all.filter(r => r.seriesId === seriesId);
+      return copy.filter(r => r.seriesId === seriesId);
     }
-    return all;
+    return copy;
   },
 
   getReviewById(reviewId: string): SeriesReview | undefined {
@@ -2826,7 +2827,50 @@ export const StorageService = {
   },
 
   saveReviews(reviews: SeriesReview[]): void {
-    setStored(STORAGE_KEYS.REVIEWS, reviews);
+    const freshCopy = [...reviews];
+    setStored(STORAGE_KEYS.REVIEWS, freshCopy);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('mw-reviews-updated'));
+    }
+  },
+
+  async syncReviewsFromServer(): Promise<SeriesReview[]> {
+    try {
+      const res = await fetch('/api/reviews');
+      if (!res.ok) return this.getReviews();
+      const data = await res.json();
+      if (data?.success && Array.isArray(data.reviews)) {
+        const localReviews = this.getReviews();
+        const mergedMap = new Map<string, SeriesReview>();
+
+        // Server reviews first (most up-to-date across devices)
+        for (const r of data.reviews) {
+          if (r && r.id) {
+            mergedMap.set(r.id, r);
+          }
+        }
+        // Any local reviews not yet pushed to server
+        for (const r of localReviews) {
+          if (r && r.id && !mergedMap.has(r.id)) {
+            mergedMap.set(r.id, r);
+            fetch('/api/reviews', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(r),
+            }).catch(() => {});
+          }
+        }
+
+        const mergedList = Array.from(mergedMap.values()).sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        this.saveReviews(mergedList);
+        return mergedList;
+      }
+    } catch {
+      // Fallback to local reviews if offline
+    }
+    return this.getReviews();
   },
 
   getReviewSummary(seriesId: string): ReviewSummary {
@@ -2865,10 +2909,76 @@ export const StorageService = {
   },
 
   recalculateSeriesRating(seriesId: string): void {
+    if (!seriesId || seriesId === 'beta_exclusive') return;
     const summary = this.getReviewSummary(seriesId);
     if (summary.totalReviews > 0) {
       this.updateSeries(seriesId, { rating: summary.averageRating });
     }
+  },
+
+  addBetaExclusiveReview(reviewData: {
+    userId: string;
+    userName: string;
+    userEmail: string;
+    userAvatar?: string;
+    userRole?: string;
+    isVIP: boolean;
+    rating: number;
+    category: string;
+    categoryLabel: string;
+    description: string;
+    screenshots: string[];
+  }): SeriesReview {
+    const all = this.getReviews();
+    const newReview: SeriesReview = {
+      id: `rev_beta_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      seriesId: 'beta_exclusive',
+      seriesTitle: 'MANGAWILD BETA EXCLUSIVE',
+      userId: reviewData.userId,
+      userName: reviewData.userName,
+      userEmail: reviewData.userEmail,
+      userAvatar: reviewData.userAvatar,
+      userRole: reviewData.userRole || 'reader',
+      isVIP: reviewData.isVIP,
+      rating: reviewData.rating,
+      reviewTitle: reviewData.categoryLabel,
+      reviewText: reviewData.description,
+      likesCount: 0,
+      likedByUsers: [],
+      status: 'approved',
+      isFlagged: false,
+      flagCount: 0,
+      flags: [],
+      createdAt: new Date().toISOString(),
+      isBetaReview: true,
+      betaCategory: reviewData.category,
+      betaCategoryLabel: reviewData.categoryLabel,
+      screenshots: reviewData.screenshots.slice(0, 3),
+    };
+
+    const updated = [newReview, ...all];
+    this.saveReviews(updated);
+
+    if (typeof window !== 'undefined') {
+      fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newReview),
+      }).catch(() => {});
+    }
+
+    this.addNotification({
+      id: `notif_beta_rev_${Date.now()}`,
+      userId: 'user_admin_01',
+      title: `MANGAWILD BETA EXCLUSIVE Review (${reviewData.rating}★)`,
+      message: `${reviewData.userName} [${reviewData.categoryLabel}]: "${reviewData.description.slice(0, 90)}"`,
+      type: 'system',
+      read: false,
+      createdAt: new Date().toISOString(),
+      link: '/admin',
+    });
+
+    return newReview;
   },
 
   createReview(reviewData: {
@@ -2900,6 +3010,13 @@ export const StorageService = {
       };
       this.saveReviews(all);
       this.recalculateSeriesRating(reviewData.seriesId);
+      if (typeof window !== 'undefined') {
+        fetch('/api/reviews', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(all[existingIdx]),
+        }).catch(() => {});
+      }
       return all[existingIdx];
     }
 
@@ -2925,9 +3042,17 @@ export const StorageService = {
       createdAt: new Date().toISOString(),
     };
 
-    all.unshift(newReview);
-    this.saveReviews(all);
+    const updated = [newReview, ...all];
+    this.saveReviews(updated);
     this.recalculateSeriesRating(reviewData.seriesId);
+
+    if (typeof window !== 'undefined') {
+      fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newReview),
+      }).catch(() => {});
+    }
 
     const series = this.getSeriesById(reviewData.seriesId);
     if (series) {
@@ -2954,6 +3079,13 @@ export const StorageService = {
     all[idx] = { ...all[idx], ...updates };
     this.saveReviews(all);
     this.recalculateSeriesRating(all[idx].seriesId);
+    if (typeof window !== 'undefined') {
+      fetch(`/api/reviews/${encodeURIComponent(reviewId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      }).catch(() => {});
+    }
     return all[idx];
   },
 
@@ -2965,6 +3097,11 @@ export const StorageService = {
     const filtered = all.filter(r => r.id !== reviewId);
     this.saveReviews(filtered);
     this.recalculateSeriesRating(review.seriesId);
+    if (typeof window !== 'undefined') {
+      fetch(`/api/reviews/${encodeURIComponent(reviewId)}`, {
+        method: 'DELETE',
+      }).catch(() => {});
+    }
     return true;
   },
 

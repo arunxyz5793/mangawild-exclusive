@@ -164,6 +164,10 @@ export interface SeriesReview {
   createdAt: string;
   updatedAt?: string;
   isNew?: boolean;
+  isBetaReview?: boolean;
+  betaCategory?: string;
+  betaCategoryLabel?: string;
+  screenshots?: string[];
 }
 
 export interface ReviewSummary {

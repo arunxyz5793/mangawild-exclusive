@@ -23,6 +23,7 @@ import { RazorpayCheckoutModal } from './components/RazorpayCheckoutModal';
 import { SearchModal } from './components/SearchModal';
 import { AuthModal } from './components/AuthModal';
 import { BottomNavBar } from './components/BottomNavBar';
+import { BetaReviewWidget } from './components/BetaReviewWidget';
 import { StorageService } from './services/storage';
 import { MangaSeries, Chapter } from './types/manga';
 
@@ -479,6 +480,7 @@ function AppContent() {
                 closeAuthModal();
               }}
             />
+            <BetaReviewWidget />
           </div>
         );
       }
@@ -627,6 +629,9 @@ function AppContent() {
         onNavigate={handleNavigate}
         onOpenProfileMenu={() => window.dispatchEvent(new CustomEvent('mw-toggle-menu'))}
       />
+
+      {/* Floating Circular "Review" Button & Manga Wild Beta Exclusive Feedback Modal */}
+      <BetaReviewWidget />
 
     </div>
   );

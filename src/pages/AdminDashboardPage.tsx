@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Shield,
@@ -72,10 +72,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   const [paymentsList, setPaymentsList] = useState<PaymentRecord[]>(() => StorageService.getPayments());
 
   // Review & Flag Moderation Filters & State
-  const [reviewFilter, setReviewFilter] = useState<'all' | 'flagged' | 'approved' | 'hidden'>('all');
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'beta' | 'flagged' | 'approved' | 'hidden'>('all');
   const [reviewSearchQuery, setReviewSearchQuery] = useState('');
   const [expandedReviewFlags, setExpandedReviewFlags] = useState<Record<string, boolean>>({});
   const [isAdminAuthModalOpen, setIsAdminAuthModalOpen] = useState(false);
+  const [previewScreenshotUrl, setPreviewScreenshotUrl] = useState<string | null>(null);
 
   // Toast notification state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -184,6 +185,33 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     setUsersList(StorageService.getUsers());
     setPaymentsList(StorageService.getPayments());
   };
+
+  useEffect(() => {
+    StorageService.syncReviewsFromServer().then(() => {
+      setReviewsList(StorageService.getReviews());
+    });
+
+    const handleReviewsSync = () => {
+      setReviewsList(StorageService.getReviews());
+      setUsersList(StorageService.getUsers());
+    };
+
+    window.addEventListener('mw-reviews-updated', handleReviewsSync);
+    window.addEventListener('storage', handleReviewsSync);
+    return () => {
+      window.removeEventListener('mw-reviews-updated', handleReviewsSync);
+      window.removeEventListener('storage', handleReviewsSync);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'reviews') {
+      setReviewsList(StorageService.getReviews());
+      StorageService.syncReviewsFromServer().then(() => {
+        setReviewsList(StorageService.getReviews());
+      });
+    }
+  }, [activeTab]);
 
   // Admin Series CRUD Handlers
   const openCreateSeriesModal = () => {
@@ -963,14 +991,20 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
 
   // Filtered reviews
   const filteredReviews = useMemo(() => {
+    const q = reviewSearchQuery.toLowerCase().trim();
     return reviewsList.filter(r => {
       const matchesSearch =
-        r.reviewTitle.toLowerCase().includes(reviewSearchQuery.toLowerCase()) ||
-        r.seriesTitle.toLowerCase().includes(reviewSearchQuery.toLowerCase()) ||
-        r.userName.toLowerCase().includes(reviewSearchQuery.toLowerCase());
+        !q ||
+        r.reviewTitle.toLowerCase().includes(q) ||
+        r.reviewText.toLowerCase().includes(q) ||
+        r.seriesTitle.toLowerCase().includes(q) ||
+        r.userName.toLowerCase().includes(q) ||
+        (r.userEmail || '').toLowerCase().includes(q) ||
+        (r.betaCategoryLabel || '').toLowerCase().includes(q);
 
       if (!matchesSearch) return false;
 
+      if (reviewFilter === 'beta') return Boolean(r.isBetaReview || r.seriesId === 'beta_exclusive');
       if (reviewFilter === 'flagged') return r.isFlagged || r.status === 'flagged';
       if (reviewFilter === 'approved') return r.status === 'approved' && !r.isFlagged;
       if (reviewFilter === 'hidden') return r.status === 'hidden';
@@ -1412,13 +1446,22 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
           </div>
         )}
 
-        {/* TAB 2: REVIEWS & FLAG MODERATION DESK (WITH FULL MANGA & REVIEWER ACCOUNT DETAILS) */}
+        {/* TAB 2: REVIEWS & FLAG MODERATION DESK (WITH MANGA WILD BETA EXCLUSIVE, SCREENSHOTS & ACCOUNT DETAILS) */}
         {activeTab === 'reviews' && (
           <div className="space-y-6 animate-fade-in">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/60">
                 <span className="text-[10px] font-mono uppercase text-zinc-400">Total Reviews</span>
                 <p className="text-2xl font-black font-mono mt-1">{reviewsList.length}</p>
+              </div>
+
+              <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/60">
+                <span className="text-[10px] font-mono uppercase text-white font-bold">
+                  MANGAWILD BETA EXCLUSIVE
+                </span>
+                <p className="text-2xl font-black font-mono mt-1 text-white">
+                  {reviewsList.filter(r => r.isBetaReview || r.seriesId === 'beta_exclusive').length}
+                </p>
               </div>
 
               <div className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/60">
@@ -1446,18 +1489,26 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
             {/* Filter & Search Bar for Reviews */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
-                {(['all', 'flagged', 'approved', 'hidden'] as const).map(f => (
+                {(
+                  [
+                    { id: 'all', label: 'All Reviews' },
+                    { id: 'beta', label: 'MANGAWILD BETA EXCLUSIVE' },
+                    { id: 'flagged', label: 'Flagged' },
+                    { id: 'approved', label: 'Approved' },
+                    { id: 'hidden', label: 'Hidden' },
+                  ] as const
+                ).map(f => (
                   <button
-                    key={f}
+                    key={f.id}
                     type="button"
-                    onClick={() => setReviewFilter(f)}
+                    onClick={() => setReviewFilter(f.id)}
                     className={`px-3.5 py-1.5 rounded-xl text-xs font-mono uppercase font-bold border transition-all cursor-pointer ${
-                      reviewFilter === f
+                      reviewFilter === f.id
                         ? 'bg-white text-black border-white'
                         : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:border-zinc-600'
                     }`}
                   >
-                    {f}
+                    {f.label}
                   </button>
                 ))}
               </div>
@@ -1467,13 +1518,13 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                   type="text"
                   value={reviewSearchQuery}
                   onChange={e => setReviewSearchQuery(e.target.value)}
-                  placeholder="Search manga, reviewer, or review text..."
+                  placeholder="Search beta feedback, manga, user, or issue..."
                   className="w-full pl-8 pr-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white"
                 />
               </div>
             </div>
 
-            {/* Reviews list with Manga Series + Reviewer Account Context */}
+            {/* Reviews list with Manga Series / Beta Exclusive + Reviewer Account + Screenshots Context */}
             <div className="space-y-4">
               {filteredReviews.length === 0 ? (
                 <div className="p-10 text-center rounded-2xl border border-zinc-800 bg-zinc-900/30 text-xs text-zinc-400">
@@ -1481,52 +1532,80 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                 </div>
               ) : (
                 filteredReviews.map(review => {
+                  const isBeta = Boolean(review.isBetaReview || review.seriesId === 'beta_exclusive');
                   const targetSeries = seriesList.find(s => s.id === review.seriesId);
                   const reviewerAccount = usersList.find(
                     u => u.id === review.userId || u.name.toLowerCase() === review.userName.toLowerCase()
                   );
+                  const screenshotList = review.screenshots || [];
+
                   return (
                     <div
                       key={review.id}
                       className="p-5 rounded-2xl border border-zinc-800 bg-zinc-950 space-y-4"
                     >
-                      {/* Top Context Row: Manga Series Info + Reviewer Account Info */}
+                      {/* Top Context Row: Beta / Manga Series Info + Reviewer Account Info */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-3 border-b border-zinc-800/80">
-                        {/* Manga Series Context */}
-                        <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-zinc-900/60 border border-zinc-800">
-                          <div className="flex items-center gap-3 min-w-0">
-                            {targetSeries?.coverUrl ? (
-                              <img
-                                src={targetSeries.coverUrl}
-                                alt={review.seriesTitle}
-                                className="w-10 h-14 object-cover rounded-lg border border-zinc-700 shrink-0"
-                              />
-                            ) : (
-                              <div className="w-10 h-14 rounded-lg bg-zinc-800 flex items-center justify-center shrink-0">
-                                <BookOpen className="w-4 h-4 text-zinc-400" />
+                        {/* Left Box: Beta Exclusive Details OR Manga Series Context */}
+                        {isBeta ? (
+                          <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-zinc-900/60 border border-zinc-800">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-10 h-14 rounded-lg bg-white text-black border border-white flex flex-col items-center justify-center shrink-0 font-mono font-black text-[10px] leading-tight">
+                                <span>BETA</span>
+                                <span className="text-[9px]">REV</span>
                               </div>
-                            )}
-                            <div className="min-w-0">
-                              <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block">
-                                Reviewed Manga Series
-                              </span>
-                              <p className="text-xs font-black text-white truncate">
-                                {targetSeries?.title || review.seriesTitle}
-                              </p>
-                              <p className="text-[11px] font-mono text-zinc-400 truncate">
-                                By {targetSeries?.author || 'Mangaka'}
-                              </p>
+                              <div className="min-w-0">
+                                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-300 font-bold block">
+                                  MANGAWILD BETA EXCLUSIVE
+                                </span>
+                                <p className="text-xs font-black text-white truncate">
+                                  {review.betaCategoryLabel || review.reviewTitle}
+                                </p>
+                                <p className="text-[11px] font-mono text-zinc-400 truncate">
+                                  Screenshots Attached: {screenshotList.length}
+                                </p>
+                              </div>
                             </div>
+                            <span className="px-2.5 py-1 rounded-lg bg-white text-black text-[10px] font-mono font-black uppercase shrink-0">
+                              Beta Feedback
+                            </span>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => onNavigate('series', { id: review.seriesId })}
-                            className="px-2.5 py-1.5 rounded-lg border border-zinc-700 hover:border-white text-white text-[11px] font-mono font-bold flex items-center gap-1 shrink-0 cursor-pointer"
-                          >
-                            <span>View Manga</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </button>
-                        </div>
+                        ) : (
+                          <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-zinc-900/60 border border-zinc-800">
+                            <div className="flex items-center gap-3 min-w-0">
+                              {targetSeries?.coverUrl ? (
+                                <img
+                                  src={targetSeries.coverUrl}
+                                  alt={review.seriesTitle}
+                                  className="w-10 h-14 object-cover rounded-lg border border-zinc-700 shrink-0"
+                                />
+                              ) : (
+                                <div className="w-10 h-14 rounded-lg bg-zinc-800 flex items-center justify-center shrink-0">
+                                  <BookOpen className="w-4 h-4 text-zinc-400" />
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block">
+                                  Reviewed Manga Series
+                                </span>
+                                <p className="text-xs font-black text-white truncate">
+                                  {targetSeries?.title || review.seriesTitle}
+                                </p>
+                                <p className="text-[11px] font-mono text-zinc-400 truncate">
+                                  By {targetSeries?.author || 'Mangaka'}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => onNavigate('series', { id: review.seriesId })}
+                              className="px-2.5 py-1.5 rounded-lg border border-zinc-700 hover:border-white text-white text-[11px] font-mono font-bold flex items-center gap-1 shrink-0 cursor-pointer"
+                            >
+                              <span>View Manga</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
 
                         {/* Reviewer Account Context */}
                         <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-zinc-900/60 border border-zinc-800">
@@ -1538,7 +1617,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                             />
                             <div className="min-w-0">
                               <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block">
-                                Reviewer Account
+                                Submitted By Account
                               </span>
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <p className="text-xs font-black text-white truncate">
@@ -1549,7 +1628,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                                 </span>
                               </div>
                               <p className="text-[11px] font-mono text-zinc-400 truncate">
-                                {reviewerAccount?.email || `ID: ${review.userId}`} &bull; {(reviewerAccount?.role || 'reader').replace('_', ' ')}
+                                {reviewerAccount?.email || review.userEmail || `ID: ${review.userId}`} &bull;{' '}
+                                {(reviewerAccount?.role || review.userRole || 'reader').replace('_', ' ')}
                               </p>
                             </div>
                           </div>
@@ -1566,12 +1646,20 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                         </div>
                       </div>
 
-                      {/* Review Content & Moderation Controls */}
-                      <div className="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center">
-                        <div className="space-y-1.5 flex-1">
+                      {/* Review Content, Description, Screenshots & Moderation Controls */}
+                      <div className="flex flex-col md:flex-row justify-between gap-4 items-start">
+                        <div className="space-y-2.5 flex-1 min-w-0 w-full">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-mono px-2 py-0.5 rounded bg-white text-black font-black">
-                              ★ {review.rating}/5
+                            <span className="text-xs font-mono px-2.5 py-0.5 rounded bg-white text-black font-black">
+                              ★ {review.rating}/5 Stars
+                            </span>
+                            {isBeta && (
+                              <span className="text-[10px] font-mono px-2.5 py-0.5 rounded uppercase border border-white text-white font-black">
+                                Selected Topic: {review.betaCategoryLabel || review.reviewTitle}
+                              </span>
+                            )}
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded uppercase border border-zinc-700 text-zinc-200 font-bold">
+                              Screenshots: {screenshotList.length}
                             </span>
                             <span className="text-[10px] font-mono px-2 py-0.5 rounded uppercase border border-zinc-700 text-zinc-200 font-bold">
                               Status: {review.status}
@@ -1582,11 +1670,45 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                               </span>
                             )}
                             <span className="text-[11px] font-mono text-zinc-400">
-                              Posted {new Date(review.createdAt).toLocaleDateString()}
+                              Posted {new Date(review.createdAt).toLocaleString()}
                             </span>
                           </div>
-                          <p className="text-sm font-bold text-white">{review.reviewTitle}</p>
-                          <p className="text-xs text-zinc-300 leading-relaxed">{review.reviewText}</p>
+
+                          <p className="text-sm font-bold text-white">
+                            {review.betaCategoryLabel || review.reviewTitle}
+                          </p>
+                          <p className="text-xs text-zinc-200 leading-relaxed whitespace-pre-wrap">
+                            {review.reviewText}
+                          </p>
+
+                          {/* Attached Screenshots Preview Grid (if any) */}
+                          {screenshotList.length > 0 && (
+                            <div className="pt-2 space-y-2">
+                              <p className="text-[11px] font-mono uppercase tracking-wider font-bold text-zinc-300">
+                                Attached Screenshots ({screenshotList.length}):
+                              </p>
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-xl">
+                                {screenshotList.map((imgUrl, idx) => (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onClick={() => setPreviewScreenshotUrl(imgUrl)}
+                                    className="group relative aspect-[4/3] rounded-xl border border-zinc-700 hover:border-white overflow-hidden bg-zinc-900 cursor-pointer transition-all"
+                                    title={`Click to view Screenshot ${idx + 1} full screen`}
+                                  >
+                                    <img
+                                      src={imgUrl}
+                                      alt={`Review Screenshot ${idx + 1}`}
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                    />
+                                    <span className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded bg-black/85 border border-white/25 text-[10px] font-mono font-bold text-white">
+                                      Screenshot {idx + 1}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -1633,6 +1755,37 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                 })
               )}
             </div>
+
+            {/* Full-Screen Screenshot Preview Lightbox Modal in Admin */}
+            {previewScreenshotUrl && (
+              <div
+                className="fixed inset-0 z-[10000] flex items-center justify-center p-4 modal-backdrop-overlay bg-black/85 backdrop-blur-sm animate-fade-in"
+                onClick={() => setPreviewScreenshotUrl(null)}
+              >
+                <div
+                  className="relative max-w-4xl w-full max-h-[90vh] flex flex-col items-center justify-center p-4 rounded-2xl border border-white/25 bg-zinc-950 shadow-2xl"
+                  onClick={e => e.stopPropagation()}
+                >
+                  <div className="w-full flex items-center justify-between pb-3 mb-3 border-b border-zinc-800">
+                    <span className="text-xs font-mono uppercase font-black text-white">
+                      MANGAWILD BETA EXCLUSIVE — Screenshot Inspection
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewScreenshotUrl(null)}
+                      className="px-3 py-1 rounded-lg bg-white text-black text-xs font-bold cursor-pointer"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <img
+                    src={previewScreenshotUrl}
+                    alt="Full Screen Review Screenshot"
+                    className="max-h-[76vh] w-auto max-w-full object-contain rounded-xl border border-zinc-800"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 

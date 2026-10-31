@@ -1406,7 +1406,6 @@ export const ReaderPage: React.FC<ReaderPageProps> = ({
                     }}
                   >
                     <BlurUpMangaImage
-                      key={currentChapter.panels[activePanelIndex].id || activePanelIndex}
                       src={currentChapter.panels[activePanelIndex].imageUrl}
                       alt={`Panel ${activePanelIndex + 1}`}
                       loading="eager"

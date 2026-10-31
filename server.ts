@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
@@ -43,6 +44,86 @@ app.get('/devoc-mangawild-online-sitemap_e1f25dbc.xml', (_req, res) => {
 app.get('/robots.txt', (_req, res) => {
   res.type('text/plain');
   res.sendFile(path.resolve(__dirname, 'public', 'robots.txt'));
+});
+
+// Persistent server-side Review Store (syncs Beta Exclusive & Manga reviews across all devices for Admin Panel)
+const REVIEWS_FILE_PATH = path.resolve(__dirname, 'tmp', 'beta_reviews.json');
+
+function loadServerReviews(): any[] {
+  try {
+    if (fs.existsSync(REVIEWS_FILE_PATH)) {
+      const raw = fs.readFileSync(REVIEWS_FILE_PATH, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (err) {
+    console.warn('[Reviews Store] Could not read reviews file:', err);
+  }
+  return [];
+}
+
+function saveServerReviews(reviews: any[]): void {
+  try {
+    const dir = path.dirname(REVIEWS_FILE_PATH);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(REVIEWS_FILE_PATH, JSON.stringify(reviews, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('[Reviews Store] Could not write reviews file:', err);
+  }
+}
+
+let serverReviewsStore: any[] = loadServerReviews();
+
+app.get('/api/reviews', (_req, res) => {
+  res.json({ success: true, reviews: serverReviewsStore });
+});
+
+app.post('/api/reviews', (req, res) => {
+  try {
+    const review = req.body;
+    if (!review || !review.id) {
+      return res.status(400).json({ success: false, error: 'Invalid review payload' });
+    }
+    const existingIdx = serverReviewsStore.findIndex((r: any) => r.id === review.id);
+    if (existingIdx !== -1) {
+      serverReviewsStore[existingIdx] = { ...serverReviewsStore[existingIdx], ...review };
+    } else {
+      serverReviewsStore.unshift(review);
+    }
+    saveServerReviews(serverReviewsStore);
+    return res.json({ success: true, review });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.patch('/api/reviews/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body || {};
+    const idx = serverReviewsStore.findIndex((r: any) => r.id === id);
+    if (idx !== -1) {
+      serverReviewsStore[idx] = { ...serverReviewsStore[idx], ...updates };
+      saveServerReviews(serverReviewsStore);
+      return res.json({ success: true, review: serverReviewsStore[idx] });
+    }
+    return res.status(404).json({ success: false, error: 'Review not found' });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/reviews/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    serverReviewsStore = serverReviewsStore.filter((r: any) => r.id !== id);
+    saveServerReviews(serverReviewsStore);
+    return res.json({ success: true });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // Secure server-side OTP Store for password resets (15 min TTL)
