@@ -126,7 +126,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
       );
       if (myProfile) return myProfile;
     }
-    return creators[0];
+    return creators.find((c) => c.seriesCount > 0) || creators[0];
   }, [creatorId, authorName, creators, user]);
 
   const allSeries = useMemo(() => StorageService.getSeries(), [creators]);
@@ -275,11 +275,13 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
 
   const isFollowing = creator ? followedCreators.includes(creator.id) : false;
 
-  if (!creator) {
+  if (!creator || (!isOwner && creatorSeries.length === 0)) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
-        <h2 className="text-2xl font-bold">Creator Profile Not Found</h2>
-        <p className="text-xs opacity-70">The manga creator you are looking for is not registered or unavailable.</p>
+        <h2 className="text-2xl font-bold">Creator Profile Not Available</h2>
+        <p className="text-xs opacity-70">
+          Public creator profiles become visible automatically once the creator publishes at least one manga series.
+        </p>
         <button
           type="button"
           onClick={() => onNavigate('creators')}
@@ -287,7 +289,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
             isLight ? 'bg-black text-white border-black light-invert-pill' : 'bg-white text-black border-white'
           }`}
         >
-          View Creator Directory
+          View Published Creators
         </button>
       </div>
     );
@@ -631,24 +633,26 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
               </div>
             </div>
 
-            {/* Action Buttons: Tip Artist, Edit Profile, Follow */}
+            {/* Action Buttons: Tip Artist (ONLY if creator has published at least 1 manga), Edit Profile, Follow */}
             <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto justify-start sm:justify-end max-w-full box-border">
-              <button
-                type="button"
-                onClick={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  setTipAnchorY(rect.top + rect.height / 2);
-                  setIsTipModalOpen(true);
-                }}
-                className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer max-w-full box-border ${
-                  isLight
-                    ? 'bg-white text-black border-black hover:bg-black hover:text-white'
-                    : 'bg-zinc-900 hover:bg-zinc-800 text-white border-white/25'
-                }`}
-              >
-                <Coins className="w-4 h-4 shrink-0" />
-                <span>Tip Artist</span>
-              </button>
+              {creatorSeries.length > 0 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setTipAnchorY(rect.top + rect.height / 2);
+                    setIsTipModalOpen(true);
+                  }}
+                  className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer max-w-full box-border ${
+                    isLight
+                      ? 'bg-white text-black border-black hover:bg-black hover:text-white'
+                      : 'bg-zinc-900 hover:bg-zinc-800 text-white border-white/25'
+                  }`}
+                >
+                  <Coins className="w-4 h-4 shrink-0" />
+                  <span>Tip Artist</span>
+                </button>
+              )}
 
               {isOwner ? (
                 <>

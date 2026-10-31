@@ -39,7 +39,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
   defaultRole = 'reader',
-  defaultMode = 'signin',
+  defaultMode = 'signup',
   customTitle,
   customSubtitle,
   onSuccess,

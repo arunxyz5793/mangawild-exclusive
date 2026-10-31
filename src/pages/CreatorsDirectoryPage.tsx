@@ -13,8 +13,21 @@ export const CreatorsDirectoryPage: React.FC<CreatorsDirectoryPageProps> = ({
   onSelectSeries,
 }) => {
   const { followedCreators, toggleFollowCreator } = useAuth();
-  const creators = useMemo(() => StorageService.getCreators(), []);
   const allSeries = useMemo(() => StorageService.getSeries(), []);
+  const creators = useMemo(() => {
+    const allCreators = StorageService.getCreators();
+    // Strictly show ONLY creators who have uploaded at least 1 manga series
+    return allCreators.filter(creator => {
+      const penClean = creator.penName.trim().toLowerCase();
+      const count = allSeries.filter(
+        s =>
+          s.creatorId === creator.id ||
+          s.creatorId === creator.userId ||
+          s.author.trim().toLowerCase() === penClean
+      ).length;
+      return count > 0;
+    });
+  }, [allSeries]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-10 animate-fade-in">
@@ -45,7 +58,13 @@ export const CreatorsDirectoryPage: React.FC<CreatorsDirectoryPageProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {creators.map(creator => {
           const isFollowing = followedCreators.includes(creator.id);
-          const creatorSeries = allSeries.filter(s => s.creatorId === creator.id);
+          const penClean = creator.penName.trim().toLowerCase();
+          const creatorSeries = allSeries.filter(
+            s =>
+              s.creatorId === creator.id ||
+              s.creatorId === creator.userId ||
+              s.author.trim().toLowerCase() === penClean
+          );
 
           return (
             <div

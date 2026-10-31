@@ -32,7 +32,16 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
   }, [user.id]);
 
   const bookmarkedSeries = allSeries.filter(s => bookmarks.includes(s.id));
-  const followedCreatorsList = allCreators.filter(c => followedCreators.includes(c.id));
+  const followedCreatorsList = allCreators.filter(c => {
+    if (!followedCreators.includes(c.id)) return false;
+    const hasUploadedManga = allSeries.some(
+      s =>
+        s.creatorId === c.id ||
+        s.creatorId === c.userId ||
+        s.author.trim().toLowerCase() === c.penName.trim().toLowerCase()
+    );
+    return hasUploadedManga;
+  });
   const userReviews = StorageService.getReviews().filter(r => r.userId === user.id);
 
   return (
@@ -78,7 +87,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
               }`}
             >
               <Crown className="w-4 h-4" />
-              <span>{user.subscription?.planId === 'yearly' ? 'VIP Annual' : 'VIP Active'}</span>
+              <span>{user.subscription?.planId === 'yearly' ? 'Exclusive Annual' : 'Exclusive Active'}</span>
             </div>
           ) : (
             <button
@@ -86,7 +95,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
               className="w-full sm:w-auto px-4 py-2 rounded-xl bg-white text-black hover:bg-zinc-200 font-bold text-xs transition-all border border-white active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Get VIP Pass</span>
+              <span>Get Exclusive</span>
             </button>
           )}
         </div>

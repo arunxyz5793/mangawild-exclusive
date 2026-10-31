@@ -263,9 +263,9 @@ function AppContent() {
   const handleOpenVIPModal = (planId: 'monthly' | 'yearly' = 'yearly') => {
     if (!isAuthenticated) {
       openAuthModal({
-        title: 'Sign In to Purchase VIP',
-        subtitle: `Please sign in with your email and password to purchase the ${planId === 'yearly' ? 'Annual' : 'Monthly'} VIP membership.`,
-        defaultMode: 'signin',
+        title: 'Create Account or Sign In for Exclusive',
+        subtitle: `Create an account or sign in to purchase the ${planId === 'yearly' ? 'Annual' : 'Monthly'} Exclusive membership.`,
+        defaultMode: 'signup',
         onSuccess: () => {
           setSelectedPlanId(planId);
           setIsVIPModalOpen(true);
@@ -469,7 +469,7 @@ function AppContent() {
               isOpen={isAuthModalOpen}
               onClose={closeAuthModal}
               defaultRole={authModalOptions.defaultRole || 'reader'}
-              defaultMode={authModalOptions.defaultMode || 'signin'}
+              defaultMode={authModalOptions.defaultMode || 'signup'}
               customTitle={authModalOptions.title}
               customSubtitle={authModalOptions.subtitle}
               onSuccess={() => {
@@ -610,7 +610,7 @@ function AppContent() {
         isOpen={isAuthModalOpen}
         onClose={closeAuthModal}
         defaultRole={authModalOptions.defaultRole || 'reader'}
-        defaultMode={authModalOptions.defaultMode || 'signin'}
+        defaultMode={authModalOptions.defaultMode || 'signup'}
         customTitle={authModalOptions.title}
         customSubtitle={authModalOptions.subtitle}
         onSuccess={() => {

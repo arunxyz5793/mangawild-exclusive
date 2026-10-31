@@ -2326,8 +2326,8 @@ export const StorageService = {
       creatorId: seriesData.creatorId,
       genres: seriesData.genres && seriesData.genres.length > 0 ? seriesData.genres : ['Action'],
       status: 'ongoing',
-      moderationStatus: 'pending_review',
-      isApprovedByAdmin: false,
+      moderationStatus: 'approved',
+      isApprovedByAdmin: true,
       readingFormat: seriesData.readingFormat || 'webtoon_vertical',
       ageRating: seriesData.ageRating || '13+',
       totalViews: 0,
@@ -2342,12 +2342,58 @@ export const StorageService = {
     all.unshift(newSeries);
     this.saveSeries(all);
 
+    // Ensure creator profile exists and is automatically published with updated seriesCount
+    const creators = getStored<CreatorProfile[]>(STORAGE_KEYS.CREATORS, INITIAL_CREATORS);
+    const authorClean = (seriesData.author || '').trim().toLowerCase();
+    let creatorIdx = creators.findIndex(
+      c =>
+        c.id === seriesData.creatorId ||
+        c.userId === seriesData.creatorId ||
+        c.penName.trim().toLowerCase() === authorClean
+    );
+    if (creatorIdx === -1) {
+      const currentUser = this.getCurrentUser();
+      const newCreatorProfile: CreatorProfile = {
+        id: seriesData.creatorId.startsWith('creator_')
+          ? seriesData.creatorId
+          : `creator_${seriesData.creatorId}`,
+        userId: currentUser.id !== 'guest_reader' ? currentUser.id : seriesData.creatorId,
+        penName: seriesData.author,
+        handle: `@${(seriesData.author || 'creator').toLowerCase().replace(/[^a-z0-9_]/g, '_')}`,
+        bio: '',
+        avatarUrl: currentUser.avatarUrl || '/avatars/creator.svg',
+        followersCount: 0,
+        seriesCount: 1,
+        totalReads: 0,
+        monthlyEarningsInr: 0,
+        revenueSharePercent: 70,
+        upiId: '',
+        bankAccountHolder: seriesData.author,
+        verified: true,
+        joinedAt: new Date().toISOString().split('T')[0],
+      };
+      creators.push(newCreatorProfile);
+    } else {
+      const creator = creators[creatorIdx];
+      const count = all.filter(
+        s =>
+          s.creatorId === creator.id ||
+          s.creatorId === creator.userId ||
+          s.author.trim().toLowerCase() === creator.penName.trim().toLowerCase()
+      ).length;
+      creators[creatorIdx] = {
+        ...creator,
+        seriesCount: Math.max(1, count),
+      };
+    }
+    this.saveCreators(creators);
+
     // Notify Admins
     this.addNotification({
       id: `notif_${Date.now()}`,
       userId: 'user_admin_01',
-      title: 'New Series Submitted for Review',
-      message: `"${newSeries.title}" by ${newSeries.author} has been submitted for moderation.`,
+      title: 'New Series Published Live',
+      message: `"${newSeries.title}" by ${newSeries.author} has been published live on MangaWild.`,
       type: 'moderation',
       read: false,
       createdAt: new Date().toISOString(),
@@ -2505,7 +2551,21 @@ export const StorageService = {
 
   // Creators
   getCreators(): CreatorProfile[] {
-    return getStored<CreatorProfile[]>(STORAGE_KEYS.CREATORS, INITIAL_CREATORS);
+    const rawCreators = getStored<CreatorProfile[]>(STORAGE_KEYS.CREATORS, INITIAL_CREATORS);
+    const allSeries = this.getSeries();
+    return rawCreators.map(c => {
+      const penClean = (c.penName || '').trim().toLowerCase();
+      const matchingSeries = allSeries.filter(
+        s =>
+          s.creatorId === c.id ||
+          s.creatorId === c.userId ||
+          s.author.trim().toLowerCase() === penClean
+      );
+      return {
+        ...c,
+        seriesCount: matchingSeries.length,
+      };
+    });
   },
 
   saveCreators(creators: CreatorProfile[]): void {

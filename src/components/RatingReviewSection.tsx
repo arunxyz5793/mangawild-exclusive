@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Star,
   ShieldAlert,
@@ -16,6 +16,7 @@ import {
   User as UserIcon,
   Crown,
   Sparkles,
+  LogIn,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { StorageService } from '../services/storage';
@@ -35,17 +36,33 @@ const RATING_LABELS: Record<number, string> = {
 };
 
 export const RatingReviewSection: React.FC<RatingReviewSectionProps> = ({ seriesId, seriesTitle }) => {
-  const { user, isVIP, hasPerm } = useAuth();
+  const { user, isAuthenticated, isVIP, hasPerm, openAuthModal } = useAuth();
   const isAdmin = hasPerm('APPROVE_CONTENT') || user.role === 'admin';
 
   // State
   const [reviews, setReviews] = useState<SeriesReview[]>(() => StorageService.getReviews(seriesId));
   const [summary, setSummary] = useState(() => StorageService.getReviewSummary(seriesId));
 
-  // Active User's existing review
+  // Automatically remove any unauthenticated/guest test reviews so only logged-in user reviews remain
+  useEffect(() => {
+    const allSeriesReviews = StorageService.getReviews(seriesId);
+    const guestReviews = allSeriesReviews.filter(
+      r =>
+        r.userId === 'guest_reader' ||
+        r.userId === 'user_reader_01' ||
+        r.userName === 'Guest Reader'
+    );
+    if (guestReviews.length > 0) {
+      guestReviews.forEach(gr => StorageService.deleteReview(gr.id));
+      setReviews(StorageService.getReviews(seriesId));
+      setSummary(StorageService.getReviewSummary(seriesId));
+    }
+  }, [seriesId]);
+
+  // Active User's existing review (only when authenticated)
   const userExistingReview = useMemo(
-    () => reviews.find(r => r.userId === user.id),
-    [reviews, user.id]
+    () => (isAuthenticated ? reviews.find(r => r.userId === user.id) : undefined),
+    [reviews, user.id, isAuthenticated]
   );
 
   // Form State
@@ -99,6 +116,14 @@ export const RatingReviewSection: React.FC<RatingReviewSectionProps> = ({ series
 
   const handleSubmitReview = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAuthenticated) {
+      openAuthModal({
+        defaultMode: 'signup',
+        title: 'Create Account to Publish a Review',
+        subtitle: 'Please create an account or sign in to rate and review manga series on MangaWild.',
+      });
+      return;
+    }
     if (!reviewTitle.trim() || !reviewText.trim()) {
       setErrorMessage('Please provide both a headline and your review comments.');
       return;
@@ -136,14 +161,14 @@ export const RatingReviewSection: React.FC<RatingReviewSectionProps> = ({ series
   };
 
   const handleDeleteUserReview = (reviewId: string) => {
-    if (window.confirm('Are you sure you want to delete your review?')) {
-      StorageService.deleteReview(reviewId);
-      setReviewTitle('');
-      setReviewText('');
-      setSelectedRating(5);
-      setIsEditing(false);
-      refreshReviews();
-    }
+    StorageService.deleteReview(reviewId);
+    setReviewTitle('');
+    setReviewText('');
+    setSelectedRating(5);
+    setIsEditing(false);
+    setSubmitSuccessMsg('Your review has been deleted.');
+    refreshReviews();
+    setTimeout(() => setSubmitSuccessMsg(''), 3000);
   };
 
   const handleToggleLike = (reviewId: string) => {
@@ -192,10 +217,8 @@ export const RatingReviewSection: React.FC<RatingReviewSectionProps> = ({ series
   };
 
   const handleAdminDelete = (reviewId: string) => {
-    if (window.confirm('Admin action: Permanently remove this review?')) {
-      StorageService.deleteReview(reviewId);
-      refreshReviews();
-    }
+    StorageService.deleteReview(reviewId);
+    refreshReviews();
   };
 
   // Filtered & Sorted Reviews
@@ -339,77 +362,107 @@ export const RatingReviewSection: React.FC<RatingReviewSectionProps> = ({ series
           </div>
         </div>
 
-        {/* Right: Write or Edit Review Form (Linked to User Profile) */}
+        {/* Right: Write or Edit Review Form (Strictly requires logged-in account) */}
         <div className="lg:col-span-7 bg-zinc-900/60 border border-zinc-800 p-5 rounded-2xl shadow-xl">
-          {/* Linked User Profile Header */}
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-3 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                {user.avatarUrl ? (
-                  <img
-                    src={user.avatarUrl}
-                    alt={user.name}
-                    className="w-10 h-10 rounded-full object-cover border border-white/20"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300">
-                    <UserIcon className="w-5 h-5" />
+          {!isAuthenticated ? (
+            <div className="py-8 px-4 text-center space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center mx-auto text-white">
+                <MessageSquare className="w-5 h-5" />
+              </div>
+              <div className="space-y-1.5 max-w-md mx-auto">
+                <h4 className="text-base font-bold text-white">
+                  Sign Up or Log In to Write a Review
+                </h4>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Only logged-in MangaWild readers can rate and publish reviews on manga series. Create a free account or sign in to share your thoughts!
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  openAuthModal({
+                    defaultMode: 'signup',
+                    title: 'Create Account to Write a Review',
+                    subtitle: `Join MangaWild to rate and review ${seriesTitle}.`,
+                  })
+                }
+                className="px-5 py-2.5 bg-white hover:bg-zinc-200 text-black text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-md inline-flex items-center gap-2 cursor-pointer active:scale-95"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Create Account / Sign In</span>
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Linked User Profile Header */}
+              <div className="flex items-center justify-between border-b border-zinc-800 pb-3 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    {user.avatarUrl ? (
+                      <img
+                        src={user.avatarUrl}
+                        alt={user.name}
+                        className="w-10 h-10 rounded-full object-cover border border-white/20"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300">
+                        <UserIcon className="w-5 h-5" />
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-white">{user.name}</span>
+                      {user.role === 'subscriber' && (
+                        <span className="bg-amber-950/80 text-amber-300 border border-amber-800 text-[9px] font-bold px-1.5 py-0.2 rounded uppercase font-mono">
+                          SUBSCRIBER
+                        </span>
+                      )}
+                      {user.role === 'creator' && (
+                        <span className="bg-emerald-950/80 text-emerald-300 border border-emerald-800 text-[9px] font-bold px-1.5 py-0.2 rounded uppercase font-mono">
+                          CREATOR
+                        </span>
+                      )}
+                      {user.role === 'free_user' && (
+                        <span className="bg-zinc-800 text-zinc-400 border border-zinc-700 text-[9px] font-medium px-1.5 py-0.2 rounded uppercase font-mono">
+                          READER
+                        </span>
+                      )}
+                      {isAdmin && (
+                        <span className="bg-zinc-800 text-zinc-200 border border-zinc-700 text-[9px] font-bold px-1.5 py-0.2 rounded uppercase font-mono">
+                          ADMIN
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-stone-400 block">
+                      {userExistingReview && !isEditing
+                        ? 'You have already reviewed this manga'
+                        : 'Posting review linked to your MangaWild account'}
+                    </span>
+                  </div>
+                </div>
+
+                {userExistingReview && !isEditing && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleStartEdit}
+                      className="px-2.5 py-1 bg-white/10 hover:bg-white/15 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 border border-white/10 cursor-pointer"
+                    >
+                      <Edit3 className="w-3 h-3 text-amber-400" />
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteUserReview(userExistingReview.id)}
+                      className="px-2.5 py-1 bg-red-950/50 hover:bg-red-900/60 text-red-200 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 border border-red-500/30 cursor-pointer"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Delete</span>
+                    </button>
                   </div>
                 )}
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-white">{user.name}</span>
-                  {user.role === 'subscriber' && (
-                    <span className="bg-amber-950/80 text-amber-300 border border-amber-800 text-[9px] font-bold px-1.5 py-0.2 rounded uppercase font-mono">
-                      SUBSCRIBER
-                    </span>
-                  )}
-                  {user.role === 'creator' && (
-                    <span className="bg-emerald-950/80 text-emerald-300 border border-emerald-800 text-[9px] font-bold px-1.5 py-0.2 rounded uppercase font-mono">
-                      CREATOR
-                    </span>
-                  )}
-                  {user.role === 'free_user' && (
-                    <span className="bg-zinc-800 text-zinc-400 border border-zinc-700 text-[9px] font-medium px-1.5 py-0.2 rounded uppercase font-mono">
-                      READER
-                    </span>
-                  )}
-                  {isAdmin && (
-                    <span className="bg-zinc-800 text-zinc-200 border border-zinc-700 text-[9px] font-bold px-1.5 py-0.2 rounded uppercase font-mono">
-                      ADMIN
-                    </span>
-                  )}
-                </div>
-                <span className="text-[11px] text-stone-400 block">
-                  {userExistingReview && !isEditing
-                    ? 'You have already reviewed this manga'
-                    : 'Posting review linked to your MangaWild account'}
-                </span>
-              </div>
-            </div>
-
-            {userExistingReview && !isEditing && (
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleStartEdit}
-                  className="px-2.5 py-1 bg-white/10 hover:bg-white/15 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 border border-white/10"
-                >
-                  <Edit3 className="w-3 h-3 text-amber-400" />
-                  <span>Edit</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDeleteUserReview(userExistingReview.id)}
-                  className="px-2.5 py-1 bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 border border-white/10"
-                >
-                  <Trash2 className="w-3 h-3" />
-                  <span>Delete</span>
-                </button>
-              </div>
-            )}
-          </div>
 
           {/* If user already reviewed and is not in editing mode, show their existing review banner */}
           {userExistingReview && !isEditing ? (
@@ -556,6 +609,8 @@ export const RatingReviewSection: React.FC<RatingReviewSectionProps> = ({ series
                 </button>
               </div>
             </form>
+          )}
+            </>
           )}
         </div>
       </div>
@@ -845,8 +900,19 @@ export const RatingReviewSection: React.FC<RatingReviewSectionProps> = ({ series
                   </div>
 
                   {isAuthor && (
-                    <div className="text-[11px] text-zinc-500">
-                      Your submitted review
+                    <div className="flex items-center gap-3">
+                      <span className="text-[11px] text-zinc-500">
+                        Your submitted review
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteUserReview(review.id)}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-500/30 text-xs font-semibold transition-colors cursor-pointer"
+                        title="Delete your review"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Delete</span>
+                      </button>
                     </div>
                   )}
                 </div>

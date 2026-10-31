@@ -118,7 +118,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authDefaultRole, setAuthDefaultRole] = useState<'reader' | 'creator' | 'admin'>('reader');
-  const [authDefaultMode, setAuthDefaultMode] = useState<'signin' | 'signup'>('signin');
+  const [authDefaultMode, setAuthDefaultMode] = useState<'signin' | 'signup'>('signup');
 
   // Username inline edit state
   const [isEditingUsername, setIsEditingUsername] = useState(false);
@@ -161,7 +161,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const handleOpenAuth = (
     defaultRoleChoice: 'reader' | 'creator' | 'admin' = 'reader',
-    defaultModeChoice: 'signin' | 'signup' = 'signin'
+    defaultModeChoice: 'signin' | 'signup' = 'signup'
   ) => {
     setAuthDefaultRole(defaultRoleChoice);
     setAuthDefaultMode(defaultModeChoice);
@@ -338,11 +338,15 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
               )}
 
-              {/* Sign Out Button */}
+              {/* Sign Out Button (Hidden on tablet & mobile so it never overflows the header frame; located at the very end of the Menu drawer) */}
               {isAuthenticated && (
                 <button
                   onClick={signOut}
-                  className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-zinc-400 hover:text-white bg-transparent hover:bg-white/[0.06] border border-transparent hover:border-white/10 rounded-xl transition-all whitespace-nowrap cursor-pointer active:scale-95"
+                  className={`hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-xl transition-all whitespace-nowrap cursor-pointer active:scale-95 border ${
+                    theme === 'light'
+                      ? 'text-zinc-600 hover:text-black bg-transparent hover:bg-zinc-100 border-transparent hover:border-zinc-300'
+                      : 'text-zinc-400 hover:text-white bg-transparent hover:bg-white/[0.06] border-transparent hover:border-white/10'
+                  }`}
                   title="Sign Out"
                 >
                   <LogOut className="w-3.5 h-3.5" />
@@ -785,7 +789,11 @@ export const Header: React.FC<HeaderProps> = ({
                     onNavigate('news');
                     setIsMenuDrawerOpen(false);
                   }}
-                  className="w-full text-left px-3.5 py-2 rounded-xl text-xs text-zinc-400 hover:text-white hover:bg-zinc-900 flex items-center gap-3 transition-colors cursor-pointer"
+                  className={`w-full text-left px-3.5 py-2 rounded-xl text-xs flex items-center gap-3 transition-colors cursor-pointer ${
+                    theme === 'dark'
+                      ? 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                      : 'text-zinc-600 hover:text-black hover:bg-zinc-100'
+                  }`}
                 >
                   <Newspaper className="w-4 h-4" />
                   <span>News</span>
@@ -795,15 +803,25 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Drawer Footer with Sign Out when authenticated */}
             {isAuthenticated && (
-              <div className="p-4 border-t border-zinc-800/80 bg-zinc-900/30">
+              <div
+                className={`mt-auto sticky bottom-0 p-4 border-t backdrop-blur-md ${
+                  theme === 'dark'
+                    ? 'border-zinc-800/80 bg-[#0e0e12]/95'
+                    : 'border-zinc-200 bg-white/95'
+                }`}
+              >
                 <button
                   onClick={() => {
                     signOut();
                     setIsMenuDrawerOpen(false);
                   }}
-                  className="w-full py-2.5 px-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 text-zinc-300 hover:text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm active:scale-98"
+                  className={`w-full py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm active:scale-98 border ${
+                    theme === 'dark'
+                      ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-700/80 text-zinc-300 hover:text-white'
+                      : 'bg-zinc-100 hover:bg-zinc-200 border-zinc-300 text-zinc-800 hover:text-black'
+                  }`}
                 >
-                  <LogOut className="w-4 h-4" />
+                  <LogOut className="w-4 h-4 text-red-500" />
                   <span>Sign Out</span>
                 </button>
               </div>
