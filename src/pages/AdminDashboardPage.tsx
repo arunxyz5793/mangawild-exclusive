@@ -86,28 +86,72 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   const [rejectionFeedback, setRejectionFeedback] = useState('');
   const [showRejectPrompt, setShowRejectPrompt] = useState<'series' | 'chapter' | null>(null);
 
+  // 2-Step Confirmation Modal State (Double Consent for Admin Actions)
+  const [confirmModal, setConfirmModal] = useState<{
+    title: string;
+    message: string;
+    confirmLabel: string;
+    onConfirm: () => void;
+  } | null>(null);
+
+  const requestConfirm = (
+    title: string,
+    message: string,
+    confirmLabel: string,
+    onConfirm: () => void
+  ) => {
+    setConfirmModal({ title, message, confirmLabel, onConfirm });
+  };
+
+  // Creators & Users Search, Bulk Checkboxes, and Activity Inspection States
+  const [creatorSearchQuery, setCreatorSearchQuery] = useState('');
+  const [selectedCreatorIds, setSelectedCreatorIds] = useState<string[]>([]);
+  const [inspectingCreator, setInspectingCreator] = useState<CreatorProfile | null>(null);
+
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [inspectingUserAccount, setInspectingUserAccount] = useState<User | null>(null);
+
   // Admin Full Catalog & Chapter Studio States
   const [catalogSearchQuery, setCatalogSearchQuery] = useState('');
   const [isCreatingSeries, setIsCreatingSeries] = useState(false);
   const [editingSeries, setEditingSeries] = useState<MangaSeries | null>(null);
   const [seriesForm, setSeriesForm] = useState<{
     title: string;
+    titleJapanese: string;
     author: string;
+    artist: string;
     synopsis: string;
     genres: string;
+    tags: string;
+    releaseYear: number;
+    ageRating: 'All Ages' | '13+' | '16+' | '18+';
     status: 'ongoing' | 'completed' | 'hiatus';
     readingFormat: 'webtoon_vertical' | 'manga_horizontal';
     isExclusive: boolean;
+    rating: number;
+    totalViews: number;
+    likesCount: number;
+    rankNumber: string;
     coverUrl: string;
     moderationStatus: ModerationStatus;
   }>({
     title: '',
+    titleJapanese: '',
     author: '',
+    artist: '',
     synopsis: '',
     genres: 'Action, Fantasy',
+    tags: 'Original, Action',
+    releaseYear: new Date().getFullYear(),
+    ageRating: '13+',
     status: 'ongoing',
     readingFormat: 'webtoon_vertical',
     isExclusive: false,
+    rating: 4.8,
+    totalViews: 0,
+    likesCount: 0,
+    rankNumber: '',
     coverUrl: '',
     moderationStatus: 'approved',
   });
@@ -145,12 +189,21 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   const openCreateSeriesModal = () => {
     setSeriesForm({
       title: '',
+      titleJapanese: '',
       author: user?.name || 'Admin',
+      artist: user?.name || 'Admin',
       synopsis: '',
       genres: 'Action, Fantasy',
+      tags: 'Original, Featured',
+      releaseYear: new Date().getFullYear(),
+      ageRating: '13+',
       status: 'ongoing',
       readingFormat: 'webtoon_vertical',
       isExclusive: false,
+      rating: 4.9,
+      totalViews: 0,
+      likesCount: 0,
+      rankNumber: '',
       coverUrl: '',
       moderationStatus: 'approved',
     });
@@ -161,12 +214,21 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     setEditingSeries(s);
     setSeriesForm({
       title: s.title,
+      titleJapanese: s.titleJapanese || '',
       author: s.author,
+      artist: s.artist || s.author,
       synopsis: s.synopsis || '',
       genres: (s.genres || []).join(', '),
+      tags: (s.tags || []).join(', '),
+      releaseYear: s.releaseYear || new Date().getFullYear(),
+      ageRating: s.ageRating || '13+',
       status: s.status || 'ongoing',
       readingFormat: s.readingFormat || 'webtoon_vertical',
       isExclusive: Boolean(s.isExclusive),
+      rating: Number(s.rating ?? 4.8),
+      totalViews: Number(s.totalViews ?? 0),
+      likesCount: Number(s.likesCount ?? 0),
+      rankNumber: s.rankNumber ? String(s.rankNumber) : '',
       coverUrl: s.coverUrl || '',
       moderationStatus: s.moderationStatus || 'approved',
     });
@@ -194,17 +256,31 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
       .split(',')
       .map(g => g.trim())
       .filter(Boolean) as MangaGenre[];
+    const parsedTags = seriesForm.tags
+      .split(',')
+      .map(t => t.trim())
+      .filter(Boolean);
+    const parsedRank = seriesForm.rankNumber ? parseInt(seriesForm.rankNumber, 10) : undefined;
 
     if (editingSeries) {
       StorageService.updateSeries(editingSeries.id, {
         title: seriesForm.title.trim(),
+        titleJapanese: seriesForm.titleJapanese.trim(),
         author: seriesForm.author.trim() || editingSeries.author,
-        artist: seriesForm.author.trim() || editingSeries.artist,
+        artist: seriesForm.artist.trim() || seriesForm.author.trim() || editingSeries.artist,
         synopsis: seriesForm.synopsis.trim(),
         genres: parsedGenres.length > 0 ? parsedGenres : ['Action'],
+        tags: parsedTags,
+        releaseYear: Number(seriesForm.releaseYear) || editingSeries.releaseYear,
+        ageRating: seriesForm.ageRating,
         status: seriesForm.status,
         readingFormat: seriesForm.readingFormat,
         isExclusive: seriesForm.isExclusive,
+        rating: Number(seriesForm.rating) || 4.8,
+        totalViews: Math.max(0, Number(seriesForm.totalViews) || 0),
+        likesCount: Math.max(0, Number(seriesForm.likesCount) || 0),
+        isTrending: Boolean(parsedRank),
+        rankNumber: parsedRank,
         coverUrl: seriesForm.coverUrl || editingSeries.coverUrl,
         moderationStatus: seriesForm.moderationStatus,
         isApprovedByAdmin: seriesForm.moderationStatus === 'approved',
@@ -215,19 +291,29 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     } else if (isCreatingSeries) {
       const created = StorageService.createSeries({
         title: seriesForm.title.trim(),
+        titleJapanese: seriesForm.titleJapanese.trim(),
         author: seriesForm.author.trim() || 'MangaWild Official',
+        artist: seriesForm.artist.trim() || seriesForm.author.trim() || 'MangaWild Official',
         creatorId: user?.id || 'user_admin_01',
         synopsis: seriesForm.synopsis.trim(),
         genres: parsedGenres.length > 0 ? parsedGenres : ['Action'],
+        tags: parsedTags,
+        releaseYear: Number(seriesForm.releaseYear) || new Date().getFullYear(),
+        ageRating: seriesForm.ageRating,
         status: seriesForm.status,
         readingFormat: seriesForm.readingFormat,
         isExclusive: seriesForm.isExclusive,
         coverUrl: seriesForm.coverUrl || undefined,
       });
       StorageService.updateSeries(created.id, {
-        moderationStatus: 'approved',
-        isApprovedByAdmin: true,
+        moderationStatus: seriesForm.moderationStatus,
+        isApprovedByAdmin: seriesForm.moderationStatus === 'approved',
         status: seriesForm.status,
+        rating: Number(seriesForm.rating) || 4.9,
+        totalViews: Math.max(0, Number(seriesForm.totalViews) || 0),
+        likesCount: Math.max(0, Number(seriesForm.likesCount) || 0),
+        isTrending: Boolean(parsedRank),
+        rankNumber: parsedRank,
       });
       setIsCreatingSeries(false);
       refreshData();
@@ -236,18 +322,31 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   };
 
   const handleAdminDeleteSeries = (s: MangaSeries) => {
-    StorageService.deleteSeries(s.id);
-    // Also clean up chapters for this series
-    const seriesChapters = StorageService.getChapters(s.id);
-    seriesChapters.forEach(ch => StorageService.deleteChapter(ch.id));
-    refreshData();
-    showToast(`Deleted series "${s.title}"`);
+    requestConfirm(
+      `Delete Manga Series "${s.title}"?`,
+      `Are you sure you want to permanently delete "${s.title}" and all of its chapters from the MangaWild catalog? This action cannot be undone.`,
+      'Confirm Delete Series',
+      () => {
+        StorageService.deleteSeries(s.id);
+        const seriesChapters = StorageService.getChapters(s.id);
+        seriesChapters.forEach(ch => StorageService.deleteChapter(ch.id));
+        refreshData();
+        showToast(`Deleted series "${s.title}"`);
+      }
+    );
   };
 
   const handleToggleSeriesExclusive = (s: MangaSeries) => {
-    StorageService.updateSeries(s.id, { isExclusive: !s.isExclusive });
-    refreshData();
-    showToast(`"${s.title}" marked as ${!s.isExclusive ? 'Exclusive' : 'Free'}`);
+    requestConfirm(
+      `Change Access Tier for "${s.title}"?`,
+      `Switch "${s.title}" to ${!s.isExclusive ? 'Exclusive VIP' : 'Free Public'} access?`,
+      'Confirm Change',
+      () => {
+        StorageService.updateSeries(s.id, { isExclusive: !s.isExclusive });
+        refreshData();
+        showToast(`"${s.title}" marked as ${!s.isExclusive ? 'Exclusive' : 'Free'}`);
+      }
+    );
   };
 
   // Admin Chapter & Panel Management Handlers
@@ -392,124 +491,158 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
   };
 
   const handleDeleteAdminChapter = (ch: Chapter) => {
-    StorageService.deleteChapter(ch.id);
-    if (editingChapter?.id === ch.id) {
-      setEditingChapter(null);
-    }
-    refreshData();
-    showToast(`Deleted Chapter ${ch.chapterNumber}`);
+    requestConfirm(
+      `Delete Chapter ${ch.chapterNumber}?`,
+      `Are you sure you want to permanently delete Chapter ${ch.chapterNumber} ("${ch.title}") and all ${ch.panels?.length || 0} pages?`,
+      'Confirm Delete Chapter',
+      () => {
+        StorageService.deleteChapter(ch.id);
+        if (editingChapter?.id === ch.id) {
+          setEditingChapter(null);
+        }
+        refreshData();
+        showToast(`Deleted Chapter ${ch.chapterNumber}`);
+      }
+    );
   };
 
-  // Series Approval / Rejection Handlers
+  // Series Approval / Rejection Handlers (with 2-Step Confirmation)
   const handleApproveSeries = (seriesId: string) => {
     const s = seriesList.find(item => item.id === seriesId);
-    StorageService.updateSeries(seriesId, {
-      moderationStatus: 'approved',
-      isApprovedByAdmin: true,
-      reviewerNotes: 'Approved by MangaWild Chief Editorial Board. Live on platform.',
-    });
+    requestConfirm(
+      `Approve & Publish "${s?.title || 'Series'}"?`,
+      `Are you sure you want to approve "${s?.title}" by ${s?.author} and publish it live to the public MangaWild catalog? Its creator will also be automatically verified.`,
+      'Confirm Approve & Publish',
+      () => {
+        StorageService.updateSeries(seriesId, {
+          moderationStatus: 'approved',
+          isApprovedByAdmin: true,
+          reviewerNotes: 'Approved by MangaWild Chief Editorial Board. Live on platform.',
+        });
 
-    // Notify creator
-    if (s) {
-      StorageService.addNotification({
-        id: `notif_${Date.now()}`,
-        userId: s.creatorId,
-        title: 'Manga Series Approved!',
-        message: `Congratulations! Your manga series "${s.title}" has been approved and is now live for all readers on MangaWild!`,
-        type: 'moderation',
-        read: false,
-        createdAt: new Date().toISOString(),
-        link: `/series/${s.slug}`,
-      });
-    }
+        if (s) {
+          StorageService.addNotification({
+            id: `notif_${Date.now()}`,
+            userId: s.creatorId,
+            title: 'Manga Series Approved!',
+            message: `Congratulations! Your manga series "${s.title}" has been approved and is now live for all readers on MangaWild!`,
+            type: 'moderation',
+            read: false,
+            createdAt: new Date().toISOString(),
+            link: `/series/${s.slug}`,
+          });
+        }
 
-    refreshData();
-    setInspectingSeries(null);
-    showToast(`Series "${s?.title}" approved and published live to catalog!`);
+        refreshData();
+        setInspectingSeries(null);
+        showToast(`Series "${s?.title}" approved and published live to catalog!`);
+      }
+    );
   };
 
   const handleRejectSeries = (seriesId: string) => {
     const s = seriesList.find(item => item.id === seriesId);
-    StorageService.updateSeries(seriesId, {
-      moderationStatus: 'rejected',
-      reviewerNotes: rejectionFeedback.trim() || 'Submission requires revisions to meet quality guidelines.',
-    });
+    requestConfirm(
+      `Reject / Request Revision for "${s?.title || 'Series'}"?`,
+      `Are you sure you want to mark "${s?.title}" as needing revision?`,
+      'Confirm Rejection',
+      () => {
+        StorageService.updateSeries(seriesId, {
+          moderationStatus: 'rejected',
+          reviewerNotes: rejectionFeedback.trim() || 'Submission requires revisions to meet quality guidelines.',
+        });
 
-    if (s) {
-      StorageService.addNotification({
-        id: `notif_${Date.now()}`,
-        userId: s.creatorId,
-        title: 'Manga Needs Revision',
-        message: `Your series "${s.title}" needs revisions: ${rejectionFeedback.trim() || 'Please check editorial feedback.'}`,
-        type: 'moderation',
-        read: false,
-        createdAt: new Date().toISOString(),
-        link: '/creator',
-      });
-    }
+        if (s) {
+          StorageService.addNotification({
+            id: `notif_${Date.now()}`,
+            userId: s.creatorId,
+            title: 'Manga Needs Revision',
+            message: `Your series "${s.title}" needs revisions: ${rejectionFeedback.trim() || 'Please check editorial feedback.'}`,
+            type: 'moderation',
+            read: false,
+            createdAt: new Date().toISOString(),
+            link: '/creator',
+          });
+        }
 
-    refreshData();
-    setShowRejectPrompt(null);
-    setInspectingSeries(null);
-    setRejectionFeedback('');
-    showToast(`Series "${s?.title}" marked for revision.`);
+        refreshData();
+        setShowRejectPrompt(null);
+        setInspectingSeries(null);
+        setRejectionFeedback('');
+        showToast(`Series "${s?.title}" marked for revision.`);
+      }
+    );
   };
 
-  // Chapter Approval / Rejection Handlers
+  // Chapter Approval / Rejection Handlers (with 2-Step Confirmation)
   const handleApproveChapter = (chapterId: string) => {
     const ch = chaptersList.find(c => c.id === chapterId);
     const s = seriesList.find(item => item.id === ch?.seriesId);
 
-    StorageService.updateChapter(chapterId, {
-      moderationStatus: 'approved',
-      reviewerNotes: 'Approved by Editorial Board.',
-    });
+    requestConfirm(
+      `Approve Chapter ${ch?.chapterNumber || ''}?`,
+      `Are you sure you want to approve Chapter ${ch?.chapterNumber} ("${ch?.title}") of "${s?.title}" for public reading?`,
+      'Confirm Approve Chapter',
+      () => {
+        StorageService.updateChapter(chapterId, {
+          moderationStatus: 'approved',
+          reviewerNotes: 'Approved by Editorial Board.',
+        });
 
-    if (s) {
-      StorageService.addNotification({
-        id: `notif_${Date.now()}`,
-        userId: s.creatorId,
-        title: 'Chapter Approved!',
-        message: `Chapter ${ch?.chapterNumber} of "${s.title}" has been approved and is now readable by users!`,
-        type: 'chapter',
-        read: false,
-        createdAt: new Date().toISOString(),
-        link: `/series/${s.slug}`,
-      });
-    }
+        if (s) {
+          StorageService.addNotification({
+            id: `notif_${Date.now()}`,
+            userId: s.creatorId,
+            title: 'Chapter Approved!',
+            message: `Chapter ${ch?.chapterNumber} of "${s.title}" has been approved and is now readable by users!`,
+            type: 'chapter',
+            read: false,
+            createdAt: new Date().toISOString(),
+            link: `/series/${s.slug}`,
+          });
+        }
 
-    refreshData();
-    setInspectingChapter(null);
-    showToast(`Chapter ${ch?.chapterNumber} approved!`);
+        refreshData();
+        setInspectingChapter(null);
+        showToast(`Chapter ${ch?.chapterNumber} approved!`);
+      }
+    );
   };
 
   const handleRejectChapter = (chapterId: string) => {
     const ch = chaptersList.find(c => c.id === chapterId);
     const s = seriesList.find(item => item.id === ch?.seriesId);
 
-    StorageService.updateChapter(chapterId, {
-      moderationStatus: 'rejected',
-      reviewerNotes: rejectionFeedback.trim() || 'Panels require reformatting or correction.',
-    });
+    requestConfirm(
+      `Reject Chapter ${ch?.chapterNumber || ''}?`,
+      `Are you sure you want to reject Chapter ${ch?.chapterNumber} of "${s?.title}" and request revisions?`,
+      'Confirm Reject Chapter',
+      () => {
+        StorageService.updateChapter(chapterId, {
+          moderationStatus: 'rejected',
+          reviewerNotes: rejectionFeedback.trim() || 'Panels require reformatting or correction.',
+        });
 
-    if (s) {
-      StorageService.addNotification({
-        id: `notif_${Date.now()}`,
-        userId: s.creatorId,
-        title: 'Chapter Revision Required',
-        message: `Chapter ${ch?.chapterNumber} of "${s.title}" requires revisions: ${rejectionFeedback.trim() || 'Check panel order and resolution.'}`,
-        type: 'chapter',
-        read: false,
-        createdAt: new Date().toISOString(),
-        link: '/creator',
-      });
-    }
+        if (s) {
+          StorageService.addNotification({
+            id: `notif_${Date.now()}`,
+            userId: s.creatorId,
+            title: 'Chapter Revision Required',
+            message: `Chapter ${ch?.chapterNumber} of "${s.title}" requires revisions: ${rejectionFeedback.trim() || 'Check panel order and resolution.'}`,
+            type: 'chapter',
+            read: false,
+            createdAt: new Date().toISOString(),
+            link: '/creator',
+          });
+        }
 
-    refreshData();
-    setShowRejectPrompt(null);
-    setInspectingChapter(null);
-    setRejectionFeedback('');
-    showToast(`Chapter ${ch?.chapterNumber} marked for revision.`);
+        refreshData();
+        setShowRejectPrompt(null);
+        setInspectingChapter(null);
+        setRejectionFeedback('');
+        showToast(`Chapter ${ch?.chapterNumber} marked for revision.`);
+      }
+    );
   };
 
   // Toggle Trending Rank
@@ -522,29 +655,57 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     showToast(rank ? `Assigned Trending rank #${rank}` : 'Removed from Trending leaderboard');
   };
 
-  // Review Moderation Handlers
+  // Review Moderation Handlers (with 2-Step Confirmation)
   const handleToggleReviewFlag = (reviewId: string) => {
-    StorageService.toggleReviewFlagStatus(reviewId, user.name);
-    refreshData();
-    showToast('Review flag status toggled');
+    requestConfirm(
+      'Flag Review for Moderation?',
+      'Are you sure you want to toggle the flag status on this review?',
+      'Confirm Flag',
+      () => {
+        StorageService.toggleReviewFlagStatus(reviewId, user.name);
+        refreshData();
+        showToast('Review flag status toggled');
+      }
+    );
   };
 
   const handleDismissFlag = (reviewId: string) => {
-    StorageService.unflagReview(reviewId, user.name);
-    refreshData();
-    showToast('Flag dismissed and review approved');
+    requestConfirm(
+      'Dismiss Flag & Approve Review?',
+      'Are you sure you want to dismiss the flag and keep this review publicly visible?',
+      'Confirm Approve Review',
+      () => {
+        StorageService.unflagReview(reviewId, user.name);
+        refreshData();
+        showToast('Flag dismissed and review approved');
+      }
+    );
   };
 
   const handleConfirmFlagAndHide = (reviewId: string) => {
-    StorageService.updateReviewStatus(reviewId, 'hidden', 'Confirmed policy violation by Administrator', user.name);
-    refreshData();
-    showToast('Review marked as hidden from public view');
+    requestConfirm(
+      'Hide Review from Public View?',
+      'Are you sure you want to hide this review due to a policy violation?',
+      'Confirm Hide Review',
+      () => {
+        StorageService.updateReviewStatus(reviewId, 'hidden', 'Confirmed policy violation by Administrator', user.name);
+        refreshData();
+        showToast('Review marked as hidden from public view');
+      }
+    );
   };
 
   const handleDeleteReview = (reviewId: string) => {
-    StorageService.deleteReview(reviewId);
-    refreshData();
-    showToast('Review permanently removed');
+    requestConfirm(
+      'Permanently Delete Review?',
+      'Are you sure you want to permanently delete this review from the series? This action cannot be undone.',
+      'Confirm Delete Review',
+      () => {
+        StorageService.deleteReview(reviewId);
+        refreshData();
+        showToast('Review permanently removed');
+      }
+    );
   };
 
   const handleToggleFlagInspection = (reviewId: string) => {
@@ -554,14 +715,83 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
     }));
   };
 
-  // Toggle Creator Verified Status
-  const handleToggleCreatorVerified = (creatorId: string, current: boolean) => {
-    StorageService.updateCreatorProfile(creatorId, { verified: !current });
-    refreshData();
-    showToast(!current ? 'Creator verified successfully' : 'Verification badge removed');
+  // Toggle Creator Verified Status (with 2-Step Confirmation)
+  const handleToggleCreatorVerified = (creatorId: string, current: boolean, penName?: string) => {
+    requestConfirm(
+      !current ? `Verify Creator "${penName || creatorId}"?` : `Remove Verification from "${penName || creatorId}"?`,
+      !current
+        ? `Are you sure you want to grant the official Verified Mangaka badge to ${penName || 'this creator'}?`
+        : `Are you sure you want to remove the Verified badge from ${penName || 'this creator'}?`,
+      !current ? 'Confirm Verify' : 'Confirm Unverify',
+      () => {
+        StorageService.updateCreatorProfile(creatorId, { verified: !current });
+        refreshData();
+        showToast(!current ? 'Creator verified successfully' : 'Verification badge removed');
+      }
+    );
   };
 
-  // Change User Role
+  // Suspend / Unsuspend Account (User or Creator) with 2-Step Confirmation
+  const handleToggleAccountSuspension = (targetId: string, currentlySuspended: boolean, displayName: string) => {
+    if (targetId === 'user_admin_01') {
+      showToast('System Administrator account cannot be suspended');
+      return;
+    }
+    requestConfirm(
+      currentlySuspended ? `Unsuspend "${displayName}"?` : `Suspend Account "${displayName}"?`,
+      currentlySuspended
+        ? `Restore full account access for "${displayName}" so they can sign in and use their profile again?`
+        : `Suspending "${displayName}" will block them from signing into their account (they can still browse MangaWild as a guest) and notify them when they attempt to log in.`,
+      currentlySuspended ? 'Confirm Unsuspend' : 'Confirm Suspend Account',
+      () => {
+        StorageService.setAccountSuspended(
+          targetId,
+          !currentlySuspended,
+          !currentlySuspended
+            ? 'Your account was suspended by the MangaWild Editorial & Moderation Board due to a policy violation.'
+            : undefined
+        );
+        refreshData();
+        showToast(
+          currentlySuspended
+            ? `Account "${displayName}" has been unsuspended.`
+            : `Account "${displayName}" has been suspended.`
+        );
+      }
+    );
+  };
+
+  // Delete Creator or User Account (with 2-Step Confirmation)
+  const handleAdminDeleteAccount = (targetId: string, displayName: string, mode: 'creator_only' | 'both' = 'both') => {
+    if (targetId === 'user_admin_01') {
+      showToast('System Administrator account cannot be deleted');
+      return;
+    }
+    requestConfirm(
+      mode === 'creator_only'
+        ? `Delete Creator Profile "${displayName}"?`
+        : `Permanently Delete Account "${displayName}"?`,
+      mode === 'creator_only'
+        ? `Are you sure you want to delete the Creator profile and published works for "${displayName}" while keeping their Reader account?`
+        : `Are you sure you want to permanently delete "${displayName}" (including their Reader account, Creator profile, works, reviews, and comments)? This cannot be undone.`,
+      'Confirm Permanent Delete',
+      () => {
+        if (mode === 'creator_only') {
+          StorageService.deleteCreatorOnly(targetId);
+        } else {
+          StorageService.deleteUserAndCreatorAccount(targetId);
+        }
+        setInspectingCreator(null);
+        setInspectingUserAccount(null);
+        setSelectedCreatorIds(prev => prev.filter(id => id !== targetId));
+        setSelectedUserIds(prev => prev.filter(id => id !== targetId));
+        refreshData();
+        showToast(`Deleted "${displayName}"`);
+      }
+    );
+  };
+
+  // Change User Role (with 2-Step Confirmation)
   const handleChangeUserRole = (targetUserId: string, newRole: UserRole) => {
     if (targetUserId === 'user_admin_01' && newRole !== 'admin') {
       showToast('Primary system administrator role cannot be demoted');
@@ -571,9 +801,164 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
       showToast('Administrator privileges are strictly restricted to the official system admin');
       return;
     }
-    StorageService.updateUser(targetUserId, { role: newRole });
-    refreshData();
-    showToast(`User role updated to ${newRole}`);
+    const targetUser = usersList.find(u => u.id === targetUserId);
+    requestConfirm(
+      `Change Role for "${targetUser?.name || targetUserId}"?`,
+      `Are you sure you want to change ${targetUser?.name || 'this user'}'s role to "${newRole.replace('_', ' ')}"?`,
+      'Confirm Role Update',
+      () => {
+        StorageService.updateUser(targetUserId, { role: newRole });
+        refreshData();
+        showToast(`User role updated to ${newRole}`);
+      }
+    );
+  };
+
+  // Filtered Creators & Bulk Selection Helpers
+  const filteredCreators = useMemo(() => {
+    const q = creatorSearchQuery.trim().toLowerCase();
+    if (!q) return creatorsList;
+    return creatorsList.filter(c => {
+      const linkedUser = usersList.find(u => u.id === c.userId || u.creatorProfileId === c.id);
+      return (
+        c.penName.toLowerCase().includes(q) ||
+        c.handle.toLowerCase().includes(q) ||
+        c.id.toLowerCase().includes(q) ||
+        (linkedUser?.email || '').toLowerCase().includes(q) ||
+        (linkedUser?.username || '').toLowerCase().includes(q)
+      );
+    });
+  }, [creatorsList, usersList, creatorSearchQuery]);
+
+  const filteredUsers = useMemo(() => {
+    const q = userSearchQuery.trim().toLowerCase();
+    if (!q) return usersList;
+    return usersList.filter(
+      u =>
+        u.name.toLowerCase().includes(q) ||
+        (u.username || '').toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q) ||
+        u.role.toLowerCase().includes(q)
+    );
+  }, [usersList, userSearchQuery]);
+
+  const toggleSelectCreator = (id: string) => {
+    setSelectedCreatorIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
+  };
+
+  const toggleSelectAllCreators = () => {
+    if (selectedCreatorIds.length === filteredCreators.length && filteredCreators.length > 0) {
+      setSelectedCreatorIds([]);
+    } else {
+      setSelectedCreatorIds(filteredCreators.map(c => c.id));
+    }
+  };
+
+  const toggleSelectUser = (id: string) => {
+    if (id === 'user_admin_01') return;
+    setSelectedUserIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
+  };
+
+  const toggleSelectAllUsers = () => {
+    const selectable = filteredUsers.filter(u => u.id !== 'user_admin_01' && u.role !== 'admin');
+    if (selectedUserIds.length === selectable.length && selectable.length > 0) {
+      setSelectedUserIds([]);
+    } else {
+      setSelectedUserIds(selectable.map(u => u.id));
+    }
+  };
+
+  // Bulk Creator Actions
+  const handleBulkCreatorAction = (action: 'verify' | 'unverify' | 'suspend' | 'unsuspend' | 'delete') => {
+    if (selectedCreatorIds.length === 0) return;
+    const count = selectedCreatorIds.length;
+    const labels: Record<typeof action, { title: string; msg: string; btn: string }> = {
+      verify: {
+        title: `Verify ${count} Selected Creator(s)?`,
+        msg: `Grant the Verified Mangaka badge to all ${count} selected creators?`,
+        btn: `Verify ${count} Creators`,
+      },
+      unverify: {
+        title: `Unverify ${count} Selected Creator(s)?`,
+        msg: `Remove the Verified Mangaka badge from all ${count} selected creators?`,
+        btn: `Unverify ${count} Creators`,
+      },
+      suspend: {
+        title: `Suspend ${count} Selected Creator Account(s)?`,
+        msg: `Suspend all ${count} selected creator accounts so they cannot sign in?`,
+        btn: `Suspend ${count} Creators`,
+      },
+      unsuspend: {
+        title: `Unsuspend ${count} Selected Creator Account(s)?`,
+        msg: `Restore sign-in access for all ${count} selected creator accounts?`,
+        btn: `Unsuspend ${count} Creators`,
+      },
+      delete: {
+        title: `Permanently Delete ${count} Creator Account(s)?`,
+        msg: `Are you sure you want to permanently delete all ${count} selected creators and their uploaded manga series?`,
+        btn: `Delete ${count} Creators`,
+      },
+    };
+
+    requestConfirm(labels[action].title, labels[action].msg, labels[action].btn, () => {
+      selectedCreatorIds.forEach(cid => {
+        if (action === 'verify') StorageService.updateCreatorProfile(cid, { verified: true });
+        if (action === 'unverify') StorageService.updateCreatorProfile(cid, { verified: false });
+        if (action === 'suspend') StorageService.setAccountSuspended(cid, true);
+        if (action === 'unsuspend') StorageService.setAccountSuspended(cid, false);
+        if (action === 'delete') StorageService.deleteUserAndCreatorAccount(cid);
+      });
+      setSelectedCreatorIds([]);
+      refreshData();
+      showToast(`Completed "${action}" on ${count} creator(s)`);
+    });
+  };
+
+  // Bulk User Actions
+  const handleBulkUserAction = (action: 'suspend' | 'unsuspend' | 'delete' | 'make_free' | 'make_vip') => {
+    if (selectedUserIds.length === 0) return;
+    const count = selectedUserIds.length;
+    const labels: Record<typeof action, { title: string; msg: string; btn: string }> = {
+      suspend: {
+        title: `Suspend ${count} Selected User Account(s)?`,
+        msg: `Suspend all ${count} selected user accounts so they cannot sign in?`,
+        btn: `Suspend ${count} Users`,
+      },
+      unsuspend: {
+        title: `Unsuspend ${count} Selected User Account(s)?`,
+        msg: `Restore sign-in access for all ${count} selected user accounts?`,
+        btn: `Unsuspend ${count} Users`,
+      },
+      delete: {
+        title: `Permanently Delete ${count} User Account(s)?`,
+        msg: `Permanently delete all ${count} selected user accounts and their data? This cannot be undone.`,
+        btn: `Delete ${count} Users`,
+      },
+      make_free: {
+        title: `Set ${count} User(s) to Free Reader?`,
+        msg: `Update role to Free Reader for all ${count} selected users?`,
+        btn: `Update ${count} Users`,
+      },
+      make_vip: {
+        title: `Grant Exclusive Subscriber Role to ${count} User(s)?`,
+        msg: `Update role to Exclusive Subscriber for all ${count} selected users?`,
+        btn: `Grant Exclusive to ${count} Users`,
+      },
+    };
+
+    requestConfirm(labels[action].title, labels[action].msg, labels[action].btn, () => {
+      selectedUserIds.forEach(uid => {
+        if (uid === 'user_admin_01') return;
+        if (action === 'suspend') StorageService.setAccountSuspended(uid, true);
+        if (action === 'unsuspend') StorageService.setAccountSuspended(uid, false);
+        if (action === 'delete') StorageService.deleteUserAndCreatorAccount(uid);
+        if (action === 'make_free') StorageService.updateUser(uid, { role: 'free_user' });
+        if (action === 'make_vip') StorageService.updateUser(uid, { role: 'subscriber' });
+      });
+      setSelectedUserIds([]);
+      refreshData();
+      showToast(`Completed bulk action on ${count} user(s)`);
+    });
   };
 
   // Filtered reviews
@@ -1027,7 +1412,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
           </div>
         )}
 
-        {/* TAB 2: REVIEWS & FLAG MODERATION DESK */}
+        {/* TAB 2: REVIEWS & FLAG MODERATION DESK (WITH FULL MANGA & REVIEWER ACCOUNT DETAILS) */}
         {activeTab === 'reviews' && (
           <div className="space-y-6 animate-fade-in">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1058,50 +1443,195 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
               </div>
             </div>
 
-            {/* Reviews list */}
-            <div className="space-y-3">
-              {filteredReviews.map(review => (
-                <div
-                  key={review.id}
-                  className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 flex flex-col md:flex-row justify-between gap-4"
-                >
-                  <div className="space-y-1.5 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-white">{review.userName}</span>
-                      <span className="text-[10px] font-mono text-zinc-500">on {review.seriesTitle}</span>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-white font-bold">
-                        ★ {review.rating}/5
-                      </span>
-                    </div>
-                    <p className="text-xs font-semibold text-zinc-200">{review.reviewTitle}</p>
-                    <p className="text-xs text-zinc-400 leading-relaxed">{review.reviewText}</p>
-                  </div>
+            {/* Filter & Search Bar for Reviews */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                {(['all', 'flagged', 'approved', 'hidden'] as const).map(f => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setReviewFilter(f)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-mono uppercase font-bold border transition-all cursor-pointer ${
+                      reviewFilter === f
+                        ? 'bg-white text-black border-white'
+                        : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:border-zinc-600'
+                    }`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+              <div className="relative w-full sm:w-72">
+                <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={reviewSearchQuery}
+                  onChange={e => setReviewSearchQuery(e.target.value)}
+                  placeholder="Search manga, reviewer, or review text..."
+                  className="w-full pl-8 pr-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white"
+                />
+              </div>
+            </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    {review.isFlagged ? (
-                      <button
-                        onClick={() => handleDismissFlag(review.id)}
-                        className="px-3 py-1.5 rounded-xl bg-white text-zinc-950 font-bold text-xs cursor-pointer"
-                      >
-                        Dismiss Flag
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleToggleReviewFlag(review.id)}
-                        className="px-2.5 py-1 rounded-lg border border-zinc-700 text-zinc-400 hover:text-white text-xs"
-                      >
-                        Flag
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleDeleteReview(review.id)}
-                      className="p-2 rounded-xl text-red-400 hover:bg-zinc-800"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+            {/* Reviews list with Manga Series + Reviewer Account Context */}
+            <div className="space-y-4">
+              {filteredReviews.length === 0 ? (
+                <div className="p-10 text-center rounded-2xl border border-zinc-800 bg-zinc-900/30 text-xs text-zinc-400">
+                  No reviews match your filter.
                 </div>
-              ))}
+              ) : (
+                filteredReviews.map(review => {
+                  const targetSeries = seriesList.find(s => s.id === review.seriesId);
+                  const reviewerAccount = usersList.find(
+                    u => u.id === review.userId || u.name.toLowerCase() === review.userName.toLowerCase()
+                  );
+                  return (
+                    <div
+                      key={review.id}
+                      className="p-5 rounded-2xl border border-zinc-800 bg-zinc-950 space-y-4"
+                    >
+                      {/* Top Context Row: Manga Series Info + Reviewer Account Info */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-3 border-b border-zinc-800/80">
+                        {/* Manga Series Context */}
+                        <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-zinc-900/60 border border-zinc-800">
+                          <div className="flex items-center gap-3 min-w-0">
+                            {targetSeries?.coverUrl ? (
+                              <img
+                                src={targetSeries.coverUrl}
+                                alt={review.seriesTitle}
+                                className="w-10 h-14 object-cover rounded-lg border border-zinc-700 shrink-0"
+                              />
+                            ) : (
+                              <div className="w-10 h-14 rounded-lg bg-zinc-800 flex items-center justify-center shrink-0">
+                                <BookOpen className="w-4 h-4 text-zinc-400" />
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block">
+                                Reviewed Manga Series
+                              </span>
+                              <p className="text-xs font-black text-white truncate">
+                                {targetSeries?.title || review.seriesTitle}
+                              </p>
+                              <p className="text-[11px] font-mono text-zinc-400 truncate">
+                                By {targetSeries?.author || 'Mangaka'}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => onNavigate('series', { id: review.seriesId })}
+                            className="px-2.5 py-1.5 rounded-lg border border-zinc-700 hover:border-white text-white text-[11px] font-mono font-bold flex items-center gap-1 shrink-0 cursor-pointer"
+                          >
+                            <span>View Manga</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        {/* Reviewer Account Context */}
+                        <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-zinc-900/60 border border-zinc-800">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <img
+                              src={getAvatarUrl(reviewerAccount?.avatarUrl || review.userAvatar)}
+                              alt={review.userName}
+                              className="w-10 h-10 rounded-xl object-cover border border-zinc-700 shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 block">
+                                Reviewer Account
+                              </span>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="text-xs font-black text-white truncate">
+                                  {reviewerAccount?.name || review.userName}
+                                </p>
+                                <span className="text-[10px] font-mono text-zinc-300">
+                                  @{reviewerAccount?.username || review.userId}
+                                </span>
+                              </div>
+                              <p className="text-[11px] font-mono text-zinc-400 truncate">
+                                {reviewerAccount?.email || `ID: ${review.userId}`} &bull; {(reviewerAccount?.role || 'reader').replace('_', ' ')}
+                              </p>
+                            </div>
+                          </div>
+                          {reviewerAccount && (
+                            <button
+                              type="button"
+                              onClick={() => setInspectingUserAccount(reviewerAccount)}
+                              className="px-2.5 py-1.5 rounded-lg bg-white text-black hover:bg-zinc-200 text-[11px] font-mono font-bold flex items-center gap-1 shrink-0 cursor-pointer"
+                            >
+                              <Eye className="w-3 h-3" />
+                              <span>Inspect User</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Review Content & Moderation Controls */}
+                      <div className="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center">
+                        <div className="space-y-1.5 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-mono px-2 py-0.5 rounded bg-white text-black font-black">
+                              ★ {review.rating}/5
+                            </span>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded uppercase border border-zinc-700 text-zinc-200 font-bold">
+                              Status: {review.status}
+                            </span>
+                            {review.isFlagged && (
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded uppercase bg-white text-black font-black">
+                                Flagged ({review.flagCount || 1})
+                              </span>
+                            )}
+                            <span className="text-[11px] font-mono text-zinc-400">
+                              Posted {new Date(review.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <p className="text-sm font-bold text-white">{review.reviewTitle}</p>
+                          <p className="text-xs text-zinc-300 leading-relaxed">{review.reviewText}</p>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 shrink-0">
+                          {review.isFlagged || review.status !== 'approved' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleDismissFlag(review.id)}
+                              className="px-3.5 py-1.5 rounded-xl bg-white text-black hover:bg-zinc-200 font-bold text-xs cursor-pointer"
+                            >
+                              Approve &amp; Unflag
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleReviewFlag(review.id)}
+                              className="px-3 py-1.5 rounded-xl border border-zinc-700 text-zinc-200 hover:border-white text-xs font-semibold cursor-pointer"
+                            >
+                              Flag Review
+                            </button>
+                          )}
+
+                          {review.status !== 'hidden' && (
+                            <button
+                              type="button"
+                              onClick={() => handleConfirmFlagAndHide(review.id)}
+                              className="px-3 py-1.5 rounded-xl border border-zinc-700 text-zinc-300 hover:border-white text-xs font-semibold cursor-pointer"
+                            >
+                              Hide
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteReview(review.id)}
+                            className="px-3 py-1.5 rounded-xl border border-zinc-700 hover:border-white text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         )}
@@ -1112,10 +1642,10 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-bold uppercase tracking-wider font-mono">
-                  Full Manga Catalog, Chapters &amp; Leaderboard Control
+                  Full Manga Catalog, Chapters &amp; Leaderboard Control ({seriesList.length} Series)
                 </h2>
                 <p className="text-xs text-zinc-400">
-                  Admin full access: create, edit, or delete any manga series, cover artwork, chapters, and pages.
+                  Admin full access: inspect and edit every manga field (title, Japanese title, author, artist, genres, tags, rating, views, likes, format, age rating, cover, and chapters).
                 </p>
               </div>
               <div className="flex items-center gap-2.5">
@@ -1125,7 +1655,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                     type="text"
                     value={catalogSearchQuery}
                     onChange={e => setCatalogSearchQuery(e.target.value)}
-                    placeholder="Search title or author..."
+                    placeholder="Search title, author, genre..."
                     className="pl-8 pr-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white"
                   />
                 </div>
@@ -1139,57 +1669,94 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {seriesList
                 .filter(
                   s =>
                     !catalogSearchQuery.trim() ||
                     s.title.toLowerCase().includes(catalogSearchQuery.toLowerCase()) ||
-                    s.author.toLowerCase().includes(catalogSearchQuery.toLowerCase())
+                    s.author.toLowerCase().includes(catalogSearchQuery.toLowerCase()) ||
+                    (s.genres || []).some(g => g.toLowerCase().includes(catalogSearchQuery.toLowerCase()))
                 )
                 .map(s => {
                   const seriesChaptersCount = chaptersList.filter(c => c.seriesId === s.id).length;
                   return (
                     <div
                       key={s.id}
-                      className="p-4 rounded-2xl border border-zinc-800 bg-zinc-900/40 flex flex-col justify-between space-y-3"
+                      className="p-5 rounded-2xl border border-zinc-800 bg-zinc-950 flex flex-col justify-between space-y-4"
                     >
-                      <div className="flex gap-3">
+                      <div className="flex gap-4">
                         <img
                           src={s.coverUrl}
                           alt={s.title}
-                          className="w-16 h-24 object-cover rounded-xl border border-zinc-800 shrink-0"
+                          className="w-20 h-28 object-cover rounded-xl border border-zinc-700 shrink-0"
                         />
-                        <div className="min-w-0 flex-1 space-y-1">
+                        <div className="min-w-0 flex-1 space-y-1.5">
                           <div className="flex items-start justify-between gap-2">
-                            <p className="text-xs font-bold text-white truncate">{s.title}</p>
+                            <div className="min-w-0">
+                              <p className="text-sm font-black text-white truncate">{s.title}</p>
+                              {s.titleJapanese && (
+                                <p className="text-[10px] font-mono text-zinc-400 truncate">{s.titleJapanese}</p>
+                              )}
+                            </div>
                             {s.isExclusive && (
-                              <span className="text-[9px] font-mono uppercase font-black px-1.5 py-0.5 rounded bg-white text-black shrink-0">
+                              <span className="text-[9px] font-mono uppercase font-black px-2 py-0.5 rounded bg-white text-black shrink-0">
                                 Exclusive
                               </span>
                             )}
                           </div>
-                          <p className="text-[11px] text-zinc-400 truncate">By {s.author}</p>
-                          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                            <span className="text-[10px] font-mono px-2 py-0.5 rounded uppercase font-bold bg-zinc-800 text-zinc-300">
-                              {s.moderationStatus}
+
+                          <p className="text-xs text-zinc-300 font-mono truncate">
+                            Author: <strong>{s.author}</strong> &bull; Artist: <strong>{s.artist || s.author}</strong>
+                          </p>
+
+                          <p className="text-[11px] text-zinc-400 line-clamp-2 leading-relaxed">
+                            {s.synopsis}
+                          </p>
+
+                          <div className="flex flex-wrap items-center gap-1.5 pt-1 font-mono text-[10px]">
+                            <span className="px-2 py-0.5 rounded uppercase font-bold bg-zinc-900 border border-zinc-700 text-white">
+                              {s.status}
                             </span>
-                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">
+                            <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300">
                               {seriesChaptersCount} Ch
                             </span>
+                            <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300">
+                              ★ {Number(s.rating ?? 4.8).toFixed(1)}
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300">
+                              {(s.totalViews ?? 0).toLocaleString()} Views
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300">
+                              {(s.likesCount ?? 0).toLocaleString()} Likes
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300">
+                              {s.ageRating || '13+'} &bull; {s.releaseYear || 2025}
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap gap-1 pt-0.5">
+                            {(s.genres || []).map(g => (
+                              <span
+                                key={g}
+                                className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300"
+                              >
+                                {g}
+                              </span>
+                            ))}
                           </div>
                         </div>
                       </div>
 
                       <div className="flex items-center justify-between text-xs pt-2 border-t border-zinc-800/80">
-                        <span className="text-zinc-400 font-mono text-[11px]">Trending Rank:</span>
+                        <span className="text-zinc-400 font-mono text-[11px]">Access &amp; Trending Rank:</span>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleToggleSeriesExclusive(s)}
-                            className={`px-2 py-1 rounded-lg text-[10px] font-mono font-bold uppercase border cursor-pointer transition-colors ${
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold uppercase border cursor-pointer transition-colors ${
                               s.isExclusive
                                 ? 'bg-white text-black border-white'
-                                : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:text-white'
+                                : 'bg-zinc-900 text-zinc-300 border-zinc-700 hover:border-white'
                             }`}
                           >
                             {s.isExclusive ? 'Exclusive' : 'Free'}
@@ -1199,7 +1766,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                             onChange={e =>
                               handleSetTrendingRank(s.id, e.target.value ? parseInt(e.target.value) : undefined)
                             }
-                            className="px-2 py-1 rounded-lg bg-zinc-800 text-white font-mono text-xs"
+                            className="px-2 py-1 rounded-lg bg-zinc-900 border border-zinc-700 text-white font-mono text-xs"
                           >
                             <option value="">No Rank</option>
                             <option value="1">Rank #1</option>
@@ -1215,21 +1782,21 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                       <div className="grid grid-cols-3 gap-2 pt-2 border-t border-zinc-800/80">
                         <button
                           onClick={() => openEditSeriesModal(s)}
-                          className="px-2.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer"
+                          className="px-2.5 py-2 rounded-xl bg-zinc-900 border border-zinc-700 hover:border-white text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
-                          <span>Edit Info</span>
+                          <span>Edit All Details</span>
                         </button>
                         <button
                           onClick={() => openManageChaptersModal(s)}
-                          className="px-2.5 py-1.5 rounded-xl bg-white text-black hover:bg-zinc-200 text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer"
+                          className="px-2.5 py-2 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
                         >
                           <Layers className="w-3.5 h-3.5" />
-                          <span>Chapters</span>
+                          <span>Chapters ({seriesChaptersCount})</span>
                         </button>
                         <button
                           onClick={() => handleAdminDeleteSeries(s)}
-                          className="px-2.5 py-1.5 rounded-xl border border-zinc-800 hover:border-red-500/50 text-red-400 hover:bg-red-950/30 text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer"
+                          className="px-2.5 py-2 rounded-xl border border-zinc-800 hover:border-white text-zinc-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                           <span>Delete</span>
@@ -1242,91 +1809,442 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
           </div>
         )}
 
-        {/* TAB 4: CREATORS & PAYOUTS */}
+        {/* TAB 4: CREATORS & PAYOUTS (WITH SEARCH, BULK CHECKBOXES, CLICK-TO-PROFILE, ANALYTICS & SUSPENSION) */}
         {activeTab === 'creators' && (
-          <div className="space-y-4">
-            <h2 className="text-base font-bold uppercase tracking-wider font-mono">
-              Verified Creators & Royalty Distributions
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {creatorsList.map(creator => (
-                <div key={creator.id} className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/40 flex gap-4">
-                  <img src={getAvatarUrl(creator.avatarUrl)} alt={creator.penName} className="w-16 h-16 rounded-2xl object-cover bg-zinc-800" />
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-bold text-white">{creator.penName}</p>
-                      <button
-                        onClick={() => handleToggleCreatorVerified(creator.id, creator.verified)}
-                        className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold uppercase border ${
-                          creator.verified
-                            ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
-                            : 'bg-zinc-800 text-zinc-400 border-zinc-700'
-                        }`}
-                      >
-                        {creator.verified ? 'Verified ✓' : 'Unverified'}
-                      </button>
-                    </div>
-                    <p className="text-xs text-zinc-400 font-mono">{creator.handle}</p>
-                    <p className="text-xs text-zinc-300">
-                      Earnings: ₹{creator.monthlyEarningsInr.toLocaleString('en-IN')} (70% share)
-                    </p>
-                    <p className="text-[11px] text-zinc-500 font-mono">UPI: {creator.upiId || 'Not set'}</p>
-                  </div>
+          <div className="space-y-5 animate-fade-in">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-bold uppercase tracking-wider font-mono">
+                  Creators Directory, Verification &amp; Analytics ({filteredCreators.length})
+                </h2>
+                <p className="text-xs text-zinc-400">
+                  Creators are automatically verified when they publish a manga. Click any creator&apos;s name or avatar to visit their profile, or use checkboxes for bulk actions.
+                </p>
+              </div>
+
+              <div className="relative w-full sm:w-72">
+                <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={creatorSearchQuery}
+                  onChange={e => setCreatorSearchQuery(e.target.value)}
+                  placeholder="Search pen name, @handle, email..."
+                  className="w-full pl-8 pr-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white"
+                />
+              </div>
+            </div>
+
+            {/* Select All + Bulk Actions Toolbar */}
+            <div className="p-3.5 rounded-2xl border border-zinc-800 bg-zinc-950 flex flex-wrap items-center justify-between gap-3">
+              <label className="flex items-center gap-2.5 text-xs font-mono font-bold text-white cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={filteredCreators.length > 0 && selectedCreatorIds.length === filteredCreators.length}
+                  onChange={toggleSelectAllCreators}
+                  className="w-4 h-4 rounded accent-white cursor-pointer"
+                />
+                <span>
+                  Select All Creators ({selectedCreatorIds.length} / {filteredCreators.length} selected)
+                </span>
+              </label>
+
+              {selectedCreatorIds.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleBulkCreatorAction('verify')}
+                    className="px-3 py-1.5 rounded-xl bg-white text-black hover:bg-zinc-200 text-[11px] font-mono font-bold cursor-pointer"
+                  >
+                    Verify Selected
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleBulkCreatorAction('unverify')}
+                    className="px-3 py-1.5 rounded-xl border border-zinc-700 text-white hover:border-white text-[11px] font-mono font-bold cursor-pointer"
+                  >
+                    Unverify Selected
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleBulkCreatorAction('suspend')}
+                    className="px-3 py-1.5 rounded-xl border border-zinc-700 text-white hover:border-white text-[11px] font-mono font-bold cursor-pointer"
+                  >
+                    Suspend Selected
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleBulkCreatorAction('unsuspend')}
+                    className="px-3 py-1.5 rounded-xl border border-zinc-700 text-white hover:border-white text-[11px] font-mono font-bold cursor-pointer"
+                  >
+                    Unsuspend Selected
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleBulkCreatorAction('delete')}
+                    className="px-3 py-1.5 rounded-xl border border-white bg-black text-white hover:bg-white hover:text-black text-[11px] font-mono font-bold cursor-pointer"
+                  >
+                    Delete Selected
+                  </button>
                 </div>
-              ))}
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredCreators.map(creator => {
+                const isSelected = selectedCreatorIds.includes(creator.id);
+                const creatorWorks = seriesList.filter(
+                  s =>
+                    s.creatorId === creator.id ||
+                    s.creatorId === creator.userId ||
+                    s.author.trim().toLowerCase() === creator.penName.trim().toLowerCase()
+                );
+                const linkedUser = usersList.find(u => u.id === creator.userId || u.creatorProfileId === creator.id);
+                const isSuspended = Boolean(creator.isSuspended || linkedUser?.isSuspended);
+
+                return (
+                  <div
+                    key={creator.id}
+                    className={`p-5 rounded-2xl border transition-all flex flex-col justify-between gap-4 ${
+                      isSelected
+                        ? 'border-2 border-white bg-zinc-900/80'
+                        : 'border-zinc-800 bg-zinc-950'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3.5">
+                      {/* Left Checkbox */}
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelectCreator(creator.id)}
+                        className="w-4 h-4 mt-1.5 rounded accent-white cursor-pointer shrink-0"
+                        title="Select Creator"
+                      />
+
+                      {/* Clickable Avatar -> Redirects to Creator Profile */}
+                      <img
+                        src={getAvatarUrl(creator.avatarUrl)}
+                        alt={creator.penName}
+                        onClick={() => onNavigate('creator-profile', { id: creator.id, author: creator.penName })}
+                        className="w-16 h-16 rounded-2xl object-cover bg-zinc-900 border border-zinc-700 cursor-pointer hover:scale-105 transition-transform shrink-0"
+                        title={`Open ${creator.penName}'s Creator Profile`}
+                      />
+
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div
+                            onClick={() => onNavigate('creator-profile', { id: creator.id, author: creator.penName })}
+                            className="cursor-pointer group min-w-0"
+                            title={`Visit ${creator.penName}'s Profile`}
+                          >
+                            <p className="text-sm font-black text-white group-hover:underline truncate flex items-center gap-1.5">
+                              <span>{creator.penName}</span>
+                              <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100 shrink-0" />
+                            </p>
+                            <p className="text-xs text-zinc-400 font-mono truncate">{creator.handle}</p>
+                          </div>
+
+                          {/* Crisp Monochrome Verified Toggle Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleCreatorVerified(creator.id, creator.verified, creator.penName)}
+                            className={`text-[10px] font-mono px-2.5 py-1 rounded-full font-black uppercase border transition-all cursor-pointer shrink-0 ${
+                              creator.verified
+                                ? 'bg-white text-black border-white'
+                                : 'bg-black text-white border-white/30 hover:border-white'
+                            }`}
+                            title="Click to Verify or Unverify Creator"
+                          >
+                            {creator.verified ? 'Verified ✓' : 'Unverified'}
+                          </button>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-mono text-zinc-300">
+                          <span>Works: <strong>{creatorWorks.length}</strong></span>
+                          <span>&bull;</span>
+                          <span>Reads: <strong>{(creator.totalReads || 0).toLocaleString()}</strong></span>
+                          <span>&bull;</span>
+                          <span>Followers: <strong>{(creator.followersCount || 0).toLocaleString()}</strong></span>
+                          {isSuspended && (
+                            <span className="px-2 py-0.5 rounded bg-white text-black font-black uppercase text-[9px]">
+                              Suspended
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-xs text-zinc-300 font-mono">
+                          Earnings: <strong>₹{creator.monthlyEarningsInr.toLocaleString('en-IN')}</strong> (70% share) &bull; UPI: {creator.upiId || 'Not set'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Creator Card Bottom Action Bar */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-zinc-800/80">
+                      <button
+                        type="button"
+                        onClick={() => setInspectingCreator(creator)}
+                        className="px-3 py-1.5 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Analytics &amp; Activity</span>
+                      </button>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleAccountSuspension(creator.id, isSuspended, creator.penName)}
+                          className={`px-3 py-1.5 rounded-xl border text-xs font-mono font-bold cursor-pointer ${
+                            isSuspended
+                              ? 'bg-white text-black border-white'
+                              : 'border-zinc-700 text-zinc-200 hover:border-white'
+                          }`}
+                        >
+                          {isSuspended ? 'Unsuspend' : 'Suspend'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleAdminDeleteAccount(creator.id, creator.penName, 'both')}
+                          className="p-1.5 rounded-xl border border-zinc-800 hover:border-white text-zinc-300 hover:text-white cursor-pointer"
+                          title="Delete Creator Account"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* TAB 5: USER MANAGEMENT */}
+        {/* TAB 5: USER MANAGEMENT (CREATOR-STYLE CARDS WITH SEARCH, BULK CHECKBOXES, FULL ACTIVITY INSPECTION & SUSPENSION) */}
         {activeTab === 'users' && (
-          <div className="space-y-4">
-            <h2 className="text-base font-bold uppercase tracking-wider font-mono">
-              User Directory & Role Assignments
-            </h2>
-            <div className="rounded-2xl border border-zinc-800 overflow-hidden bg-zinc-900/40">
-              <table className="w-full text-left text-xs">
-                <thead className="border-b border-zinc-800 bg-zinc-950 text-zinc-400 font-mono uppercase">
-                  <tr>
-                    <th className="py-3 px-4">User</th>
-                    <th className="py-3 px-4">Username</th>
-                    <th className="py-3 px-4">Email</th>
-                    <th className="py-3 px-4">Role</th>
-                    <th className="py-3 px-4 text-right">Change Role</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-800/40">
-                  {usersList.map((u, idx) => (
-                    <tr key={`${u.id}_${idx}`} className="hover:bg-zinc-800/30">
-                      <td className="py-3 px-4 font-bold text-white">{u.name}</td>
-                      <td className="py-3 px-4 font-mono text-zinc-400">@{u.username || 'user'}</td>
-                      <td className="py-3 px-4 text-zinc-400">{u.email}</td>
-                      <td className="py-3 px-4">
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded uppercase font-bold bg-zinc-800 text-zinc-300">
-                          {u.role.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        {u.id === 'user_admin_01' || u.role === 'admin' ? (
-                          <span className="text-[11px] font-mono text-zinc-200 font-bold px-2.5 py-1 bg-zinc-800 border border-zinc-700 rounded-lg">
+          <div className="space-y-5 animate-fade-in">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-bold uppercase tracking-wider font-mono">
+                  User Directory, Activity Analytics &amp; Access Control ({filteredUsers.length})
+                </h2>
+                <p className="text-xs text-zinc-400">
+                  Inspect any user&apos;s reading history, bookmarks, reviews, and comments. Suspend or delete accounts individually or in bulk.
+                </p>
+              </div>
+
+              <div className="relative w-full sm:w-72">
+                <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={userSearchQuery}
+                  onChange={e => setUserSearchQuery(e.target.value)}
+                  placeholder="Search name, @username, email, role..."
+                  className="w-full pl-8 pr-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white"
+                />
+              </div>
+            </div>
+
+            {/* Select All + Bulk Actions Toolbar for Users */}
+            <div className="p-3.5 rounded-2xl border border-zinc-800 bg-zinc-950 flex flex-wrap items-center justify-between gap-3">
+              <label className="flex items-center gap-2.5 text-xs font-mono font-bold text-white cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={
+                    filteredUsers.filter(u => u.id !== 'user_admin_01' && u.role !== 'admin').length > 0 &&
+                    selectedUserIds.length ===
+                      filteredUsers.filter(u => u.id !== 'user_admin_01' && u.role !== 'admin').length
+                  }
+                  onChange={toggleSelectAllUsers}
+                  className="w-4 h-4 rounded accent-white cursor-pointer"
+                />
+                <span>
+                  Select All Users ({selectedUserIds.length} selected)
+                </span>
+              </label>
+
+              {selectedUserIds.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleBulkUserAction('make_vip')}
+                    className="px-3 py-1.5 rounded-xl bg-white text-black hover:bg-zinc-200 text-[11px] font-mono font-bold cursor-pointer"
+                  >
+                    Grant Exclusive
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleBulkUserAction('make_free')}
+                    className="px-3 py-1.5 rounded-xl border border-zinc-700 text-white hover:border-white text-[11px] font-mono font-bold cursor-pointer"
+                  >
+                    Set Free Reader
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleBulkUserAction('suspend')}
+                    className="px-3 py-1.5 rounded-xl border border-zinc-700 text-white hover:border-white text-[11px] font-mono font-bold cursor-pointer"
+                  >
+                    Suspend Selected
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleBulkUserAction('unsuspend')}
+                    className="px-3 py-1.5 rounded-xl border border-zinc-700 text-white hover:border-white text-[11px] font-mono font-bold cursor-pointer"
+                  >
+                    Unsuspend Selected
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleBulkUserAction('delete')}
+                    className="px-3 py-1.5 rounded-xl border border-white bg-black text-white hover:bg-white hover:text-black text-[11px] font-mono font-bold cursor-pointer"
+                  >
+                    Delete Selected
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Creator-Style Grid of User Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredUsers.map((u, idx) => {
+                const isSystemAdmin = u.id === 'user_admin_01' || u.role === 'admin';
+                const isSelected = selectedUserIds.includes(u.id);
+                const userHistory = StorageService.getReadingHistory(u.id);
+                const userBookmarks = StorageService.getBookmarks(u.id);
+                const userRevs = reviewsList.filter(r => r.userId === u.id);
+                const userComms = StorageService.getAllComments().filter(c => c.userId === u.id);
+                const linkedCreator = creatorsList.find(c => c.userId === u.id || c.id === u.creatorProfileId);
+                const isSuspended = Boolean(u.isSuspended || linkedCreator?.isSuspended);
+
+                return (
+                  <div
+                    key={`${u.id}_${idx}`}
+                    className={`p-5 rounded-2xl border transition-all flex flex-col justify-between gap-4 ${
+                      isSelected
+                        ? 'border-2 border-white bg-zinc-900/80'
+                        : 'border-zinc-800 bg-zinc-950'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3.5">
+                      <input
+                        type="checkbox"
+                        disabled={isSystemAdmin}
+                        checked={isSelected}
+                        onChange={() => toggleSelectUser(u.id)}
+                        className="w-4 h-4 mt-1.5 rounded accent-white cursor-pointer disabled:opacity-30 shrink-0"
+                      />
+
+                      <img
+                        src={getAvatarUrl(u.avatarUrl)}
+                        alt={u.name}
+                        onClick={() => setInspectingUserAccount(u)}
+                        className="w-14 h-14 rounded-2xl object-cover bg-zinc-900 border border-zinc-700 cursor-pointer hover:scale-105 transition-transform shrink-0"
+                        title="Inspect User Activity"
+                      />
+
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p
+                              onClick={() => setInspectingUserAccount(u)}
+                              className="text-sm font-black text-white hover:underline cursor-pointer truncate"
+                            >
+                              {u.name}
+                            </p>
+                            <p className="text-xs font-mono text-zinc-400 truncate">
+                              @{u.username || 'user'} &bull; {u.email}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {isSuspended && (
+                              <span className="px-2 py-0.5 rounded bg-white text-black font-mono font-black uppercase text-[9px]">
+                                Suspended
+                              </span>
+                            )}
+                            <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full uppercase font-bold bg-zinc-900 border border-zinc-700 text-white">
+                              {u.role.replace('_', ' ')}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Live Activity Counters */}
+                        <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-mono text-zinc-300">
+                          <span>Read: <strong>{userHistory.length}</strong></span>
+                          <span>&bull;</span>
+                          <span>Bookmarks: <strong>{userBookmarks.length}</strong></span>
+                          <span>&bull;</span>
+                          <span>Reviews: <strong>{userRevs.length}</strong></span>
+                          <span>&bull;</span>
+                          <span>Comments: <strong>{userComms.length}</strong></span>
+                        </div>
+
+                        {linkedCreator && (
+                          <button
+                            type="button"
+                            onClick={() => onNavigate('creator-profile', { id: linkedCreator.id, author: linkedCreator.penName })}
+                            className="text-[11px] font-mono text-white underline flex items-center gap-1 pt-0.5 cursor-pointer"
+                          >
+                            <span>Creator Profile: {linkedCreator.penName} ({linkedCreator.handle})</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* User Card Bottom Controls */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-zinc-800/80">
+                      <button
+                        type="button"
+                        onClick={() => setInspectingUserAccount(u)}
+                        className="px-3 py-1.5 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Inspect Activity</span>
+                      </button>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        {isSystemAdmin ? (
+                          <span className="text-[11px] font-mono text-zinc-300 font-bold px-2.5 py-1 bg-zinc-900 border border-zinc-700 rounded-lg">
                             System Admin (Fixed)
                           </span>
                         ) : (
-                          <select
-                            value={u.role}
-                            onChange={e => handleChangeUserRole(u.id, e.target.value as UserRole)}
-                            className="px-2 py-1 rounded-lg bg-zinc-800 text-white font-mono text-xs cursor-pointer hover:bg-zinc-700 transition-colors"
-                          >
-                            <option value="free_user">Free Reader</option>
-                            <option value="subscriber">Exclusive Subscriber</option>
-                            <option value="creator">Creator</option>
-                          </select>
+                          <>
+                            <select
+                              value={u.role}
+                              onChange={e => handleChangeUserRole(u.id, e.target.value as UserRole)}
+                              className="px-2.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700 text-white font-mono text-xs cursor-pointer"
+                            >
+                              <option value="free_user">Free Reader</option>
+                              <option value="subscriber">Exclusive Subscriber</option>
+                              <option value="creator">Creator</option>
+                            </select>
+
+                            <button
+                              type="button"
+                              onClick={() => handleToggleAccountSuspension(u.id, isSuspended, u.name)}
+                              className={`px-3 py-1.5 rounded-xl border text-xs font-mono font-bold cursor-pointer ${
+                                isSuspended
+                                  ? 'bg-white text-black border-white'
+                                  : 'border-zinc-700 text-zinc-200 hover:border-white'
+                              }`}
+                            >
+                              {isSuspended ? 'Unsuspend' : 'Suspend'}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleAdminDeleteAccount(u.id, u.name, 'both')}
+                              className="p-1.5 rounded-xl border border-zinc-800 hover:border-white text-zinc-300 hover:text-white cursor-pointer"
+                              title="Delete User Account"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
                         )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -1386,11 +2304,18 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    StorageService.resetAllViewsAndLikes();
-                    setSeriesList(StorageService.getSeries());
-                    setChaptersList(StorageService.getChapters());
-                    setCreatorsList(StorageService.getCreators());
-                    showToast('Success: All series views, chapter reads, likes, and payouts have been reset to 0!');
+                    requestConfirm(
+                      'Reset All Views, Reads & Likes to 0?',
+                      'Are you sure you want to reset all series views, chapter reads, likes, and creator monthly earnings to 0 across the entire platform?',
+                      'Confirm Reset to 0',
+                      () => {
+                        StorageService.resetAllViewsAndLikes();
+                        setSeriesList(StorageService.getSeries());
+                        setChaptersList(StorageService.getChapters());
+                        setCreatorsList(StorageService.getCreators());
+                        showToast('Success: All series views, chapter reads, likes, and payouts have been reset to 0!');
+                      }
+                    );
                   }}
                   className="px-5 py-2.5 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-xs flex items-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer shrink-0"
                 >
@@ -1718,22 +2643,22 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
           </div>
         )}
 
-        {/* ADMIN CREATE / EDIT SERIES MODAL */}
+        {/* ADMIN CREATE / EDIT SERIES MODAL (FULL MANGA METADATA CONTROL) */}
         {(isCreatingSeries || editingSeries) &&
           typeof document !== 'undefined' &&
           createPortal(
             <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
               <form
                 onSubmit={handleSaveAdminSeries}
-                className="w-full max-w-lg rounded-3xl border border-zinc-700 bg-[#0a0a0a] text-white p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+                className="w-full max-w-2xl rounded-3xl border border-zinc-700 bg-[#0a0a0a] text-white p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
               >
                 <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
                   <div>
                     <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold">
-                      Admin Editorial Override
+                      Admin Full Manga Studio
                     </span>
                     <h3 className="text-lg font-black text-white">
-                      {editingSeries ? `Edit Series: ${editingSeries.title}` : 'Create New Manga Series'}
+                      {editingSeries ? `Edit All Series Details: ${editingSeries.title}` : 'Create New Manga Series'}
                     </h3>
                   </div>
                   <button
@@ -1781,7 +2706,20 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">Author / Artist *</label>
+                    <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">Japanese / Alt Title</label>
+                    <input
+                      type="text"
+                      value={seriesForm.titleJapanese}
+                      onChange={e => setSeriesForm(prev => ({ ...prev, titleJapanese: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white focus:outline-none focus:border-white"
+                      placeholder="Optional Japanese title"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">Author / Story *</label>
                     <input
                       type="text"
                       required
@@ -1789,6 +2727,16 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                       onChange={e => setSeriesForm(prev => ({ ...prev, author: e.target.value }))}
                       className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white focus:outline-none focus:border-white"
                       placeholder="Creator pen name"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">Artist / Illustrator</label>
+                    <input
+                      type="text"
+                      value={seriesForm.artist}
+                      onChange={e => setSeriesForm(prev => ({ ...prev, artist: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white focus:outline-none focus:border-white"
+                      placeholder="Artist name"
                     />
                   </div>
                 </div>
@@ -1804,7 +2752,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">Genres (comma sep)</label>
                     <input
@@ -1812,9 +2760,22 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                       value={seriesForm.genres}
                       onChange={e => setSeriesForm(prev => ({ ...prev, genres: e.target.value }))}
                       className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white focus:outline-none focus:border-white"
-                      placeholder="Action, Horror"
+                      placeholder="Action, Horror, Dark Fantasy"
                     />
                   </div>
+                  <div>
+                    <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">Tags (comma sep)</label>
+                    <input
+                      type="text"
+                      value={seriesForm.tags}
+                      onChange={e => setSeriesForm(prev => ({ ...prev, tags: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white focus:outline-none focus:border-white"
+                      placeholder="Original, Supernatural"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div>
                     <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">Status</label>
                     <select
@@ -1833,6 +2794,84 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                     </select>
                   </div>
                   <div>
+                    <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">Reading Format</label>
+                    <select
+                      value={seriesForm.readingFormat}
+                      onChange={e =>
+                        setSeriesForm(prev => ({
+                          ...prev,
+                          readingFormat: e.target.value as 'webtoon_vertical' | 'manga_horizontal',
+                        }))
+                      }
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white"
+                    >
+                      <option value="webtoon_vertical">Vertical Webtoon</option>
+                      <option value="manga_horizontal">Horizontal Page Flip</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">Age Rating</label>
+                    <select
+                      value={seriesForm.ageRating}
+                      onChange={e =>
+                        setSeriesForm(prev => ({
+                          ...prev,
+                          ageRating: e.target.value as 'All Ages' | '13+' | '16+' | '18+',
+                        }))
+                      }
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white"
+                    >
+                      <option value="All Ages">All Ages</option>
+                      <option value="13+">13+</option>
+                      <option value="16+">16+</option>
+                      <option value="18+">18+</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">Release Year</label>
+                    <input
+                      type="number"
+                      value={seriesForm.releaseYear}
+                      onChange={e => setSeriesForm(prev => ({ ...prev, releaseYear: parseInt(e.target.value) || 2025 }))}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div>
+                    <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">Rating (1–5)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="1"
+                      max="5"
+                      value={seriesForm.rating}
+                      onChange={e => setSeriesForm(prev => ({ ...prev, rating: parseFloat(e.target.value) || 4.8 }))}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">Total Views</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={seriesForm.totalViews}
+                      onChange={e => setSeriesForm(prev => ({ ...prev, totalViews: parseInt(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">Total Likes</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={seriesForm.likesCount}
+                      onChange={e => setSeriesForm(prev => ({ ...prev, likesCount: parseInt(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white"
+                    />
+                  </div>
+                  <div>
                     <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">Access Tier</label>
                     <button
                       type="button"
@@ -1845,6 +2884,41 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                     >
                       {seriesForm.isExclusive ? 'Exclusive Series' : 'Free Series'}
                     </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">Moderation Status</label>
+                    <select
+                      value={seriesForm.moderationStatus}
+                      onChange={e =>
+                        setSeriesForm(prev => ({
+                          ...prev,
+                          moderationStatus: e.target.value as ModerationStatus,
+                        }))
+                      }
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white"
+                    >
+                      <option value="approved">Approved (Live)</option>
+                      <option value="pending_review">Pending Review</option>
+                      <option value="rejected">Rejected / Needs Revision</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-mono uppercase text-zinc-400 block mb-1">Trending Leaderboard Rank</label>
+                    <select
+                      value={seriesForm.rankNumber}
+                      onChange={e => setSeriesForm(prev => ({ ...prev, rankNumber: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white"
+                    >
+                      <option value="">Not Ranked</option>
+                      <option value="1">Rank #1</option>
+                      <option value="2">Rank #2</option>
+                      <option value="3">Rank #3</option>
+                      <option value="4">Rank #4</option>
+                      <option value="5">Rank #5</option>
+                    </select>
                   </div>
                 </div>
 
@@ -1863,7 +2937,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                     type="submit"
                     className="px-5 py-2 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs font-black cursor-pointer"
                   >
-                    {editingSeries ? 'Save Changes' : 'Publish Series'}
+                    {editingSeries ? 'Save All Changes' : 'Publish Series'}
                   </button>
                 </div>
               </form>
@@ -2102,6 +3176,514 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                     )}
                   </div>
                 )}
+              </div>
+            </div>,
+            document.body
+          )}
+
+        {/* CREATOR ANALYTICS & ACTIVITY INSPECTION MODAL */}
+        {inspectingCreator &&
+          typeof document !== 'undefined' &&
+          createPortal(
+            (() => {
+              const creatorWorks = seriesList.filter(
+                s =>
+                  s.creatorId === inspectingCreator.id ||
+                  s.creatorId === inspectingCreator.userId ||
+                  s.author.trim().toLowerCase() === inspectingCreator.penName.trim().toLowerCase()
+              );
+              const linkedUser = usersList.find(
+                u => u.id === inspectingCreator.userId || u.creatorProfileId === inspectingCreator.id
+              );
+              const creatorHistory = linkedUser ? StorageService.getReadingHistory(linkedUser.id) : [];
+              const creatorRevs = linkedUser ? reviewsList.filter(r => r.userId === linkedUser.id) : [];
+              const isSuspended = Boolean(inspectingCreator.isSuspended || linkedUser?.isSuspended);
+
+              return (
+                <div
+                  className="fixed inset-0 z-[9998] flex items-center justify-center p-4 bg-black/85 backdrop-blur-xs animate-fade-in"
+                  onClick={() => setInspectingCreator(null)}
+                >
+                  <div
+                    onClick={e => e.stopPropagation()}
+                    className="w-full max-w-3xl rounded-3xl border border-white/25 bg-black text-white p-6 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+                  >
+                    <div className="flex items-start justify-between gap-4 pb-4 border-b border-zinc-800">
+                      <div className="flex items-center gap-4">
+                        <img
+                          src={getAvatarUrl(inspectingCreator.avatarUrl)}
+                          alt={inspectingCreator.penName}
+                          className="w-16 h-16 rounded-2xl object-cover border border-white/30"
+                        />
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-xl font-black">{inspectingCreator.penName}</h3>
+                            <span className="text-xs font-mono text-zinc-400">{inspectingCreator.handle}</span>
+                            {inspectingCreator.verified && (
+                              <span className="px-2 py-0.5 rounded-full bg-white text-black text-[10px] font-mono font-black uppercase">
+                                Verified ✓
+                              </span>
+                            )}
+                            {isSuspended && (
+                              <span className="px-2 py-0.5 rounded-full bg-white text-black text-[10px] font-mono font-black uppercase">
+                                Suspended
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs font-mono text-zinc-400 mt-0.5">
+                            Email: {linkedUser?.email || 'N/A'} &bull; UPI: {inspectingCreator.upiId || 'Not set'}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setInspectingCreator(null)}
+                        className="p-1.5 rounded-xl border border-zinc-700 hover:border-white cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Creator KPIs */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
+                      <div className="p-3.5 rounded-2xl border border-zinc-800 bg-zinc-950">
+                        <span className="text-[10px] text-zinc-400 uppercase block">Published Works</span>
+                        <span className="text-lg font-black text-white">{creatorWorks.length}</span>
+                      </div>
+                      <div className="p-3.5 rounded-2xl border border-zinc-800 bg-zinc-950">
+                        <span className="text-[10px] text-zinc-400 uppercase block">Total Reads</span>
+                        <span className="text-lg font-black text-white">{(inspectingCreator.totalReads || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="p-3.5 rounded-2xl border border-zinc-800 bg-zinc-950">
+                        <span className="text-[10px] text-zinc-400 uppercase block">Followers</span>
+                        <span className="text-lg font-black text-white">{(inspectingCreator.followersCount || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="p-3.5 rounded-2xl border border-zinc-800 bg-zinc-950">
+                        <span className="text-[10px] text-zinc-400 uppercase block">70% Royalty Share</span>
+                        <span className="text-lg font-black text-white">₹{inspectingCreator.monthlyEarningsInr.toLocaleString('en-IN')}</span>
+                      </div>
+                    </div>
+
+                    {/* Uploaded Manga Series List */}
+                    <div className="space-y-2.5">
+                      <h4 className="text-xs font-mono uppercase tracking-wider text-zinc-400 font-bold">
+                        Uploaded Manga Series ({creatorWorks.length})
+                      </h4>
+                      {creatorWorks.length === 0 ? (
+                        <p className="text-xs text-zinc-500 p-4 rounded-xl border border-zinc-800">
+                          This creator has not uploaded any manga series yet.
+                        </p>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {creatorWorks.map(w => (
+                            <div
+                              key={w.id}
+                              className="p-3 rounded-xl border border-zinc-800 bg-zinc-950 flex items-center justify-between gap-3"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <img src={w.coverUrl} alt={w.title} className="w-10 h-14 object-cover rounded-lg border border-zinc-700" />
+                                <div className="min-w-0">
+                                  <p className="text-xs font-bold text-white truncate">{w.title}</p>
+                                  <p className="text-[10px] font-mono text-zinc-400">
+                                    {(w.totalViews ?? 0).toLocaleString()} Views &bull; {w.moderationStatus}
+                                  </p>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setInspectingCreator(null);
+                                  openEditSeriesModal(w);
+                                }}
+                                className="px-2.5 py-1 rounded-lg border border-zinc-700 hover:border-white text-[11px] font-mono font-bold cursor-pointer shrink-0"
+                              >
+                                Edit Manga
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Reading & Review Activity */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-zinc-800 text-xs">
+                      <div>
+                        <h5 className="font-mono uppercase text-[10px] text-zinc-400 font-bold mb-2">
+                          Recent Reading Activity ({creatorHistory.length})
+                        </h5>
+                        {creatorHistory.length === 0 ? (
+                          <p className="text-zinc-500 text-[11px]">No chapters read yet.</p>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {creatorHistory.slice(0, 4).map(h => (
+                              <div key={h.seriesId} className="p-2 rounded-lg bg-zinc-950 border border-zinc-800 font-mono text-[11px]">
+                                {h.seriesTitle || h.seriesId} — Ch. {h.chapterNumber} ({h.progressPercent || 100}%)
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <h5 className="font-mono uppercase text-[10px] text-zinc-400 font-bold mb-2">
+                          Reviews Posted ({creatorRevs.length})
+                        </h5>
+                        {creatorRevs.length === 0 ? (
+                          <p className="text-zinc-500 text-[11px]">No reviews posted.</p>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {creatorRevs.slice(0, 4).map(r => (
+                              <div key={r.id} className="p-2 rounded-lg bg-zinc-950 border border-zinc-800 text-[11px]">
+                                <strong>{r.seriesTitle}</strong>: ★{r.rating}/5 — &ldquo;{r.reviewTitle}&rdquo;
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Footer Actions */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-zinc-800">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const target = inspectingCreator;
+                          setInspectingCreator(null);
+                          onNavigate('creator-profile', { id: target.id, author: target.penName });
+                        }}
+                        className="px-4 py-2 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <span>Visit Public Creator Profile</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </button>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleToggleAccountSuspension(inspectingCreator.id, isSuspended, inspectingCreator.penName)
+                          }
+                          className="px-3.5 py-2 rounded-xl border border-zinc-700 hover:border-white text-xs font-mono font-bold cursor-pointer"
+                        >
+                          {isSuspended ? 'Unsuspend Account' : 'Suspend Account'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAdminDeleteAccount(inspectingCreator.id, inspectingCreator.penName, 'creator_only')}
+                          className="px-3.5 py-2 rounded-xl border border-zinc-700 hover:border-white text-xs font-mono font-bold cursor-pointer"
+                        >
+                          Delete Creator Profile Only
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAdminDeleteAccount(inspectingCreator.id, inspectingCreator.penName, 'both')}
+                          className="px-3.5 py-2 rounded-xl border border-white bg-black hover:bg-white hover:text-black text-xs font-mono font-bold cursor-pointer"
+                        >
+                          Delete Both Accounts
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })(),
+            document.body
+          )}
+
+        {/* USER PROFILE & FULL ACTIVITY ANALYTICS INSPECTION MODAL */}
+        {inspectingUserAccount &&
+          typeof document !== 'undefined' &&
+          createPortal(
+            (() => {
+              const u = inspectingUserAccount;
+              const userHistory = StorageService.getReadingHistory(u.id);
+              const userBookmarks = StorageService.getBookmarks(u.id);
+              const bookmarkedManga = seriesList.filter(s => userBookmarks.includes(s.id));
+              const userRevs = reviewsList.filter(r => r.userId === u.id);
+              const userComms = StorageService.getAllComments().filter(c => c.userId === u.id);
+              const linkedCreator = creatorsList.find(c => c.userId === u.id || c.id === u.creatorProfileId);
+              const isSuspended = Boolean(u.isSuspended || linkedCreator?.isSuspended);
+
+              return (
+                <div
+                  className="fixed inset-0 z-[9998] flex items-center justify-center p-4 bg-black/85 backdrop-blur-xs animate-fade-in"
+                  onClick={() => setInspectingUserAccount(null)}
+                >
+                  <div
+                    onClick={e => e.stopPropagation()}
+                    className="w-full max-w-3xl rounded-3xl border border-white/25 bg-black text-white p-6 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+                  >
+                    <div className="flex items-start justify-between gap-4 pb-4 border-b border-zinc-800">
+                      <div className="flex items-center gap-4">
+                        <img
+                          src={getAvatarUrl(u.avatarUrl)}
+                          alt={u.name}
+                          className="w-16 h-16 rounded-2xl object-cover border border-white/30"
+                        />
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-xl font-black">{u.name}</h3>
+                            <span className="text-xs font-mono text-zinc-400">@{u.username || 'user'}</span>
+                            <span className="px-2.5 py-0.5 rounded-full bg-zinc-900 border border-zinc-700 text-[10px] font-mono font-bold uppercase">
+                              {u.role.replace('_', ' ')}
+                            </span>
+                            {isSuspended && (
+                              <span className="px-2.5 py-0.5 rounded-full bg-white text-black text-[10px] font-mono font-black uppercase">
+                                Suspended
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs font-mono text-zinc-400 mt-0.5">
+                            Email: {u.email} &bull; User ID: {u.id}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setInspectingUserAccount(null)}
+                        className="p-1.5 rounded-xl border border-zinc-700 hover:border-white cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Activity Summary Counters */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
+                      <div className="p-3.5 rounded-2xl border border-zinc-800 bg-zinc-950">
+                        <span className="text-[10px] text-zinc-400 uppercase block">Manga Series Read</span>
+                        <span className="text-lg font-black text-white">{userHistory.length}</span>
+                      </div>
+                      <div className="p-3.5 rounded-2xl border border-zinc-800 bg-zinc-950">
+                        <span className="text-[10px] text-zinc-400 uppercase block">Saved Bookmarks</span>
+                        <span className="text-lg font-black text-white">{bookmarkedManga.length}</span>
+                      </div>
+                      <div className="p-3.5 rounded-2xl border border-zinc-800 bg-zinc-950">
+                        <span className="text-[10px] text-zinc-400 uppercase block">Reviews Posted</span>
+                        <span className="text-lg font-black text-white">{userRevs.length}</span>
+                      </div>
+                      <div className="p-3.5 rounded-2xl border border-zinc-800 bg-zinc-950">
+                        <span className="text-[10px] text-zinc-400 uppercase block">Comments Posted</span>
+                        <span className="text-lg font-black text-white">{userComms.length}</span>
+                      </div>
+                    </div>
+
+                    {/* Reading History Breakdown */}
+                    <div className="space-y-2">
+                      <h4 className="text-xs font-mono uppercase tracking-wider text-zinc-400 font-bold">
+                        Manga Reading History ({userHistory.length})
+                      </h4>
+                      {userHistory.length === 0 ? (
+                        <p className="text-xs text-zinc-500 p-3 rounded-xl border border-zinc-800">
+                          This user has not read any chapters yet.
+                        </p>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {userHistory.map(h => {
+                            const s = seriesList.find(item => item.id === h.seriesId);
+                            return (
+                              <div
+                                key={h.seriesId}
+                                className="p-3 rounded-xl border border-zinc-800 bg-zinc-950 flex items-center justify-between gap-2 text-xs"
+                              >
+                                <div className="min-w-0">
+                                  <p className="font-bold text-white truncate">{s?.title || h.seriesTitle || h.seriesId}</p>
+                                  <p className="text-[11px] font-mono text-zinc-400">
+                                    Chapter {h.chapterNumber} &bull; {h.progressPercent ?? 100}% Read
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setInspectingUserAccount(null);
+                                    onNavigate('series', { id: h.seriesId });
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg border border-zinc-700 hover:border-white text-[10px] font-mono font-bold cursor-pointer shrink-0"
+                                >
+                                  View Manga
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Reviews & Comments Breakdown */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-zinc-800">
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-mono uppercase tracking-wider text-zinc-400 font-bold">
+                          User Reviews ({userRevs.length})
+                        </h4>
+                        {userRevs.length === 0 ? (
+                          <p className="text-xs text-zinc-500">No reviews posted by this user.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {userRevs.map(r => (
+                              <div key={r.id} className="p-3 rounded-xl border border-zinc-800 bg-zinc-950 flex items-start justify-between gap-2 text-xs">
+                                <div className="min-w-0">
+                                  <p className="font-bold text-white truncate">
+                                    {r.seriesTitle} (★{r.rating}/5)
+                                  </p>
+                                  <p className="text-[11px] text-zinc-300 line-clamp-2">{r.reviewText}</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteReview(r.id)}
+                                  className="p-1.5 rounded-lg border border-zinc-800 hover:border-white text-zinc-300 hover:text-white cursor-pointer shrink-0"
+                                  title="Delete Review"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-mono uppercase tracking-wider text-zinc-400 font-bold">
+                          User Comments ({userComms.length})
+                        </h4>
+                        {userComms.length === 0 ? (
+                          <p className="text-xs text-zinc-500">No comments posted by this user.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {userComms.map(c => (
+                              <div key={c.id} className="p-3 rounded-xl border border-zinc-800 bg-zinc-950 flex items-start justify-between gap-2 text-xs">
+                                <div className="min-w-0">
+                                  <p className="text-[11px] text-zinc-300 line-clamp-2">{c.content}</p>
+                                  <p className="text-[10px] font-mono text-zinc-500 mt-0.5">
+                                    {new Date(c.createdAt).toLocaleDateString()}
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    requestConfirm(
+                                      'Delete User Comment?',
+                                      'Are you sure you want to permanently delete this comment?',
+                                      'Confirm Delete Comment',
+                                      () => {
+                                        StorageService.deleteComment(c.id, user.id, true);
+                                        refreshData();
+                                        showToast('Deleted user comment');
+                                      }
+                                    )
+                                  }
+                                  className="p-1.5 rounded-lg border border-zinc-800 hover:border-white text-zinc-300 hover:text-white cursor-pointer shrink-0"
+                                  title="Delete Comment"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Footer Controls */}
+                    {u.id !== 'user_admin_01' && u.role !== 'admin' && (
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-zinc-800">
+                        {linkedCreator ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setInspectingUserAccount(null);
+                              onNavigate('creator-profile', { id: linkedCreator.id, author: linkedCreator.penName });
+                            }}
+                            className="px-4 py-2 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <span>Open Creator Profile ({linkedCreator.penName})</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </button>
+                        ) : (
+                          <div />
+                        )}
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleAccountSuspension(u.id, isSuspended, u.name)}
+                            className="px-4 py-2 rounded-xl border border-zinc-700 hover:border-white text-xs font-mono font-bold cursor-pointer"
+                          >
+                            {isSuspended ? 'Unsuspend Account' : 'Suspend Account'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAdminDeleteAccount(u.id, u.name, 'both')}
+                            className="px-4 py-2 rounded-xl border border-white bg-black hover:bg-white hover:text-black text-xs font-mono font-bold cursor-pointer"
+                          >
+                            Permanently Delete Account
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })(),
+            document.body
+          )}
+
+        {/* UNIVERSAL 2-STEP ADMIN CONFIRMATION POPUP MODAL */}
+        {confirmModal &&
+          typeof document !== 'undefined' &&
+          createPortal(
+            <div
+              className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/85 backdrop-blur-xs animate-fade-in"
+              onClick={() => setConfirmModal(null)}
+            >
+              <div
+                onClick={e => e.stopPropagation()}
+                className="w-full max-w-md rounded-3xl border-2 border-white bg-black text-white p-6 space-y-5 shadow-2xl animate-scale-in"
+              >
+                <div className="flex items-start justify-between gap-3 pb-3 border-b border-white/20">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-white text-black flex items-center justify-center shrink-0">
+                      <AlertTriangle className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 font-bold block">
+                        Admin Confirmation Required
+                      </span>
+                      <h3 className="text-base font-black tracking-tight text-white">
+                        {confirmModal.title}
+                      </h3>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmModal(null)}
+                    className="p-1.5 rounded-xl border border-white/20 hover:border-white cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <p className="text-xs text-zinc-200 leading-relaxed">
+                  {confirmModal.message}
+                </p>
+
+                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-white/20">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmModal(null)}
+                    className="px-4 py-2 rounded-xl border border-white/30 hover:border-white text-white text-xs font-bold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const action = confirmModal.onConfirm;
+                      setConfirmModal(null);
+                      action();
+                    }}
+                    className="px-5 py-2 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs font-black uppercase tracking-wider cursor-pointer transition-transform active:scale-95"
+                  >
+                    {confirmModal.confirmLabel}
+                  </button>
+                </div>
               </div>
             </div>,
             document.body

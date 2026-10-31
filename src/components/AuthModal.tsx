@@ -587,11 +587,61 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
-          {errorMsg && (
-            <div className="p-3 rounded-xl bg-red-950/50 border border-red-800 text-red-200 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
-              <span>{errorMsg}</span>
+          {errorMsg && errorMsg.startsWith('ACCOUNT_SUSPENDED:') ? (
+            <div
+              className={`p-5 rounded-2xl border-2 space-y-3 animate-scale-in ${
+                theme === 'dark'
+                  ? 'bg-black border-white text-white shadow-2xl'
+                  : 'bg-white border-black text-black shadow-xl'
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${
+                    theme === 'dark' ? 'bg-white text-black border-white' : 'bg-black text-white border-black'
+                  }`}
+                >
+                  <AlertCircle className="w-5 h-5" />
+                </div>
+                <div className="space-y-1 flex-1">
+                  <span className="text-[10px] font-mono uppercase tracking-widest font-black block opacity-75">
+                    Account Access Restricted
+                  </span>
+                  <h4 className="text-base font-black tracking-tight">
+                    Your Account Has Been Suspended
+                  </h4>
+                  <p className="text-xs leading-relaxed opacity-90">
+                    {errorMsg.replace('ACCOUNT_SUSPENDED:', '')}
+                  </p>
+                  <p className="text-[11px] font-mono opacity-75 pt-1">
+                    You can continue browsing and reading free manga on MangaWild as a guest, or contact mangawildofficial@gmail.com for an appeal.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-current/15">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErrorMsg(null);
+                    onClose();
+                  }}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer transition-transform active:scale-95 ${
+                    theme === 'dark'
+                      ? 'bg-white text-black hover:bg-zinc-200'
+                      : 'bg-black text-white hover:bg-zinc-800'
+                  }`}
+                >
+                  Continue as Guest
+                </button>
+              </div>
             </div>
+          ) : (
+            errorMsg && (
+              <div className="p-3 rounded-xl bg-red-950/50 border border-red-800 text-red-200 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                <span>{errorMsg}</span>
+              </div>
+            )
           )}
 
           {/* Mode 1: Forgot Password (Request Firebase Reset Email) */}

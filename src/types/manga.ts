@@ -67,7 +67,7 @@ export interface MangaSeries {
   moderationStatus: ModerationStatus;
   isApprovedByAdmin?: boolean;
   readingFormat?: 'webtoon_vertical' | 'manga_horizontal';
-  ageRating?: 'All Ages' | '13+' | '18+';
+  ageRating?: 'All Ages' | '13+' | '16+' | '18+';
   reviewerNotes?: string;
   totalViews: number;
   totalReads: number;
@@ -109,6 +109,8 @@ export interface CreatorProfile {
   upiId?: string;
   bankAccountHolder?: string;
   verified: boolean;
+  isSuspended?: boolean;
+  suspensionReason?: string;
   joinedAt: string;
 }
 

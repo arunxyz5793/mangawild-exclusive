@@ -233,40 +233,17 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
           </div>
         )}
 
-        {/* Billing Cycle Switcher with Savings Badge */}
+        {/* Static Billing Tiers Display (Non-Interactive Informational Badge) */}
         <div className="pt-3 flex items-center justify-center">
-          <div className="inline-flex items-center p-1 rounded-xl bg-zinc-900 border border-zinc-800">
-            <button
-              type="button"
-              onClick={() => {
-                setBillingCycle('monthly');
-                setSelectedPlanId('monthly');
-              }}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                billingCycle === 'monthly'
-                  ? 'bg-white text-zinc-950 font-semibold shadow-xs'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              Monthly
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setBillingCycle('yearly');
-                setSelectedPlanId('yearly');
-              }}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
-                billingCycle === 'yearly'
-                  ? 'bg-white text-zinc-950 font-semibold shadow-xs'
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
+          <div className="inline-flex items-center gap-3 px-4 py-2 rounded-xl bg-zinc-950 border border-white/20 text-xs font-mono text-white">
+            <span className="font-bold">Monthly</span>
+            <span className="opacity-40">&amp;</span>
+            <span className="font-bold flex items-center gap-1.5">
               <span>Annual</span>
-              <span className="text-[10px] font-mono font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700 px-1.5 py-0.2 rounded">
+              <span className="text-[10px] font-mono font-black bg-white text-black px-1.5 py-0.5 rounded">
                 -37%
               </span>
-            </button>
+            </span>
           </div>
         </div>
       </div>
@@ -696,64 +673,107 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
                 </ul>
               </div>
 
-              {/* Promo / Coupon Code Section */}
-              <div className="space-y-2 p-3.5 rounded-2xl bg-zinc-800/40 border border-zinc-700/60">
-                <span className="text-[11px] font-mono text-zinc-400 flex items-center gap-1.5">
-                  <Tag className="w-3.5 h-3.5 text-zinc-300" />
-                  <span>Have a discount coupon? (Try: MANGAWILD20)</span>
-                </span>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={couponCode}
-                    onChange={e => setCouponCode(e.target.value)}
-                    placeholder="Enter promo coupon code..."
-                    className="flex-1 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-white placeholder-zinc-500 uppercase font-mono focus:outline-none focus:border-white"
-                  />
+              {/* Promo / Coupon Code & Payment Actions — ONLY shown when user has NOT purchased yet */}
+              {!isVIP ? (
+                <>
+                  <div className="space-y-2 p-3.5 rounded-2xl bg-zinc-950 border border-white/20">
+                    <span className="text-[11px] font-mono text-white flex items-center gap-1.5">
+                      <Tag className="w-3.5 h-3.5 text-white" />
+                      <span>Have a discount coupon? (Try: MANGAWILD20)</span>
+                    </span>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={couponCode}
+                        onChange={e => setCouponCode(e.target.value)}
+                        placeholder="Enter promo coupon code..."
+                        className="flex-1 px-3 py-1.5 rounded-xl bg-black border border-white/25 text-xs text-white placeholder-white/50 uppercase font-mono focus:outline-none focus:border-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleApplyCoupon}
+                        className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-bold transition-colors cursor-pointer"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                    {couponMessage && (
+                      <p className="text-[11px] font-mono text-white">
+                        {couponMessage.text}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDetailsModalPlan(null);
+                        onOpenVIPModal(detailsModalPlan.id);
+                      }}
+                      className="w-full py-3.5 px-4 bg-white hover:bg-zinc-200 text-black font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                    >
+                      <Zap className="w-4 h-4 text-black" />
+                      <span>
+                        {couponDiscount
+                          ? `Proceed with Discount (₹${Math.round(detailsModalPlan.priceInr * (1 - couponDiscount / 100))})`
+                          : `Proceed to Payment (₹${detailsModalPlan.priceInr})`}
+                      </span>
+                    </button>
+
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => handleStartFreeTrial(detailsModalPlan)}
+                        className="w-full py-2.5 px-3 bg-zinc-950 hover:bg-zinc-900 border border-white/25 rounded-xl text-xs font-bold text-white transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Calendar className="w-3.5 h-3.5 text-white" />
+                        <span>Start 7-Day Trial</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-3 pt-2">
+                  <div className="p-4 rounded-2xl bg-zinc-950 border border-white/25 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <Check className="w-4 h-4 text-white shrink-0" />
+                      <div>
+                        <p className="text-xs font-bold text-white">
+                          Exclusive Membership Active
+                        </p>
+                        <p className="text-[11px] font-mono text-white/75">
+                          {activePlanId === detailsModalPlan.id
+                            ? 'This is your current active subscription plan.'
+                            : 'Your account already has active Exclusive privileges.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {activePlanId === 'monthly' && detailsModalPlan.id === 'yearly' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDetailsModalPlan(null);
+                        onOpenVIPModal('yearly');
+                      }}
+                      className="w-full py-3 px-4 bg-white hover:bg-zinc-200 text-black font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Crown className="w-4 h-4 text-black" />
+                      <span>Upgrade to Annual Exclusive</span>
+                    </button>
+                  )}
+
                   <button
                     type="button"
-                    onClick={handleApplyCoupon}
-                    className="px-3.5 py-1.5 rounded-xl bg-zinc-700 hover:bg-zinc-600 text-white text-xs font-bold transition-colors cursor-pointer"
+                    onClick={() => setDetailsModalPlan(null)}
+                    className="w-full py-2.5 px-4 rounded-xl border border-white/25 text-white text-xs font-bold uppercase tracking-wider hover:bg-zinc-800 transition-colors cursor-pointer"
                   >
-                    Apply
+                    Close Details
                   </button>
                 </div>
-                {couponMessage && (
-                  <p className={`text-[11px] font-mono ${couponMessage.isError ? 'text-zinc-400' : 'text-white'}`}>
-                    {couponMessage.text}
-                  </p>
-                )}
-              </div>
-
-              {/* Action Buttons inside Details Modal */}
-              <div className="space-y-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDetailsModalPlan(null);
-                    onOpenVIPModal(detailsModalPlan.id);
-                  }}
-                  className="w-full py-3.5 px-4 bg-white hover:bg-zinc-200 text-zinc-950 font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
-                >
-                  <Zap className="w-4 h-4 text-zinc-950" />
-                  <span>
-                    {couponDiscount
-                      ? `Proceed with Discount (₹${Math.round(detailsModalPlan.priceInr * (1 - couponDiscount / 100))})`
-                      : `Proceed to Payment (₹${detailsModalPlan.priceInr})`}
-                  </span>
-                </button>
-
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => handleStartFreeTrial(detailsModalPlan)}
-                    className="w-full py-2.5 px-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl text-xs font-bold text-zinc-200 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <Calendar className="w-3.5 h-3.5 text-zinc-300" />
-                    <span>Start 7-Day Trial</span>
-                  </button>
-                </div>
-              </div>
+              )}
             </div>
           </div>,
           document.body

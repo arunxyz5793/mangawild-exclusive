@@ -46,6 +46,8 @@ interface AuthContextType {
   authModalOptions: OpenAuthModalOptions;
   openAuthModal: (options?: OpenAuthModalOptions) => void;
   closeAuthModal: () => void;
+  hasCreatorProfile: boolean;
+  deleteMyAccount: (mode: 'both' | 'creator_only') => void;
 }
 
 export interface OpenAuthModalOptions {
@@ -312,6 +314,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw new Error('No account found with this username or email. Please check your credentials or click Sign Up to create an account.');
     }
 
+    // Check if account or linked creator profile is suspended
+    const linkedCreator = StorageService.getCreators().find(
+      c => c.userId === found.id || (found.creatorProfileId && c.id === found.creatorProfileId)
+    );
+    if (found.isSuspended || linkedCreator?.isSuspended) {
+      const reason =
+        found.suspensionReason ||
+        linkedCreator?.suspensionReason ||
+        'Your account has been suspended by the MangaWild Administrator.';
+      throw new Error(`ACCOUNT_SUSPENDED:${reason}`);
+    }
+
     // Strict security: An account can ONLY have admin privileges if it is the verified official admin
     if (found.role === 'admin') {
       found.role = 'free_user';
@@ -515,6 +529,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
+      const linkedCreator = StorageService.getCreators().find(
+        c => c.userId === found!.id || (found!.creatorProfileId && c.id === found!.creatorProfileId)
+      );
+      if (found.isSuspended || linkedCreator?.isSuspended) {
+        const reason =
+          found.suspensionReason ||
+          linkedCreator?.suspensionReason ||
+          'Your account has been suspended by the MangaWild Administrator.';
+        throw new Error(`ACCOUNT_SUSPENDED:${reason}`);
+      }
+
       setUser(found);
       StorageService.setCurrentUser(found);
       setIsAuthenticated(true);
@@ -556,6 +581,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       allUsers.push(found);
       StorageService.saveUsers(allUsers);
+    }
+
+    const linkedCreator = StorageService.getCreators().find(
+      c => c.userId === found!.id || (found!.creatorProfileId && c.id === found!.creatorProfileId)
+    );
+    if (found.isSuspended || linkedCreator?.isSuspended) {
+      const reason =
+        found.suspensionReason ||
+        linkedCreator?.suspensionReason ||
+        'Your account has been suspended by the MangaWild Administrator.';
+      throw new Error(`ACCOUNT_SUSPENDED:${reason}`);
     }
 
     setUser(found);
@@ -691,6 +727,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user.role === 'admin'
   );
 
+  const hasCreatorProfile = Boolean(
+    isAuthenticated &&
+      user.id !== 'guest_reader' &&
+      (user.creatorProfileId ||
+        user.role === 'creator' ||
+        StorageService.getCreators().some(c => c.userId === user.id || c.id === user.creatorProfileId))
+  );
+
+  const deleteMyAccount = (mode: 'both' | 'creator_only') => {
+    if (!isAuthenticated || user.id === 'guest_reader' || user.id === OFFICIAL_ADMIN.id) return;
+    if (mode === 'creator_only') {
+      StorageService.deleteCreatorOnly(user.id);
+      const updated = StorageService.getCurrentUser();
+      setUser(updated);
+      setUsers(StorageService.getUsers());
+    } else {
+      StorageService.deleteUserAndCreatorAccount(user.id);
+      signOut();
+      setUsers(StorageService.getUsers());
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -728,6 +786,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         authModalOptions,
         openAuthModal,
         closeAuthModal,
+        hasCreatorProfile,
+        deleteMyAccount,
       }}
     >
       {children}

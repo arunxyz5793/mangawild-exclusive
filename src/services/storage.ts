@@ -2394,6 +2394,7 @@ export const StorageService = {
       creators[creatorIdx] = {
         ...creator,
         seriesCount: Math.max(1, count),
+        verified: true,
       };
     }
     this.saveCreators(creators);
@@ -2419,17 +2420,36 @@ export const StorageService = {
     if (idx === -1) return undefined;
     const existing = all[idx];
     const isAlreadyApproved = existing.isApprovedByAdmin || existing.moderationStatus === 'approved';
-    
+    const nextModerationStatus = isAlreadyApproved ? 'approved' : (updates.moderationStatus || existing.moderationStatus);
+    const nextIsApproved = isAlreadyApproved || updates.isApprovedByAdmin || nextModerationStatus === 'approved';
+
     // Once approved by admin, creator can edit title, hero cover, synopsis, genre, panels directly without re-approval!
     all[idx] = {
       ...existing,
       ...updates,
-      // preserve approval status if already approved
-      moderationStatus: isAlreadyApproved ? 'approved' : (updates.moderationStatus || existing.moderationStatus),
-      isApprovedByAdmin: isAlreadyApproved || updates.isApprovedByAdmin || false,
+      moderationStatus: nextModerationStatus,
+      isApprovedByAdmin: nextIsApproved,
       updatedAt: new Date().toISOString()
     };
     this.saveSeries(all);
+
+    // Auto-verify creator when their series is approved & published
+    if (nextIsApproved) {
+      const targetSeries = all[idx];
+      const creators = getStored<CreatorProfile[]>(STORAGE_KEYS.CREATORS, INITIAL_CREATORS);
+      const authorClean = (targetSeries.author || '').trim().toLowerCase();
+      const cIdx = creators.findIndex(
+        c =>
+          c.id === targetSeries.creatorId ||
+          c.userId === targetSeries.creatorId ||
+          c.penName.trim().toLowerCase() === authorClean
+      );
+      if (cIdx >= 0 && !creators[cIdx].verified) {
+        creators[cIdx] = { ...creators[cIdx], verified: true };
+        this.saveCreators(creators);
+      }
+    }
+
     return all[idx];
   },
 
@@ -2597,6 +2617,194 @@ export const StorageService = {
 
   updateCreatorProfile(id: string, updates: Partial<CreatorProfile>): CreatorProfile | undefined {
     return this.updateCreator(id, updates);
+  },
+
+  // Account Suspension & Deletion (Single or Bulk)
+  setAccountSuspended(
+    targetId: string,
+    isSuspended: boolean,
+    reason: string = 'Suspended by MangaWild Administrator for policy violation.'
+  ): void {
+    if (targetId === OFFICIAL_ADMIN.id) return;
+
+    const users = this.getUsers();
+    const creators = getStored<CreatorProfile[]>(STORAGE_KEYS.CREATORS, INITIAL_CREATORS);
+
+    // Match user by user.id or creatorProfileId
+    const uIdx = users.findIndex(u => u.id === targetId || u.creatorProfileId === targetId);
+    let matchedUserId = targetId;
+    let matchedCreatorId = targetId;
+
+    if (uIdx >= 0 && users[uIdx].id !== OFFICIAL_ADMIN.id) {
+      matchedUserId = users[uIdx].id;
+      if (users[uIdx].creatorProfileId) matchedCreatorId = users[uIdx].creatorProfileId!;
+      users[uIdx] = {
+        ...users[uIdx],
+        isSuspended,
+        suspensionReason: isSuspended ? reason : undefined,
+      };
+      this.saveUsers(users);
+    }
+
+    const cIdx = creators.findIndex(
+      c => c.id === targetId || c.userId === targetId || c.id === matchedCreatorId || c.userId === matchedUserId
+    );
+    if (cIdx >= 0) {
+      matchedUserId = creators[cIdx].userId || matchedUserId;
+      creators[cIdx] = {
+        ...creators[cIdx],
+        isSuspended,
+        suspensionReason: isSuspended ? reason : undefined,
+      };
+      this.saveCreators(creators);
+
+      // Also sync user record if we found creator first
+      const linkedUserIdx = users.findIndex(u => u.id === creators[cIdx].userId || u.creatorProfileId === creators[cIdx].id);
+      if (linkedUserIdx >= 0 && users[linkedUserIdx].id !== OFFICIAL_ADMIN.id) {
+        users[linkedUserIdx] = {
+          ...users[linkedUserIdx],
+          isSuspended,
+          suspensionReason: isSuspended ? reason : undefined,
+        };
+        this.saveUsers(users);
+      }
+    }
+
+    // Send notification to user
+    this.addNotification({
+      id: `notif_susp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      userId: matchedUserId,
+      title: isSuspended ? 'Account Suspended' : 'Account Restored',
+      message: isSuspended
+        ? `Your account has been suspended by the Administrator: ${reason}`
+        : 'Your account suspension has been lifted by the Administrator.',
+      type: 'system',
+      read: false,
+      createdAt: new Date().toISOString(),
+    });
+
+    // If current logged-in user is suspended, sign them out to Guest Reader so they can browse as guest
+    const cur = this.getCurrentUser();
+    if (isSuspended && (cur.id === matchedUserId || cur.creatorProfileId === matchedCreatorId)) {
+      this.setCurrentUser(null);
+    }
+  },
+
+  // Option 1: Delete ONLY Creator Profile (keep Reader account intact)
+  deleteCreatorOnly(targetId: string): void {
+    const creators = getStored<CreatorProfile[]>(STORAGE_KEYS.CREATORS, INITIAL_CREATORS);
+    const targetCreator = creators.find(c => c.id === targetId || c.userId === targetId);
+    const creatorIdToRemove = targetCreator?.id || targetId;
+    const userIdToUpdate = targetCreator?.userId || targetId;
+    const penClean = targetCreator?.penName?.trim().toLowerCase();
+
+    // Remove creator profile
+    const remainingCreators = creators.filter(c => c.id !== creatorIdToRemove && c.userId !== userIdToUpdate);
+    this.saveCreators(remainingCreators);
+
+    // Remove series & chapters created by this creator
+    const allSeries = this.getSeries();
+    const removedSeriesIds = new Set<string>();
+    const remainingSeries = allSeries.filter(s => {
+      const isMatch =
+        s.creatorId === creatorIdToRemove ||
+        s.creatorId === userIdToUpdate ||
+        (penClean && s.author.trim().toLowerCase() === penClean);
+      if (isMatch) removedSeriesIds.add(s.id);
+      return !isMatch;
+    });
+    this.saveSeries(remainingSeries);
+
+    if (removedSeriesIds.size > 0) {
+      const remainingChapters = this.getChapters().filter(ch => !removedSeriesIds.has(ch.seriesId));
+      this.saveChapters(remainingChapters);
+    }
+
+    // Update linked User back to Reader role (preserving their reader account, bookmarks, history)
+    const users = this.getUsers();
+    const uIdx = users.findIndex(u => u.id === userIdToUpdate || u.creatorProfileId === creatorIdToRemove);
+    if (uIdx >= 0) {
+      const u = users[uIdx];
+      const nextRole: UserRole = u.role === 'admin' ? 'admin' : u.isVIP ? 'subscriber' : 'free_user';
+      users[uIdx] = {
+        ...u,
+        role: nextRole,
+        creatorProfileId: undefined,
+      };
+      this.saveUsers(users);
+
+      const cur = this.getCurrentUser();
+      if (cur.id === u.id) {
+        this.setCurrentUser(users[uIdx]);
+      }
+    }
+  },
+
+  // Option 2: Delete Both Reader & Creator Account Permanently
+  deleteUserAndCreatorAccount(targetId: string): void {
+    if (targetId === OFFICIAL_ADMIN.id) return;
+
+    const users = this.getUsers();
+    const creators = getStored<CreatorProfile[]>(STORAGE_KEYS.CREATORS, INITIAL_CREATORS);
+
+    const targetUser = users.find(u => u.id === targetId || u.creatorProfileId === targetId);
+    const targetCreator = creators.find(
+      c => c.id === targetId || c.userId === targetId || (targetUser && (c.userId === targetUser.id || c.id === targetUser.creatorProfileId))
+    );
+
+    const userIdToRemove = targetUser?.id || targetCreator?.userId || targetId;
+    if (userIdToRemove === OFFICIAL_ADMIN.id) return;
+    const creatorIdToRemove = targetCreator?.id || targetUser?.creatorProfileId || targetId;
+    const penClean = targetCreator?.penName?.trim().toLowerCase();
+
+    // 1. Delete creator profile & series/chapters if any
+    const remainingCreators = creators.filter(c => c.id !== creatorIdToRemove && c.userId !== userIdToRemove);
+    this.saveCreators(remainingCreators);
+
+    const allSeries = this.getSeries();
+    const removedSeriesIds = new Set<string>();
+    const remainingSeries = allSeries.filter(s => {
+      const isMatch =
+        s.creatorId === creatorIdToRemove ||
+        s.creatorId === userIdToRemove ||
+        (penClean && s.author.trim().toLowerCase() === penClean);
+      if (isMatch) removedSeriesIds.add(s.id);
+      return !isMatch;
+    });
+    this.saveSeries(remainingSeries);
+
+    if (removedSeriesIds.size > 0) {
+      const remainingChapters = this.getChapters().filter(ch => !removedSeriesIds.has(ch.seriesId));
+      this.saveChapters(remainingChapters);
+    }
+
+    // 2. Delete user reviews & comments
+    const remainingReviews = this.getReviews().filter(r => r.userId !== userIdToRemove);
+    this.saveReviews(remainingReviews);
+
+    const allComments = getStored<Comment[]>(STORAGE_KEYS.COMMENTS, INITIAL_COMMENTS);
+    setStored(
+      STORAGE_KEYS.COMMENTS,
+      allComments.filter(c => c.userId !== userIdToRemove)
+    );
+
+    // 3. Clean up bookmarks, likes, history, followed creators
+    const bookmarks = getStored<Record<string, string[]>>(STORAGE_KEYS.BOOKMARKS, {});
+    delete bookmarks[userIdToRemove];
+    setStored(STORAGE_KEYS.BOOKMARKS, bookmarks);
+
+    const history = getStored<Record<string, ReadingHistoryItem[]>>(STORAGE_KEYS.READING_HISTORY, {});
+    delete history[userIdToRemove];
+    setStored(STORAGE_KEYS.READING_HISTORY, history);
+
+    // 4. Delete user record
+    const remainingUsers = users.filter(u => u.id !== userIdToRemove && u.creatorProfileId !== creatorIdToRemove);
+    this.saveUsers(remainingUsers);
+
+    const cur = this.getCurrentUser();
+    if (cur.id === userIdToRemove || cur.creatorProfileId === creatorIdToRemove) {
+      this.setCurrentUser(null);
+    }
   },
 
   // Reviews and Ratings
@@ -2950,6 +3158,10 @@ export const StorageService = {
   },
 
   // Comments
+  getAllComments(): Comment[] {
+    return getStored<Comment[]>(STORAGE_KEYS.COMMENTS, INITIAL_COMMENTS);
+  },
+
   getComments(chapterId: string): Comment[] {
     const all = getStored<Comment[]>(STORAGE_KEYS.COMMENTS, INITIAL_COMMENTS);
     return all.filter(c => c.chapterId === chapterId && c.status !== 'hidden');

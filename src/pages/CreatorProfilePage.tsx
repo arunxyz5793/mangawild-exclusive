@@ -20,6 +20,7 @@ import {
   Coins,
   Plus,
   Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import { StorageService } from '../services/storage';
 import { useAuth } from '../context/AuthContext';
@@ -105,7 +106,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
   onNavigate,
   onSelectSeries,
 }) => {
-  const { user, updateUser, followedCreators, toggleFollowCreator, toggleCreatorMode } = useAuth();
+  const { user, updateUser, deleteMyAccount, followedCreators, toggleFollowCreator, toggleCreatorMode } = useAuth();
   const { theme } = useTheme();
   const isLight = theme === 'light';
 
@@ -162,10 +163,12 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
   const [activeSocialPlatform, setActiveSocialPlatform] = useState<SocialPlatformKey | null>(null);
   const [socialLinkDraft, setSocialLinkDraft] = useState('');
 
-  // Tip & Share Modal States
+  // Tip, Share & Delete Account Modal States
   const [isTipModalOpen, setIsTipModalOpen] = useState(false);
   const [tipAnchorY, setTipAnchorY] = useState<number | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteOption, setDeleteOption] = useState<'creator_only' | 'both'>('creator_only');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const avatarFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -570,12 +573,10 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
       </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-8 w-full box-border overflow-hidden">
-        {/* Creator Clean Profile Card */}
+        {/* Open, Unboxed Minimal Creator Profile Header */}
         <div
-          className={`relative rounded-3xl p-5 sm:p-8 border transition-all w-full max-w-full box-border overflow-hidden ${
-            isLight
-              ? 'bg-white border-black shadow-sm'
-              : 'bg-zinc-950 border-white/20 shadow-2xl'
+          className={`relative pb-8 border-b transition-all w-full max-w-full box-border ${
+            isLight ? 'border-black text-black' : 'border-white/20 text-white'
           }`}
         >
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -585,8 +586,8 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                 <img
                   src={getAvatarUrl(creator.avatarUrl)}
                   alt={creator.penName}
-                  className={`w-24 h-24 sm:w-28 sm:h-28 rounded-3xl object-cover border shadow-xl ${
-                    isLight ? 'border-black bg-white' : 'border-white/25 bg-zinc-900'
+                  className={`w-24 h-24 sm:w-28 sm:h-28 rounded-3xl object-cover border transition-transform duration-200 hover:scale-102 ${
+                    isLight ? 'border-black bg-white' : 'border-white/25 bg-black'
                   }`}
                 />
                 {creator.verified && (
@@ -608,24 +609,24 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                   </h1>
                   <span
                     className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
-                      isLight ? 'border-black text-black bg-white' : 'border-white/25 text-white bg-zinc-900'
+                      isLight ? 'border-black text-black bg-white' : 'border-white/25 text-white bg-black'
                     }`}
                   >
                     Mangaka
                   </span>
                 </div>
 
-                <p className="text-xs font-mono opacity-75 truncate">{creator.handle}</p>
+                <p className="text-xs font-mono opacity-80 truncate">{creator.handle}</p>
 
-                <div className="flex flex-wrap items-center gap-3 text-xs font-mono opacity-80 pt-1">
+                <div className="flex flex-wrap items-center gap-3 text-xs font-mono pt-1">
                   <span>
                     Followers: <strong>{creator.followersCount.toLocaleString()}</strong>
                   </span>
-                  <span>·</span>
+                  <span>&bull;</span>
                   <span>
                     Works: <strong>{creatorSeries.length}</strong>
                   </span>
-                  <span>·</span>
+                  <span>&bull;</span>
                   <span>
                     Reads: <strong>{creator.totalReads.toLocaleString()}</strong>
                   </span>
@@ -633,7 +634,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
               </div>
             </div>
 
-            {/* Action Buttons: Tip Artist (ONLY if creator has published at least 1 manga), Edit Profile, Follow */}
+            {/* Action Buttons: Tip Artist, Edit Profile, Switch to Reader, Delete Account, Follow */}
             <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto justify-start sm:justify-end max-w-full box-border">
               {creatorSeries.length > 0 && (
                 <button
@@ -646,7 +647,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                   className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer max-w-full box-border ${
                     isLight
                       ? 'bg-white text-black border-black hover:bg-black hover:text-white'
-                      : 'bg-zinc-900 hover:bg-zinc-800 text-white border-white/25'
+                      : 'bg-black hover:bg-zinc-900 text-white border-white/25'
                   }`}
                 >
                   <Coins className="w-4 h-4 shrink-0" />
@@ -675,14 +676,32 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                       showToast('Switched to Reader Mode');
                       onNavigate('home');
                     }}
-                    className={`flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer max-w-full box-border ${
+                    className={`flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl text-xs font-bold border transition-all active:scale-95 cursor-pointer max-w-full box-border ${
                       isLight
-                        ? 'border-black bg-white text-black'
-                        : 'border-white/25 bg-zinc-900 text-white hover:bg-zinc-800'
+                        ? 'border-black bg-white text-black hover:bg-black hover:text-white'
+                        : 'border-white/25 bg-black text-white hover:border-white'
                     }`}
                   >
                     Switch to Reader
                   </button>
+                  {user.role !== 'admin' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDeleteOption('creator_only');
+                        setIsDeleteModalOpen(true);
+                      }}
+                      className={`flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl text-xs font-bold border transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5 max-w-full box-border ${
+                        isLight
+                          ? 'border-black bg-white text-black hover:bg-black hover:text-white'
+                          : 'border-white/25 bg-black text-white hover:border-white'
+                      }`}
+                      title="Delete Account"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                      <span>Delete Account</span>
+                    </button>
+                  )}
                 </>
               ) : (
                 <button
@@ -695,7 +714,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                     isFollowing
                       ? isLight
                         ? 'bg-white text-black border-black'
-                        : 'bg-zinc-900 text-white border-white/25'
+                        : 'bg-black text-white border-white/25'
                       : isLight
                       ? 'bg-black text-white border-black light-invert-pill'
                       : 'bg-white text-black border-white hover:bg-zinc-200'
@@ -717,27 +736,30 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
             </div>
           </div>
 
-          {/* Creator Bio & Icon-Only Social Links */}
+          {/* Open Editorial About & Icon-Only Social Links Section */}
           {(creator.bio?.trim() || activePublicSocials.length > 0 || isOwner) && (
-            <div className="mt-6 pt-6 border-t border-current/15 space-y-4">
-              {creator.bio?.trim() ? (
-                <div>
-                  <h3 className="text-xs font-mono uppercase tracking-wider opacity-70 font-bold mb-1.5">
-                    About the Mangaka
-                  </h3>
+            <div className="mt-6 pt-6 border-t border-current/15 grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-2 space-y-1.5">
+                <h3 className="text-[11px] font-mono uppercase tracking-widest font-bold opacity-75">
+                  About the Mangaka
+                </h3>
+                {creator.bio?.trim() ? (
                   <p className="text-sm leading-relaxed max-w-3xl break-words">
                     {creator.bio}
                   </p>
-                </div>
-              ) : null}
+                ) : (
+                  <p className="text-xs font-mono opacity-60">
+                    Official MangaWild creator profile.
+                  </p>
+                )}
+              </div>
 
-              {/* SOCIAL MEDIA LINKS SECTION — Strictly Icon-Only (No Text Labels, No Arrow Icons) */}
               {(activePublicSocials.length > 0 || isOwner) && (
-                <div className="space-y-2 pt-1">
-                  <h4 className="text-xs font-mono uppercase tracking-wider opacity-70 font-bold">
-                    Connect &amp; Follow Socials
+                <div className="space-y-2 md:text-right">
+                  <h4 className="text-[11px] font-mono uppercase tracking-widest font-bold opacity-75">
+                    Connect &amp; Socials
                   </h4>
-                  <div className="flex flex-wrap items-center gap-2.5">
+                  <div className="flex flex-wrap items-center md:justify-end gap-2.5">
                     {activePublicSocials.map((plat) => {
                       const rawVal = social[plat.key]!.trim();
                       const href = plat.formatUrl(rawVal);
@@ -749,10 +771,10 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                           rel="noopener noreferrer"
                           aria-label={plat.name}
                           title={plat.name}
-                          className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
+                          className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all hover:scale-105 cursor-pointer ${
                             isLight
                               ? 'bg-white border-black text-black hover:bg-black hover:text-white'
-                              : 'bg-zinc-900 border-white/25 text-white hover:bg-white hover:text-black'
+                              : 'bg-black border-white/25 text-white hover:bg-white hover:text-black'
                           }`}
                         >
                           {plat.renderIcon('w-4 h-4')}
@@ -1264,6 +1286,148 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
         title={`${creator.penName} (${creator.handle}) — MangaWild`}
         text={`Check out manga by ${creator.penName} on MangaWild!`}
       />
+
+      {/* 2-Step Delete Account Confirmation Modal (Creator Only vs Both Reader & Creator) */}
+      {isDeleteModalOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 modal-backdrop-overlay bg-black/80 backdrop-blur-xs animate-fade-in"
+            onClick={() => setIsDeleteModalOpen(false)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className={`w-full max-w-md rounded-3xl border-2 p-6 space-y-5 shadow-2xl animate-scale-in ${
+                isLight ? 'bg-white border-black text-black' : 'bg-black border-white text-white'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3 pb-3 border-b border-current/15">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${
+                      isLight ? 'bg-black text-white border-black' : 'bg-white text-black border-white'
+                    }`}
+                  >
+                    <AlertTriangle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-mono uppercase tracking-widest font-black block opacity-75">
+                      Permanent Action
+                    </span>
+                    <h3 className="text-lg font-black tracking-tight">Delete Account?</h3>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  className="p-1.5 rounded-xl border border-current/20 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <p className="leading-relaxed opacity-85">
+                  Please choose whether you want to delete only your <strong>Creator Profile</strong> or permanently delete <strong>both your Reader &amp; Creator accounts</strong>:
+                </p>
+
+                <div className="space-y-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setDeleteOption('creator_only')}
+                    className={`w-full p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
+                      deleteOption === 'creator_only'
+                        ? isLight
+                          ? 'border-2 border-black bg-zinc-100'
+                          : 'border-2 border-white bg-zinc-900'
+                        : isLight
+                        ? 'border-black/30 bg-white'
+                        : 'border-white/25 bg-black'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
+                        deleteOption === 'creator_only'
+                          ? isLight
+                            ? 'bg-black text-white border-black'
+                            : 'bg-white text-black border-white'
+                          : 'border-current/40'
+                      }`}
+                    >
+                      {deleteOption === 'creator_only' && <Check className="w-3 h-3" />}
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="font-bold block">Only Delete Creator Profile</span>
+                      <span className="text-[11px] opacity-75 block leading-snug">
+                        Deletes your creator profile ({creator.penName}) and {creatorSeries.length} uploaded manga series. Your Reader account, bookmarks, and reading history remain active.
+                      </span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDeleteOption('both')}
+                    className={`w-full p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
+                      deleteOption === 'both'
+                        ? isLight
+                          ? 'border-2 border-black bg-zinc-100'
+                          : 'border-2 border-white bg-zinc-900'
+                        : isLight
+                        ? 'border-black/30 bg-white'
+                        : 'border-white/25 bg-black'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
+                        deleteOption === 'both'
+                          ? isLight
+                            ? 'bg-black text-white border-black'
+                            : 'bg-white text-black border-white'
+                          : 'border-current/40'
+                      }`}
+                    >
+                      {deleteOption === 'both' && <Check className="w-3 h-3" />}
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="font-bold block">Delete Both Accounts (Reader &amp; Creator)</span>
+                      <span className="text-[11px] opacity-75 block leading-snug">
+                        Permanently deletes your Creator profile, all published works, your Reader account, bookmarks, reviews, and signs you out.
+                      </span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-current/15">
+                <button
+                  type="button"
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  className={`px-4 py-2 rounded-xl border text-xs font-bold cursor-pointer ${
+                    isLight ? 'border-black text-black' : 'border-white/30 text-white'
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    deleteMyAccount(deleteOption);
+                    setIsDeleteModalOpen(false);
+                    onNavigate('home');
+                  }}
+                  className={`px-5 py-2 rounded-xl border text-xs font-black uppercase tracking-wider cursor-pointer transition-transform active:scale-95 ${
+                    isLight
+                      ? 'bg-black text-white border-black light-invert-pill'
+                      : 'bg-white text-black border-white hover:bg-zinc-200'
+                  }`}
+                >
+                  Confirm Delete
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

@@ -46,6 +46,8 @@ export interface User {
     razorpayPaymentId?: string;
   };
   creatorProfileId?: string;
+  isSuspended?: boolean;
+  suspensionReason?: string;
   createdAt: string;
 }
 

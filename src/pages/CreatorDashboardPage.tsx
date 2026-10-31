@@ -178,7 +178,7 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
   const [editBannerUrl, setEditBannerUrl] = useState('');
   const [editGenres, setEditGenres] = useState<MangaGenre[]>([]);
   const [editReadingFormat, setEditReadingFormat] = useState<'webtoon_vertical' | 'manga_horizontal'>('webtoon_vertical');
-  const [editAgeRating, setEditAgeRating] = useState<'All Ages' | '13+' | '18+'>('13+');
+  const [editAgeRating, setEditAgeRating] = useState<'All Ages' | '13+' | '16+' | '18+'>('13+');
   const [editStatus, setEditStatus] = useState<'ongoing' | 'completed' | 'hiatus'>('ongoing');
 
   // Post-Approval Chapter Panels Direct Editing Modal (Reorder, Replace, Add pages live!)
