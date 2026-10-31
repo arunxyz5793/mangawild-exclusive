@@ -16,13 +16,12 @@ export interface GoogleUserProfile {
 
 export const PRIMARY_CLIENT_ID =
   (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID ||
-  firebaseConfig.oAuthClientId ||
-  '724500297939-1tf5drgb3v2kgh2n1easqdfdb9l255ho.apps.googleusercontent.com';
+  '724500297939-u49ujc9i5m7g4o612l6gehv64r17qfoc.apps.googleusercontent.com';
 
 // Pre-authorized fallback client ID for this AI Studio Cloud project
 export const PROJECT_CLIENT_ID =
   firebaseConfig.oAuthClientId ||
-  '724500297939-1tf5drgb3v2kgh2n1easqdfdb9l255ho.apps.googleusercontent.com';
+  '724500297939-u49ujc9i5m7g4o612l6gehv64r17qfoc.apps.googleusercontent.com';
 
 export const GOOGLE_CLIENT_ID = PRIMARY_CLIENT_ID;
 
@@ -30,7 +29,7 @@ export function getCurrentAppOrigin(): string {
   if (typeof window !== 'undefined' && window.location) {
     return window.location.origin;
   }
-  return 'https://ais-dev-xa6ob5qbsyhfdunbq3bikm-635034702616.asia-east1.run.app';
+  return 'https://devoc.mangawild.online';
 }
 
 declare global {
@@ -66,6 +65,10 @@ declare global {
  */
 export function ensureGoogleScriptLoaded(): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined') {
+      resolve();
+      return;
+    }
     if (window.google?.accounts?.oauth2) {
       resolve();
       return;
@@ -92,12 +95,94 @@ export function ensureGoogleScriptLoaded(): Promise<void> {
   });
 }
 
+// Preload the Google Identity Services script in browser so popups open synchronously on user click
+if (typeof window !== 'undefined') {
+  ensureGoogleScriptLoaded().catch(() => {});
+}
+
 /**
- * Executes Google OAuth 2.0 flow.
- * Tries Firebase Google Auth popup first, then falls back to Google Identity Services Token Client.
+ * Executes Google OAuth 2.0 flow using the configured Google OAuth Client ID
+ * (724500297939-u49ujc9i5m7g4o612l6gehv64r17qfoc.apps.googleusercontent.com),
+ * with automatic fallback to Firebase Google Auth Popup if needed.
  */
 export async function authenticateWithGoogleOAuth(clientIdToUse?: string): Promise<GoogleUserProfile> {
-  // Strategy 1: Firebase Auth Popup (uses app's authorized Firebase project auth domain)
+  await ensureGoogleScriptLoaded().catch(() => {});
+
+  const activeClientId = clientIdToUse || PRIMARY_CLIENT_ID;
+
+  // Strategy 1: Google Identity Services (GIS) OAuth 2.0 Token Client using the configured Client ID
+  if (window.google?.accounts?.oauth2) {
+    try {
+      const profile = await new Promise<GoogleUserProfile>((resolve, reject) => {
+        try {
+          const tokenClient = window.google!.accounts.oauth2.initTokenClient({
+            client_id: activeClientId,
+            scope: 'openid email profile',
+            callback: async (tokenResponse) => {
+              if (tokenResponse.error) {
+                const desc = tokenResponse.error_description || tokenResponse.error;
+                reject(new Error(desc));
+                return;
+              }
+
+              if (!tokenResponse.access_token) {
+                reject(new Error('No access token returned from Google'));
+                return;
+              }
+
+              try {
+                const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                  headers: {
+                    Authorization: `Bearer ${tokenResponse.access_token}`,
+                  },
+                });
+
+                if (!res.ok) {
+                  throw new Error(`Google UserInfo request failed with status ${res.status}`);
+                }
+
+                const data = await res.json();
+                if (!data.email) {
+                  throw new Error('Google account did not return an email address');
+                }
+
+                resolve({
+                  id: data.sub || `google_${Date.now()}`,
+                  email: data.email,
+                  name: data.name || data.given_name || data.email.split('@')[0],
+                  avatarUrl: data.picture,
+                  verifiedEmail: Boolean(data.email_verified),
+                });
+              } catch (fetchErr: any) {
+                reject(new Error(fetchErr?.message || 'Failed to fetch Google profile information'));
+              }
+            },
+            error_callback: (err) => {
+              const msg = err?.message || err?.type || '';
+              if (msg.includes('popup_closed')) {
+                reject(new Error('POPUP_CLOSED_BY_USER'));
+              } else {
+                reject(new Error(msg || 'Google OAuth authentication failed'));
+              }
+            },
+          });
+
+          tokenClient.requestAccessToken({ prompt: 'select_account' });
+        } catch (err: any) {
+          reject(err);
+        }
+      });
+
+      return profile;
+    } catch (gisErr: any) {
+      if (gisErr?.message === 'POPUP_CLOSED_BY_USER') {
+        throw new Error('Google sign-in popup was closed before completing.');
+      }
+      console.warn('GIS Token Client fallback to Firebase Auth Popup:', gisErr);
+    }
+  }
+
+  // Strategy 2: Fallback to Firebase Google Auth Popup
   try {
     const cred = await signInWithGooglePopup();
     if (cred.user && cred.user.email) {
@@ -110,87 +195,14 @@ export async function authenticateWithGoogleOAuth(clientIdToUse?: string): Promi
       };
     }
   } catch (fbErr: any) {
-    console.warn('Firebase signInWithGooglePopup fallback triggered:', fbErr);
-    // If user explicitly closed popup, rethrow
     if (fbErr?.code === 'auth/popup-closed-by-user') {
       throw new Error('Google sign-in popup was closed before completing.');
     }
+    throw new Error(
+      fbErr?.message ||
+        `Google OAuth 2.0 error: Please ensure ${window.location.origin} is added to Authorized JavaScript Origins in Google Cloud Console.`
+    );
   }
 
-  // Strategy 2: Google Identity Services (GIS) Token Client
-  await ensureGoogleScriptLoaded();
-
-  if (!window.google?.accounts?.oauth2) {
-    throw new Error('Google Identity Services SDK is unavailable');
-  }
-
-  const activeClientId = clientIdToUse || PRIMARY_CLIENT_ID;
-
-  return new Promise((resolve, reject) => {
-    try {
-      const tokenClient = window.google!.accounts.oauth2.initTokenClient({
-        client_id: activeClientId,
-        scope: 'openid email profile',
-        callback: async (tokenResponse) => {
-          if (tokenResponse.error) {
-            const desc = tokenResponse.error_description || tokenResponse.error;
-            reject(new Error(desc));
-            return;
-          }
-
-          if (!tokenResponse.access_token) {
-            reject(new Error('No access token returned from Google'));
-            return;
-          }
-
-          try {
-            // Fetch user info from Google's OpenID / UserInfo endpoint
-            const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-              headers: {
-                Authorization: `Bearer ${tokenResponse.access_token}`,
-              },
-            });
-
-            if (!res.ok) {
-              throw new Error(`Google UserInfo request failed with status ${res.status}`);
-            }
-
-            const data = await res.json();
-            if (!data.email) {
-              throw new Error('Google account did not return an email address');
-            }
-
-            const profile: GoogleUserProfile = {
-              id: data.sub || `google_${Date.now()}`,
-              email: data.email,
-              name: data.name || data.given_name || data.email.split('@')[0],
-              avatarUrl: data.picture,
-              verifiedEmail: Boolean(data.email_verified),
-            };
-
-            resolve(profile);
-          } catch (fetchErr: any) {
-            reject(new Error(fetchErr?.message || 'Failed to fetch Google profile information'));
-          }
-        },
-        error_callback: (err) => {
-          const msg = err?.message || '';
-          if (msg.includes('origin') || msg.includes('policy')) {
-            reject(
-              new Error(
-                `Google OAuth 2.0 origin policy: Please register ${window.location.origin} in Google Cloud Console Authorized JavaScript Origins.`
-              )
-            );
-          } else {
-            reject(new Error(msg || 'Google OAuth authentication failed'));
-          }
-        },
-      });
-
-      // Open the Google OAuth consent popup
-      tokenClient.requestAccessToken({ prompt: 'select_account' });
-    } catch (err: any) {
-      reject(err);
-    }
-  });
+  throw new Error('Google authentication could not be completed.');
 }
