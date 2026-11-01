@@ -251,7 +251,14 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
 
   useEffect(() => {
     refreshCreatorData();
-  }, [user.id, user.name, user.creatorProfileId]);
+    const onStorageSync = () => refreshCreatorData();
+    window.addEventListener('mangawild-storage-update', onStorageSync);
+    window.addEventListener('storage', onStorageSync);
+    return () => {
+      window.removeEventListener('mangawild-storage-update', onStorageSync);
+      window.removeEventListener('storage', onStorageSync);
+    };
+  }, [user.id, user.name, user.username, user.creatorProfileId]);
 
   // Genre toggle
   const toggleGenre = (genre: MangaGenre) => {

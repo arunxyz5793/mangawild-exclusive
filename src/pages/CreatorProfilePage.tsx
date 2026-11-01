@@ -154,6 +154,8 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editPenName, setEditPenName] = useState(creator?.penName || '');
   const [editHandle, setEditHandle] = useState(creator?.handle || '');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPassword, setEditPassword] = useState('');
   const [editBio, setEditBio] = useState(creator?.bio || '');
   const [editAvatarUrl, setEditAvatarUrl] = useState(creator?.avatarUrl || '');
   const [editSocial, setEditSocial] = useState<CreatorSocialLinks>(creator?.socialLinks || {});
@@ -174,6 +176,16 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
   const avatarFileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
+    const refreshCreators = () => setCreators(StorageService.getCreators());
+    window.addEventListener('mangawild-storage-update', refreshCreators);
+    window.addEventListener('storage', refreshCreators);
+    return () => {
+      window.removeEventListener('mangawild-storage-update', refreshCreators);
+      window.removeEventListener('storage', refreshCreators);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isEditModalOpen && !isSocialPopupOpen) return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -189,8 +201,13 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
 
   const handleOpenEdit = () => {
     if (!creator) return;
+    const linkedAccount = StorageService.getUsers().find(
+      u => u.id === creator.userId || u.creatorProfileId === creator.id
+    );
     setEditPenName(creator.penName);
     setEditHandle(creator.handle);
+    setEditEmail(linkedAccount?.email || '');
+    setEditPassword('');
     setEditBio(creator.bio || '');
     setEditAvatarUrl(creator.avatarUrl || '');
     setEditSocial(creator.socialLinks || {});
@@ -261,18 +278,35 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
 
     StorageService.updateCreatorProfile(creator.id, updates);
 
+    const linkedAccount = StorageService.getUsers().find(
+      u => u.id === creator.userId || u.creatorProfileId === creator.id
+    );
+    const targetUserId = linkedAccount?.id || creator.userId;
+
+    const userAccountUpdates: Partial<typeof user> = {
+      name: updates.penName,
+      username: cleanRawHandle || updates.handle?.replace(/^@+/, '').toLowerCase(),
+      avatarUrl: updates.avatarUrl,
+    };
+    if (editEmail.trim() && editEmail.includes('@')) {
+      userAccountUpdates.email = editEmail.trim().toLowerCase();
+    }
+    if (editPassword.trim().length >= 4) {
+      userAccountUpdates.password = editPassword.trim();
+    }
+
+    if (targetUserId) {
+      StorageService.updateUser(targetUserId, userAccountUpdates);
+    }
+
     if (user && (user.id === creator.userId || user.creatorProfileId === creator.id)) {
-      updateUser({
-        name: updates.penName,
-        username: cleanRawHandle || updates.handle?.replace(/^@+/, '').toLowerCase(),
-        avatarUrl: updates.avatarUrl,
-      });
+      updateUser(userAccountUpdates);
     }
 
     setCreators(StorageService.getCreators());
     setIsEditModalOpen(false);
     setActiveTab('works');
-    showToast('Profile & login username synced!');
+    showToast('Profile updated!');
   };
 
   const isFollowing = creator ? followedCreators.includes(creator.id) : false;
@@ -391,6 +425,44 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
             value={editHandle}
             onChange={(e) => setEditHandle(e.target.value)}
             placeholder="@username"
+            className={`w-full p-2.5 rounded-xl border text-xs font-mono focus:outline-none box-border ${
+              isLight
+                ? 'bg-white border-black text-black'
+                : 'bg-black border-white/25 text-white focus:border-white'
+            }`}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Email Address */}
+        <div className="space-y-1.5">
+          <label className="font-bold uppercase tracking-wider opacity-75 block">
+            Email Address
+          </label>
+          <input
+            type="email"
+            value={editEmail}
+            onChange={(e) => setEditEmail(e.target.value)}
+            placeholder="email@example.com"
+            className={`w-full p-2.5 rounded-xl border text-xs font-mono focus:outline-none box-border ${
+              isLight
+                ? 'bg-white border-black text-black'
+                : 'bg-black border-white/25 text-white focus:border-white'
+            }`}
+          />
+        </div>
+
+        {/* Password */}
+        <div className="space-y-1.5">
+          <label className="font-bold uppercase tracking-wider opacity-75 block">
+            New Password (Optional)
+          </label>
+          <input
+            type="password"
+            value={editPassword}
+            onChange={(e) => setEditPassword(e.target.value)}
+            placeholder="Leave blank to keep current"
             className={`w-full p-2.5 rounded-xl border text-xs font-mono focus:outline-none box-border ${
               isLight
                 ? 'bg-white border-black text-black'

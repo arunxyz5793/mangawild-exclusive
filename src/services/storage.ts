@@ -2451,6 +2451,112 @@ export const StorageService = {
     return user;
   },
 
+  propagateIdentitySync(params: {
+    userId?: string;
+    creatorId?: string;
+    oldName?: string;
+    newName?: string;
+    newUsername?: string;
+    newEmail?: string;
+    newAvatarUrl?: string;
+  }): void {
+    const { userId, creatorId, oldName, newName, newUsername, newEmail, newAvatarUrl } = params;
+    const oldNameClean = (oldName || '').trim().toLowerCase();
+
+    // 1. Update Series author & artist if creator penName/name changed
+    if (newName && newName.trim()) {
+      const cleanNewName = newName.trim();
+      const rawSeries = getStored<MangaSeries[]>(STORAGE_KEYS.SERIES, INITIAL_SERIES);
+      let seriesChanged = false;
+      const updatedSeries = rawSeries.map(s => {
+        const isMatch =
+          (creatorId && (s.creatorId === creatorId || s.creatorId === userId)) ||
+          (userId && s.creatorId === userId) ||
+          (oldNameClean && s.author.trim().toLowerCase() === oldNameClean);
+        if (isMatch && (s.author !== cleanNewName || s.artist !== cleanNewName)) {
+          seriesChanged = true;
+          return {
+            ...s,
+            author: cleanNewName,
+            artist: cleanNewName,
+          };
+        }
+        return s;
+      });
+      if (seriesChanged) {
+        setStored(STORAGE_KEYS.SERIES, updatedSeries);
+      }
+    }
+
+    // 2. Update Reviews by userId
+    if (userId) {
+      const rawReviews = getStored<SeriesReview[]>(STORAGE_KEYS.REVIEWS, INITIAL_REVIEWS);
+      let reviewsChanged = false;
+      const updatedReviews = rawReviews.map(r => {
+        if (r.userId === userId) {
+          const nextUserName = newUsername || newName || r.userName;
+          const nextEmail = newEmail || r.userEmail;
+          const nextAvatar = newAvatarUrl || r.userAvatar;
+          if (r.userName !== nextUserName || r.userEmail !== nextEmail || r.userAvatar !== nextAvatar) {
+            reviewsChanged = true;
+            return {
+              ...r,
+              userName: nextUserName,
+              userEmail: nextEmail,
+              userAvatar: nextAvatar,
+            };
+          }
+        }
+        return r;
+      });
+      if (reviewsChanged) {
+        setStored(STORAGE_KEYS.REVIEWS, updatedReviews);
+      }
+
+      // 3. Update Comments by userId
+      const rawComments = getStored<Comment[]>(STORAGE_KEYS.COMMENTS, INITIAL_COMMENTS);
+      let commentsChanged = false;
+      const updatedComments = rawComments.map(c => {
+        if (c.userId === userId) {
+          const nextUserName = newUsername || newName || c.userName;
+          const nextAvatar = newAvatarUrl || c.userAvatar;
+          if (c.userName !== nextUserName || c.userAvatar !== nextAvatar) {
+            commentsChanged = true;
+            return {
+              ...c,
+              userName: nextUserName,
+              userAvatar: nextAvatar,
+            };
+          }
+        }
+        return c;
+      });
+      if (commentsChanged) {
+        setStored(STORAGE_KEYS.COMMENTS, updatedComments);
+      }
+
+      // 4. Update Reports by userId
+      const rawReports = getStored<UserReport[]>(STORAGE_KEYS.REPORTS, []);
+      let reportsChanged = false;
+      const updatedReports = rawReports.map(rep => {
+        if (rep.userId === userId) {
+          const nextUserName = newUsername || newName || rep.userName;
+          if (rep.userName !== nextUserName) {
+            reportsChanged = true;
+            return {
+              ...rep,
+              userName: nextUserName,
+            };
+          }
+        }
+        return rep;
+      });
+      if (reportsChanged) {
+        setStored(STORAGE_KEYS.REPORTS, updatedReports);
+      }
+    }
+  },
+
   setCurrentUser(user: User | null): void {
     setStored(STORAGE_KEYS.CURRENT_USER, user);
     if (user && user.id !== 'guest_reader') {
@@ -2458,6 +2564,7 @@ export const StorageService = {
       const idx = users.findIndex(
         u => u.id === user.id || (user.email && u.email.toLowerCase() === user.email.toLowerCase())
       );
+      const oldName = idx >= 0 ? users[idx].name : user.name;
       if (idx >= 0) {
         users[idx] = { ...users[idx], ...user, id: users[idx].id };
       } else {
@@ -2470,15 +2577,28 @@ export const StorageService = {
       const cIdx = rawCreators.findIndex(
         c => c.userId === user.id || (user.creatorProfileId && c.id === user.creatorProfileId)
       );
-      if (cIdx >= 0 && user.username) {
-        const cleanHandle = user.username.replace(/^@+/, '').trim().toLowerCase();
+      let oldPenName = oldName;
+      if (cIdx >= 0) {
+        oldPenName = rawCreators[cIdx].penName || oldName;
+        const cleanHandle = user.username ? user.username.replace(/^@+/, '').trim().toLowerCase() : '';
         rawCreators[cIdx] = {
           ...rawCreators[cIdx],
-          handle: `@${cleanHandle}`,
+          penName: user.name ? user.name.trim() : rawCreators[cIdx].penName,
+          handle: cleanHandle ? `@${cleanHandle}` : rawCreators[cIdx].handle,
           avatarUrl: user.avatarUrl || rawCreators[cIdx].avatarUrl,
         };
         this.saveCreators(rawCreators);
       }
+
+      this.propagateIdentitySync({
+        userId: user.id,
+        creatorId: user.creatorProfileId || (cIdx >= 0 ? rawCreators[cIdx].id : undefined),
+        oldName: oldPenName,
+        newName: user.name,
+        newUsername: user.username,
+        newEmail: user.email,
+        newAvatarUrl: user.avatarUrl,
+      });
     }
   },
 
@@ -2520,12 +2640,15 @@ export const StorageService = {
     const users = this.getUsers();
     const idx = users.findIndex(u => u.id === id);
     if (idx === -1) return undefined;
+    const oldUser = users[idx];
     const updatedUser: User = {
-      ...users[idx],
+      ...oldUser,
       ...updates,
+      name: updates.name ? updates.name.trim() : oldUser.name,
       username: updates.username
         ? updates.username.replace(/^@+/, '').trim().toLowerCase()
-        : users[idx].username,
+        : oldUser.username,
+      email: updates.email ? updates.email.trim().toLowerCase() : oldUser.email,
     };
     users[idx] = updatedUser;
     this.saveUsers(users);
@@ -2535,7 +2658,9 @@ export const StorageService = {
     const cIdx = rawCreators.findIndex(
       c => c.userId === id || (updatedUser.creatorProfileId && c.id === updatedUser.creatorProfileId)
     );
+    let oldPenName = oldUser.name;
     if (cIdx >= 0) {
+      oldPenName = rawCreators[cIdx].penName || oldUser.name;
       if (updates.username) {
         rawCreators[cIdx].handle = `@${updatedUser.username}`;
       }
@@ -2548,6 +2673,16 @@ export const StorageService = {
       this.saveCreators(rawCreators);
     }
 
+    this.propagateIdentitySync({
+      userId: id,
+      creatorId: updatedUser.creatorProfileId || (cIdx >= 0 ? rawCreators[cIdx].id : undefined),
+      oldName: oldPenName,
+      newName: updatedUser.name,
+      newUsername: updatedUser.username,
+      newEmail: updatedUser.email,
+      newAvatarUrl: updatedUser.avatarUrl,
+    });
+
     const current = getStored<User | null>(STORAGE_KEYS.CURRENT_USER, null);
     if (current && current.id === id) {
       setStored(STORAGE_KEYS.CURRENT_USER, updatedUser);
@@ -2558,6 +2693,7 @@ export const StorageService = {
   // Manga Series
   getSeries(): MangaSeries[] {
     const list = getStored<MangaSeries[]>(STORAGE_KEYS.SERIES, INITIAL_SERIES);
+    const rawCreators = getStored<CreatorProfile[]>(STORAGE_KEYS.CREATORS, INITIAL_CREATORS);
     return list.map(s => {
       const isPreviewFreeSeries =
         s.id === 'series_silent_heads' ||
@@ -2566,8 +2702,14 @@ export const StorageService = {
         s.slug === 'chitrakatha-chintu' ||
         s.slug === 'chintu';
       const isApproved = s.isApprovedByAdmin ?? (s.moderationStatus === 'approved');
+      const matchedCreator = rawCreators.find(
+        c => c.id === s.creatorId || c.userId === s.creatorId
+      );
+      const syncedAuthor = matchedCreator?.penName ? matchedCreator.penName : s.author;
       return {
         ...s,
+        author: syncedAuthor,
+        artist: matchedCreator?.penName ? matchedCreator.penName : (s.artist || s.author),
         isExclusive: isPreviewFreeSeries ? false : false,
         readingFormat: s.readingFormat || (s.id === 'series_chitrakatha_chintu' ? 'manga_horizontal' : 'webtoon_vertical'),
         ageRating: s.ageRating || '13+',
@@ -2882,6 +3024,7 @@ export const StorageService = {
     const idx = all.findIndex(c => c.id === id || c.userId === id);
     if (idx === -1) return undefined;
 
+    const oldPenName = all[idx].penName;
     const cleanHandle = updates.handle
       ? `@${updates.handle.replace(/^@+/, '').trim().toLowerCase()}`
       : all[idx].handle;
@@ -2889,6 +3032,7 @@ export const StorageService = {
     const updatedCreator: CreatorProfile = {
       ...all[idx],
       ...updates,
+      penName: updates.penName ? updates.penName.trim() : all[idx].penName,
       handle: cleanHandle,
     };
     all[idx] = updatedCreator;
@@ -2905,7 +3049,7 @@ export const StorageService = {
       rawUsers[uIdx] = {
         ...rawUsers[uIdx],
         username: newUsername || rawUsers[uIdx].username,
-        name: updates.penName ? updates.penName.trim() : rawUsers[uIdx].name,
+        name: updatedCreator.penName || rawUsers[uIdx].name,
         avatarUrl: updates.avatarUrl || rawUsers[uIdx].avatarUrl,
       };
       this.saveUsers(rawUsers);
@@ -2919,6 +3063,15 @@ export const StorageService = {
       const syncedUsers = this.getUsers();
       this.saveUsers(syncedUsers);
     }
+
+    this.propagateIdentitySync({
+      userId: updatedCreator.userId,
+      creatorId: updatedCreator.id,
+      oldName: oldPenName,
+      newName: updatedCreator.penName,
+      newUsername: newUsername,
+      newAvatarUrl: updatedCreator.avatarUrl,
+    });
 
     return updatedCreator;
   },

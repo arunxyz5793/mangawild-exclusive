@@ -120,9 +120,12 @@ export const Header: React.FC<HeaderProps> = ({
   const [authDefaultRole, setAuthDefaultRole] = useState<'reader' | 'creator' | 'admin'>('reader');
   const [authDefaultMode, setAuthDefaultMode] = useState<'signin' | 'signup'>('signup');
 
-  // Username inline edit state
+  // Account inline edit state
   const [isEditingUsername, setIsEditingUsername] = useState(false);
+  const [newNameInput, setNewNameInput] = useState(user.name || '');
   const [newUsernameInput, setNewUsernameInput] = useState(user.username || '');
+  const [newEmailInput, setNewEmailInput] = useState(user.email || '');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
   const [usernameError, setUsernameError] = useState<string | null>(null);
 
   const handleAvatarFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -151,12 +154,49 @@ export const Header: React.FC<HeaderProps> = ({
   const handleSaveUsername = (e: React.FormEvent) => {
     e.preventDefault();
     setUsernameError(null);
-    const res = updateUsername(newUsernameInput);
-    if (res.success) {
-      setIsEditingUsername(false);
-    } else {
-      setUsernameError(res.error || 'Failed to update username');
+    const cleanUser = newUsernameInput.trim().replace(/^@+/, '').toLowerCase();
+    if (cleanUser !== (user.username || '').toLowerCase()) {
+      const res = updateUsername(cleanUser);
+      if (!res.success) {
+        setUsernameError(res.error || 'Failed to update username');
+        return;
+      }
     }
+
+    const cleanEmail = newEmailInput.trim().toLowerCase();
+    if (cleanEmail && cleanEmail !== (user.email || '').toLowerCase()) {
+      if (!cleanEmail.includes('@')) {
+        setUsernameError('Please enter a valid email address.');
+        return;
+      }
+      const existingEmailUser = StorageService.getUsers().find(
+        u => u.id !== user.id && u.email && u.email.toLowerCase() === cleanEmail
+      );
+      if (existingEmailUser) {
+        setUsernameError('This email is already in use by another account.');
+        return;
+      }
+    }
+
+    if (newPasswordInput.trim() && newPasswordInput.trim().length < 4) {
+      setUsernameError('Password must be at least 4 characters.');
+      return;
+    }
+
+    const updates: Partial<typeof user> = {
+      name: newNameInput.trim() || cleanUser || user.name,
+      username: cleanUser || user.username,
+    };
+    if (cleanEmail) {
+      updates.email = cleanEmail;
+    }
+    if (newPasswordInput.trim()) {
+      updates.password = newPasswordInput.trim();
+    }
+
+    updateUser(updates);
+    setNewPasswordInput('');
+    setIsEditingUsername(false);
   };
 
   const handleOpenAuth = (
@@ -445,7 +485,7 @@ export const Header: React.FC<HeaderProps> = ({
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
-                      <p className="text-sm font-black truncate">@{user.username}</p>
+                      <p className="text-sm font-black truncate">{user.name || `@${user.username}`}</p>
                       <span
                         className="text-[9px] font-mono px-2 py-0.5 rounded uppercase tracking-wider font-bold border shrink-0 bg-zinc-800 text-zinc-300 border-zinc-700"
                       >
@@ -459,11 +499,18 @@ export const Header: React.FC<HeaderProps> = ({
                       </span>
                     </div>
 
-                    {/* Username Display & Edit Form */}
+                    {/* Account Details Display & Edit Form */}
                     <div className="mt-1">
                       {isEditingUsername ? (
-                        <form onSubmit={handleSaveUsername} className="mt-1 space-y-1.5">
-                          <div className="flex items-center gap-1.5">
+                        <form onSubmit={handleSaveUsername} className="mt-2 space-y-2">
+                          <input
+                            type="text"
+                            value={newNameInput}
+                            onChange={e => setNewNameInput(e.target.value)}
+                            placeholder="Display Name"
+                            className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-zinc-900 border border-zinc-700 text-white focus:outline-none focus:border-white"
+                          />
+                          <div className="flex items-center gap-1">
                             <span className="text-xs font-mono text-zinc-500">@</span>
                             <input
                               type="text"
@@ -474,15 +521,33 @@ export const Header: React.FC<HeaderProps> = ({
                                 )
                               }
                               placeholder="username"
-                              className="w-full px-2 py-1 text-xs rounded-lg bg-zinc-900 border border-zinc-700 text-white font-mono focus:outline-none focus:border-white"
-                              autoFocus
+                              className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-zinc-900 border border-zinc-700 text-white font-mono focus:outline-none focus:border-white"
                             />
+                          </div>
+                          <input
+                            type="email"
+                            value={newEmailInput}
+                            onChange={e => setNewEmailInput(e.target.value)}
+                            placeholder="Email address"
+                            className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-zinc-900 border border-zinc-700 text-white font-mono focus:outline-none focus:border-white"
+                          />
+                          <input
+                            type="password"
+                            value={newPasswordInput}
+                            onChange={e => setNewPasswordInput(e.target.value)}
+                            placeholder="New password (optional)"
+                            className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-zinc-900 border border-zinc-700 text-white font-mono focus:outline-none focus:border-white"
+                          />
+                          {usernameError && (
+                            <p className="text-[10px] text-red-400 font-mono">{usernameError}</p>
+                          )}
+                          <div className="flex items-center gap-1.5 pt-0.5">
                             <button
                               type="submit"
-                              className="p-1.5 rounded-lg bg-white text-zinc-950 hover:bg-zinc-200 transition-colors cursor-pointer"
-                              title="Save Username"
+                              className="px-3 py-1.5 rounded-lg bg-white text-zinc-950 hover:bg-zinc-200 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
                             >
                               <Check className="w-3.5 h-3.5" />
+                              <span>Save</span>
                             </button>
                             <button
                               type="button"
@@ -490,38 +555,40 @@ export const Header: React.FC<HeaderProps> = ({
                                 setIsEditingUsername(false);
                                 setUsernameError(null);
                               }}
-                              className="p-1.5 rounded-lg bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
-                              title="Cancel"
+                              className="px-3 py-1.5 rounded-lg bg-zinc-800 text-zinc-400 hover:text-white text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
                             >
                               <X className="w-3.5 h-3.5" />
+                              <span>Cancel</span>
                             </button>
                           </div>
-                          {usernameError && (
-                            <p className="text-[10px] text-red-400 font-mono">{usernameError}</p>
-                          )}
                         </form>
                       ) : (
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs font-mono text-zinc-400">
-                            @{user.username || 'username'}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setNewUsernameInput(user.username || '');
-                              setIsEditingUsername(true);
-                            }}
-                            className="text-[10px] text-zinc-500 hover:text-white flex items-center gap-0.5 hover:underline font-mono cursor-pointer"
-                            title="Edit Custom Username"
-                          >
-                            <Edit2 className="w-2.5 h-2.5" />
-                            <span>Change</span>
-                          </button>
-                        </div>
+                        <>
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs font-mono text-zinc-400">
+                              @{user.username || 'username'}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNewNameInput(user.name || '');
+                                setNewUsernameInput(user.username || '');
+                                setNewEmailInput(user.email || '');
+                                setNewPasswordInput('');
+                                setUsernameError(null);
+                                setIsEditingUsername(true);
+                              }}
+                              className="text-[10px] text-zinc-500 hover:text-white flex items-center gap-0.5 hover:underline font-mono cursor-pointer"
+                              title="Edit Account"
+                            >
+                              <Edit2 className="w-2.5 h-2.5" />
+                              <span>Edit</span>
+                            </button>
+                          </div>
+                          <p className="text-[11px] text-zinc-500 truncate mt-0.5">{user.email}</p>
+                        </>
                       )}
                     </div>
-
-                    <p className="text-[11px] text-zinc-500 truncate mt-0.5">{user.email}</p>
                   </div>
                 </div>
 
