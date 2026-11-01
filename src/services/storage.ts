@@ -50,6 +50,28 @@ export const OFFICIAL_ADMIN = {
   password: 'Admin@Wild2026',
 };
 
+export const OFFICIAL_CREATOR_DEEP = {
+  id: 'user_creator_deep',
+  creatorProfileId: 'creator_deep_mangaka',
+  email: 'creatordeep12@gmail.com',
+  altEmail: 'deep@mangawild.online',
+  name: 'Deep Mangaka',
+  username: 'deep_mangaka',
+  password: 'Deep@Wild2026',
+  avatarUrl: 'https://d1yei2z3i6k35z.cloudfront.net/17195590/6a7462bc7a3d20.36721854_1000320735.jpg',
+};
+
+export const OFFICIAL_CREATOR_ARIES = {
+  id: 'user_creator_aries',
+  creatorProfileId: 'creator_arieschitrakatha',
+  email: 'ankushvaid58@gmail.com',
+  altEmail: 'aries@mangawild.online',
+  name: 'Arieschitrakatha',
+  username: 'aries_chitrakatha',
+  password: 'Aries@Wild2026',
+  avatarUrl: 'https://d1yei2z3i6k35z.cloudfront.net/17195590/69f45d1311d958.61477609_1000300162.png',
+};
+
 // Seed Users
 const INITIAL_USERS: User[] = [
   {
@@ -65,10 +87,10 @@ const INITIAL_USERS: User[] = [
   },
   {
     "id": "user_creator_deep",
-    "email": "deep@mangawild.online",
-    "name": "deep_mangaka",
+    "email": "creatordeep12@gmail.com",
+    "name": "Deep Mangaka",
     "username": "deep_mangaka",
-    "password": "password123",
+    "password": "Deep@Wild2026",
     "role": "creator",
     "avatarUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/6a7462bc7a3d20.36721854_1000320735.jpg",
     "isVIP": false,
@@ -113,10 +135,10 @@ const INITIAL_USERS: User[] = [
   },
   {
     "id": "user_creator_aries",
-    "email": "aries@mangawild.online",
-    "name": "aries_chitrakatha",
+    "email": "ankushvaid58@gmail.com",
+    "name": "Arieschitrakatha",
     "username": "aries_chitrakatha",
-    "password": "password123",
+    "password": "Aries@Wild2026",
     "role": "creator",
     "avatarUrl": "https://d1yei2z3i6k35z.cloudfront.net/17195590/69f45d1311d958.61477609_1000300162.png",
     "isVIP": false,
@@ -2118,9 +2140,19 @@ export const StorageService = {
   // Users & Session
   getUsers(): User[] {
     const rawList = getStored<User[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
+    const rawCreators = getStored<CreatorProfile[]>(STORAGE_KEYS.CREATORS, INITIAL_CREATORS);
     let hasAdmin = false;
+    let hasDeep = false;
+    let hasAries = false;
     const seenIds = new Set<string>();
     const list: User[] = [];
+
+    const deepCreatorProfile = rawCreators.find(
+      c => c.id === OFFICIAL_CREATOR_DEEP.creatorProfileId || c.userId === OFFICIAL_CREATOR_DEEP.id
+    );
+    const ariesCreatorProfile = rawCreators.find(
+      c => c.id === OFFICIAL_CREATOR_ARIES.creatorProfileId || c.userId === OFFICIAL_CREATOR_ARIES.id
+    );
 
     for (const u of rawList) {
       // Check if this is the system admin account (or any legacy admin entry)
@@ -2148,26 +2180,177 @@ export const StorageService = {
             avatarUrl: u.avatarUrl || '/avatars/admin.svg',
           });
         }
-        // Skip duplicate admin records
         continue;
       }
 
-      // Non-admin user: ensure strictly unique ID
+      // Check if this is Deep Mangaka's official creator account
+      const isDeepAccount =
+        u.id === OFFICIAL_CREATOR_DEEP.id ||
+        u.creatorProfileId === OFFICIAL_CREATOR_DEEP.creatorProfileId ||
+        u.email?.toLowerCase() === OFFICIAL_CREATOR_DEEP.email.toLowerCase() ||
+        u.email?.toLowerCase() === OFFICIAL_CREATOR_DEEP.altEmail.toLowerCase();
+
+      if (isDeepAccount) {
+        if (!hasDeep) {
+          hasDeep = true;
+          seenIds.add(OFFICIAL_CREATOR_DEEP.id);
+          const creatorHandleClean = deepCreatorProfile?.handle
+            ? deepCreatorProfile.handle.replace(/^@+/, '').trim().toLowerCase()
+            : '';
+          const userClean = u.username ? u.username.replace(/^@+/, '').trim().toLowerCase() : '';
+          // Preserve whichever username/handle was updated away from default 'deep_mangaka'
+          let syncedUsername = userClean || creatorHandleClean || OFFICIAL_CREATOR_DEEP.username;
+          if (userClean === 'deep_mangaka' && creatorHandleClean && creatorHandleClean !== 'deep_mangaka') {
+            syncedUsername = creatorHandleClean;
+          }
+
+          list.push({
+            ...u,
+            id: OFFICIAL_CREATOR_DEEP.id,
+            name:
+              deepCreatorProfile?.penName ||
+              (u.name && u.name !== 'deep_mangaka' ? u.name : OFFICIAL_CREATOR_DEEP.name),
+            username: syncedUsername,
+            email:
+              u.email && u.email.toLowerCase() !== OFFICIAL_CREATOR_DEEP.altEmail.toLowerCase()
+                ? u.email
+                : OFFICIAL_CREATOR_DEEP.email,
+            password:
+              u.password && u.password !== 'password123'
+                ? u.password
+                : OFFICIAL_CREATOR_DEEP.password,
+            role: 'creator' as UserRole,
+            creatorProfileId: OFFICIAL_CREATOR_DEEP.creatorProfileId,
+            avatarUrl: deepCreatorProfile?.avatarUrl || u.avatarUrl || OFFICIAL_CREATOR_DEEP.avatarUrl,
+          });
+        }
+        continue;
+      }
+
+      // Check if this is Arieschitrakatha's official creator account
+      const isAriesAccount =
+        u.id === OFFICIAL_CREATOR_ARIES.id ||
+        u.creatorProfileId === OFFICIAL_CREATOR_ARIES.creatorProfileId ||
+        u.email?.toLowerCase() === OFFICIAL_CREATOR_ARIES.email.toLowerCase() ||
+        u.email?.toLowerCase() === OFFICIAL_CREATOR_ARIES.altEmail.toLowerCase();
+
+      if (isAriesAccount) {
+        if (!hasAries) {
+          hasAries = true;
+          seenIds.add(OFFICIAL_CREATOR_ARIES.id);
+          const creatorHandleClean = ariesCreatorProfile?.handle
+            ? ariesCreatorProfile.handle.replace(/^@+/, '').trim().toLowerCase()
+            : '';
+          const userClean = u.username ? u.username.replace(/^@+/, '').trim().toLowerCase() : '';
+          let syncedUsername = userClean || creatorHandleClean || OFFICIAL_CREATOR_ARIES.username;
+          if (
+            (userClean === 'aries_chitrakatha' || userClean === 'team_arieschitrakatha') &&
+            creatorHandleClean &&
+            creatorHandleClean !== 'team_arieschitrakatha' &&
+            creatorHandleClean !== 'aries_chitrakatha'
+          ) {
+            syncedUsername = creatorHandleClean;
+          }
+
+          list.push({
+            ...u,
+            id: OFFICIAL_CREATOR_ARIES.id,
+            name:
+              ariesCreatorProfile?.penName ||
+              (u.name && u.name !== 'aries_chitrakatha' ? u.name : OFFICIAL_CREATOR_ARIES.name),
+            username: syncedUsername,
+            email:
+              u.email && u.email.toLowerCase() !== OFFICIAL_CREATOR_ARIES.altEmail.toLowerCase()
+                ? u.email
+                : OFFICIAL_CREATOR_ARIES.email,
+            password:
+              u.password && u.password !== 'password123'
+                ? u.password
+                : OFFICIAL_CREATOR_ARIES.password,
+            role: 'creator' as UserRole,
+            creatorProfileId: OFFICIAL_CREATOR_ARIES.creatorProfileId,
+            avatarUrl: ariesCreatorProfile?.avatarUrl || u.avatarUrl || OFFICIAL_CREATOR_ARIES.avatarUrl,
+          });
+        }
+        continue;
+      }
+
+      // Non-admin user: ensure strictly unique ID and sync with linked creator profile if any
       let finalId = u.id;
       if (!finalId || seenIds.has(finalId)) {
         finalId = `user_${u.username || 'reader'}_${Math.random().toString(36).substring(2, 7)}`;
       }
       seenIds.add(finalId);
 
+      const linkedCreator = rawCreators.find(
+        c => (u.creatorProfileId && c.id === u.creatorProfileId) || c.userId === finalId
+      );
+      const linkedHandle = linkedCreator?.handle
+        ? linkedCreator.handle.replace(/^@+/, '').trim().toLowerCase()
+        : '';
+
       const safeRole: UserRole = u.role === 'admin' ? 'free_user' : u.role;
-      const cleanUser = u.username || (u.email ? u.email.split('@')[0] : 'user').replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
+      const cleanUser = (
+        u.username ||
+        linkedHandle ||
+        (u.email ? u.email.split('@')[0] : 'user')
+      )
+        .replace(/^@+/, '')
+        .replace(/[^a-zA-Z0-9_]/g, '_')
+        .toLowerCase();
+
       list.push({
         ...u,
         id: finalId,
-        name: u.name || cleanUser,
+        name: linkedCreator?.penName || u.name || cleanUser,
         username: cleanUser,
         role: safeRole,
+        creatorProfileId: u.creatorProfileId || linkedCreator?.id,
         password: u.password || 'password123',
+      });
+    }
+
+    if (!hasAries) {
+      const creatorHandleClean = ariesCreatorProfile?.handle
+        ? ariesCreatorProfile.handle.replace(/^@+/, '').trim().toLowerCase()
+        : '';
+      const syncedUsername =
+        creatorHandleClean && creatorHandleClean !== 'team_arieschitrakatha'
+          ? creatorHandleClean
+          : OFFICIAL_CREATOR_ARIES.username;
+      list.unshift({
+        id: OFFICIAL_CREATOR_ARIES.id,
+        email: OFFICIAL_CREATOR_ARIES.email,
+        name: ariesCreatorProfile?.penName || OFFICIAL_CREATOR_ARIES.name,
+        username: syncedUsername,
+        password: OFFICIAL_CREATOR_ARIES.password,
+        role: 'creator',
+        creatorProfileId: OFFICIAL_CREATOR_ARIES.creatorProfileId,
+        avatarUrl: ariesCreatorProfile?.avatarUrl || OFFICIAL_CREATOR_ARIES.avatarUrl,
+        isVIP: false,
+        createdAt: '2026-01-25T00:00:00Z',
+      });
+    }
+
+    if (!hasDeep) {
+      const creatorHandleClean = deepCreatorProfile?.handle
+        ? deepCreatorProfile.handle.replace(/^@+/, '').trim().toLowerCase()
+        : '';
+      const syncedUsername =
+        creatorHandleClean && creatorHandleClean !== 'deep_mangaka'
+          ? creatorHandleClean
+          : OFFICIAL_CREATOR_DEEP.username;
+      list.unshift({
+        id: OFFICIAL_CREATOR_DEEP.id,
+        email: OFFICIAL_CREATOR_DEEP.email,
+        name: deepCreatorProfile?.penName || OFFICIAL_CREATOR_DEEP.name,
+        username: syncedUsername,
+        password: OFFICIAL_CREATOR_DEEP.password,
+        role: 'creator',
+        creatorProfileId: OFFICIAL_CREATOR_DEEP.creatorProfileId,
+        avatarUrl: deepCreatorProfile?.avatarUrl || OFFICIAL_CREATOR_DEEP.avatarUrl,
+        isVIP: false,
+        createdAt: '2026-01-05T00:00:00Z',
       });
     }
 
@@ -2185,21 +2368,57 @@ export const StorageService = {
       });
     }
 
-    // Absolute uniqueness guarantee: prevent any duplicate IDs across components & tables
-    const uniqueMap = new Map<string, User>();
+    // Deduplicate by both ID and Email so the same Gmail/email never creates two separate accounts
+    const uniqueById = new Map<string, User>();
+    const emailToId = new Map<string, string>();
+
     for (const u of list) {
-      if (!uniqueMap.has(u.id)) {
-        uniqueMap.set(u.id, u);
+      const cleanEmail = (u.email || '').trim().toLowerCase();
+      if (cleanEmail && emailToId.has(cleanEmail)) {
+        const existingId = emailToId.get(cleanEmail)!;
+        const existing = uniqueById.get(existingId)!;
+        // Merge, preferring creator/admin role and creatorProfileId
+        const merged: User = {
+          ...existing,
+          ...u,
+          id: existing.creatorProfileId ? existing.id : u.id,
+          role:
+            existing.role === 'admin' || u.role === 'admin'
+              ? 'admin'
+              : existing.role === 'creator' || u.role === 'creator'
+              ? 'creator'
+              : existing.role === 'subscriber' || u.role === 'subscriber'
+              ? 'subscriber'
+              : u.role,
+          creatorProfileId: existing.creatorProfileId || u.creatorProfileId,
+          isVIP: Boolean(existing.isVIP || u.isVIP),
+          password: existing.password && existing.password !== 'password123' ? existing.password : u.password,
+        };
+        uniqueById.delete(existingId);
+        uniqueById.set(merged.id, merged);
+        emailToId.set(cleanEmail, merged.id);
+        continue;
+      }
+
+      if (!uniqueById.has(u.id)) {
+        uniqueById.set(u.id, u);
+        if (cleanEmail) {
+          emailToId.set(cleanEmail, u.id);
+        }
       }
     }
-    return Array.from(uniqueMap.values());
+    return Array.from(uniqueById.values());
   },
 
   saveUsers(users: User[]): void {
-    const seen = new Set<string>();
+    const seenIds = new Set<string>();
+    const seenEmails = new Set<string>();
     const deduplicated = users.filter(u => {
-      if (!u.id || seen.has(u.id)) return false;
-      seen.add(u.id);
+      if (!u.id || seenIds.has(u.id)) return false;
+      const cleanEmail = (u.email || '').trim().toLowerCase();
+      if (cleanEmail && seenEmails.has(cleanEmail)) return false;
+      seenIds.add(u.id);
+      if (cleanEmail) seenEmails.add(cleanEmail);
       return true;
     });
     setStored(STORAGE_KEYS.USERS, deduplicated);
@@ -2218,6 +2437,14 @@ export const StorageService = {
         createdAt: new Date().toISOString(),
       };
     }
+    // Always sync with the latest user record from getUsers() so username/handle changes reflect everywhere
+    const allUsers = this.getUsers();
+    const synced = allUsers.find(
+      u => u.id === user.id || (user.email && u.email.toLowerCase() === user.email.toLowerCase())
+    );
+    if (synced) {
+      return synced;
+    }
     if (!user.username) {
       user.username = (user.email ? user.email.split('@')[0] : 'reader').replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
     }
@@ -2226,15 +2453,32 @@ export const StorageService = {
 
   setCurrentUser(user: User | null): void {
     setStored(STORAGE_KEYS.CURRENT_USER, user);
-    if (user) {
+    if (user && user.id !== 'guest_reader') {
       const users = this.getUsers();
-      const idx = users.findIndex(u => u.id === user.id);
+      const idx = users.findIndex(
+        u => u.id === user.id || (user.email && u.email.toLowerCase() === user.email.toLowerCase())
+      );
       if (idx >= 0) {
-        users[idx] = user;
+        users[idx] = { ...users[idx], ...user, id: users[idx].id };
       } else {
         users.push(user);
       }
       this.saveUsers(users);
+
+      // Sync username/name/avatar changes to linked CreatorProfile if any
+      const rawCreators = getStored<CreatorProfile[]>(STORAGE_KEYS.CREATORS, INITIAL_CREATORS);
+      const cIdx = rawCreators.findIndex(
+        c => c.userId === user.id || (user.creatorProfileId && c.id === user.creatorProfileId)
+      );
+      if (cIdx >= 0 && user.username) {
+        const cleanHandle = user.username.replace(/^@+/, '').trim().toLowerCase();
+        rawCreators[cIdx] = {
+          ...rawCreators[cIdx],
+          handle: `@${cleanHandle}`,
+          avatarUrl: user.avatarUrl || rawCreators[cIdx].avatarUrl,
+        };
+        this.saveCreators(rawCreators);
+      }
     }
   },
 
@@ -2276,13 +2520,39 @@ export const StorageService = {
     const users = this.getUsers();
     const idx = users.findIndex(u => u.id === id);
     if (idx === -1) return undefined;
-    users[idx] = { ...users[idx], ...updates };
+    const updatedUser: User = {
+      ...users[idx],
+      ...updates,
+      username: updates.username
+        ? updates.username.replace(/^@+/, '').trim().toLowerCase()
+        : users[idx].username,
+    };
+    users[idx] = updatedUser;
     this.saveUsers(users);
-    const current = this.getCurrentUser();
-    if (current.id === id) {
-      this.setCurrentUser(users[idx]);
+
+    // Sync username/name/avatar with linked CreatorProfile if any
+    const rawCreators = getStored<CreatorProfile[]>(STORAGE_KEYS.CREATORS, INITIAL_CREATORS);
+    const cIdx = rawCreators.findIndex(
+      c => c.userId === id || (updatedUser.creatorProfileId && c.id === updatedUser.creatorProfileId)
+    );
+    if (cIdx >= 0) {
+      if (updates.username) {
+        rawCreators[cIdx].handle = `@${updatedUser.username}`;
+      }
+      if (updates.name) {
+        rawCreators[cIdx].penName = updates.name.trim();
+      }
+      if (updates.avatarUrl) {
+        rawCreators[cIdx].avatarUrl = updates.avatarUrl;
+      }
+      this.saveCreators(rawCreators);
     }
-    return users[idx];
+
+    const current = getStored<User | null>(STORAGE_KEYS.CURRENT_USER, null);
+    if (current && current.id === id) {
+      setStored(STORAGE_KEYS.CURRENT_USER, updatedUser);
+    }
+    return updatedUser;
   },
 
   // Manga Series
@@ -2608,12 +2878,49 @@ export const StorageService = {
   },
 
   updateCreator(id: string, updates: Partial<CreatorProfile>): CreatorProfile | undefined {
-    const all = this.getCreators();
-    const idx = all.findIndex(c => c.id === id);
+    const all = getStored<CreatorProfile[]>(STORAGE_KEYS.CREATORS, INITIAL_CREATORS);
+    const idx = all.findIndex(c => c.id === id || c.userId === id);
     if (idx === -1) return undefined;
-    all[idx] = { ...all[idx], ...updates };
+
+    const cleanHandle = updates.handle
+      ? `@${updates.handle.replace(/^@+/, '').trim().toLowerCase()}`
+      : all[idx].handle;
+
+    const updatedCreator: CreatorProfile = {
+      ...all[idx],
+      ...updates,
+      handle: cleanHandle,
+    };
+    all[idx] = updatedCreator;
     this.saveCreators(all);
-    return all[idx];
+
+    // Immediately sync the updated handle (username), penName, and avatarUrl to the linked User account!
+    const rawUsers = getStored<User[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
+    const uIdx = rawUsers.findIndex(
+      u => u.id === updatedCreator.userId || u.creatorProfileId === updatedCreator.id
+    );
+    const newUsername = cleanHandle.replace(/^@+/, '').trim().toLowerCase();
+
+    if (uIdx >= 0) {
+      rawUsers[uIdx] = {
+        ...rawUsers[uIdx],
+        username: newUsername || rawUsers[uIdx].username,
+        name: updates.penName ? updates.penName.trim() : rawUsers[uIdx].name,
+        avatarUrl: updates.avatarUrl || rawUsers[uIdx].avatarUrl,
+      };
+      this.saveUsers(rawUsers);
+
+      const current = getStored<User | null>(STORAGE_KEYS.CURRENT_USER, null);
+      if (current && current.id === rawUsers[uIdx].id) {
+        setStored(STORAGE_KEYS.CURRENT_USER, rawUsers[uIdx]);
+      }
+    } else {
+      // Ensure getUsers() materializes and saves the synced user list
+      const syncedUsers = this.getUsers();
+      this.saveUsers(syncedUsers);
+    }
+
+    return updatedCreator;
   },
 
   updateCreatorProfile(id: string, updates: Partial<CreatorProfile>): CreatorProfile | undefined {

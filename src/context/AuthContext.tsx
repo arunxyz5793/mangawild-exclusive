@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole, Permission, hasPermission } from '../types/auth';
-import { StorageService, OFFICIAL_ADMIN } from '../services/storage';
+import { StorageService, OFFICIAL_ADMIN, OFFICIAL_CREATOR_DEEP, OFFICIAL_CREATOR_ARIES } from '../services/storage';
 import { PlatformNotification } from '../types/manga';
 import { authenticateWithGoogleOAuth } from '../services/googleAuth';
 import { testFirestoreConnection, auth, createUserWithEmailAndPassword } from '../services/firebase';
@@ -304,20 +304,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return true;
     }
 
-    // Find account by either username or email
-    const found = allUsers.find(
-      u => (u.email && u.email.toLowerCase() === cleanId) ||
-           (u.username && u.username.toLowerCase() === cleanId)
-    );
+    // Find account by current username, current creator @handle, or email (never old/replaced usernames)
+    const allCreators = StorageService.getCreators();
+    const isDeepEmailLogin =
+      cleanId === OFFICIAL_CREATOR_DEEP.email.toLowerCase() ||
+      cleanId === OFFICIAL_CREATOR_DEEP.altEmail.toLowerCase();
+
+    const isAriesEmailLogin =
+      cleanId === OFFICIAL_CREATOR_ARIES.email.toLowerCase() ||
+      cleanId === OFFICIAL_CREATOR_ARIES.altEmail.toLowerCase();
+
+    const found = allUsers.find(u => {
+      if (isDeepEmailLogin && u.id === OFFICIAL_CREATOR_DEEP.id) return true;
+      if (isAriesEmailLogin && u.id === OFFICIAL_CREATOR_ARIES.id) return true;
+      if (u.email && u.email.toLowerCase() === cleanId) return true;
+
+      // Check linked creator profile's current handle first (if creator exists, its handle & u.username are synced)
+      const creatorProfile = allCreators.find(
+        c => c.userId === u.id || (u.creatorProfileId && c.id === u.creatorProfileId)
+      );
+      const currentCreatorHandle = creatorProfile?.handle
+        ? creatorProfile.handle.replace(/^@+/, '').trim().toLowerCase()
+        : '';
+
+      if (currentCreatorHandle) {
+        // When a creator profile is linked, only accept the current synced username/handle (old usernames are rejected)
+        return currentCreatorHandle === cleanId || (u.username && u.username.toLowerCase() === cleanId && u.username.toLowerCase() === currentCreatorHandle);
+      }
+
+      return Boolean(u.username && u.username.toLowerCase() === cleanId);
+    });
 
     if (!found) {
-      throw new Error('No account found with this username or email. Please check your credentials or click Sign Up to create an account.');
+      throw new Error('No account found with this username or email. If you recently updated your username, please sign in with your new username or email address.');
     }
 
     // Check if account or linked creator profile is suspended
-    const linkedCreator = StorageService.getCreators().find(
+    const linkedCreator = allCreators.find(
       c => c.userId === found.id || (found.creatorProfileId && c.id === found.creatorProfileId)
     );
+    if (linkedCreator?.handle) {
+      const latestHandle = linkedCreator.handle.replace(/^@+/, '').trim().toLowerCase();
+      if (latestHandle && found.username !== latestHandle) {
+        found.username = latestHandle;
+      }
+    }
     if (found.isSuspended || linkedCreator?.isSuspended) {
       const reason =
         found.suspensionReason ||
@@ -332,8 +363,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const expectedPassword = found.password || 'password123';
-    if (pass !== expectedPassword) {
+    const isDeepValidPass =
+      found.id === OFFICIAL_CREATOR_DEEP.id &&
+      (pass === OFFICIAL_CREATOR_DEEP.password || pass === expectedPassword || pass === 'password123');
+    const isAriesValidPass =
+      found.id === OFFICIAL_CREATOR_ARIES.id &&
+      (pass === OFFICIAL_CREATOR_ARIES.password || pass === expectedPassword || pass === 'password123');
+
+    if (pass !== expectedPassword && !isDeepValidPass && !isAriesValidPass) {
       throw new Error('Incorrect password. Please enter the valid password you created during sign up.');
+    }
+
+    if (found.id === OFFICIAL_CREATOR_DEEP.id) {
+      found.role = 'creator';
+      found.creatorProfileId = OFFICIAL_CREATOR_DEEP.creatorProfileId;
+      found.email = OFFICIAL_CREATOR_DEEP.email;
+      StorageService.saveUsers(allUsers);
+    } else if (found.id === OFFICIAL_CREATOR_ARIES.id) {
+      found.role = 'creator';
+      found.creatorProfileId = OFFICIAL_CREATOR_ARIES.creatorProfileId;
+      found.email = OFFICIAL_CREATOR_ARIES.email;
+      StorageService.saveUsers(allUsers);
     }
 
     // Update role if explicitly requested (e.g. reader chooses creator)
@@ -481,12 +531,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!googleProfile.email) return false;
 
       const allUsers = StorageService.getUsers();
-      let found = allUsers.find(u => u.email.toLowerCase() === googleProfile.email.toLowerCase());
+      const isDeepGoogleEmail =
+        googleProfile.email.toLowerCase() === OFFICIAL_CREATOR_DEEP.email.toLowerCase() ||
+        googleProfile.email.toLowerCase() === OFFICIAL_CREATOR_DEEP.altEmail.toLowerCase();
+      const isAriesGoogleEmail =
+        googleProfile.email.toLowerCase() === OFFICIAL_CREATOR_ARIES.email.toLowerCase() ||
+        googleProfile.email.toLowerCase() === OFFICIAL_CREATOR_ARIES.altEmail.toLowerCase();
+
+      let found = allUsers.find(
+        u =>
+          (isDeepGoogleEmail && u.id === OFFICIAL_CREATOR_DEEP.id) ||
+          (isAriesGoogleEmail && u.id === OFFICIAL_CREATOR_ARIES.id) ||
+          u.email.toLowerCase() === googleProfile.email.toLowerCase()
+      );
+
+      if (found && isDeepGoogleEmail) {
+        found.role = 'creator';
+        found.creatorProfileId = OFFICIAL_CREATOR_DEEP.creatorProfileId;
+        found.email = OFFICIAL_CREATOR_DEEP.email;
+        StorageService.saveUsers(allUsers);
+      } else if (found && isAriesGoogleEmail) {
+        found.role = 'creator';
+        found.creatorProfileId = OFFICIAL_CREATOR_ARIES.creatorProfileId;
+        found.email = OFFICIAL_CREATOR_ARIES.email;
+        StorageService.saveUsers(allUsers);
+      }
 
       const isAdminEmail =
         googleProfile.email.toLowerCase() === OFFICIAL_ADMIN.email.toLowerCase() ||
         googleProfile.email.toLowerCase() === OFFICIAL_ADMIN.altEmail.toLowerCase();
-      const assignedRole = isAdminEmail ? 'admin' : (requestedRole === 'admin' ? 'free_user' : requestedRole);
+      const assignedRole = isAdminEmail
+        ? 'admin'
+        : isDeepGoogleEmail || isAriesGoogleEmail
+        ? 'creator'
+        : requestedRole === 'admin'
+        ? 'free_user'
+        : requestedRole;
 
       if (!found) {
         const username = customUsername || googleProfile.name?.replace(/\s+/g, '_').toLowerCase() || googleProfile.email.split('@')[0];
@@ -560,12 +640,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw new Error('Please enter a valid Google email address.');
     }
     const allUsers = StorageService.getUsers();
-    let found = allUsers.find(u => u.email.toLowerCase() === cleanEmail);
+    const isDeepGoogleEmail =
+      cleanEmail === OFFICIAL_CREATOR_DEEP.email.toLowerCase() ||
+      cleanEmail === OFFICIAL_CREATOR_DEEP.altEmail.toLowerCase();
+    const isAriesGoogleEmail =
+      cleanEmail === OFFICIAL_CREATOR_ARIES.email.toLowerCase() ||
+      cleanEmail === OFFICIAL_CREATOR_ARIES.altEmail.toLowerCase();
+
+    let found = allUsers.find(
+      u =>
+        (isDeepGoogleEmail && u.id === OFFICIAL_CREATOR_DEEP.id) ||
+        (isAriesGoogleEmail && u.id === OFFICIAL_CREATOR_ARIES.id) ||
+        (u.email && u.email.toLowerCase() === cleanEmail)
+    );
+
+    if (found && isDeepGoogleEmail) {
+      found.role = 'creator';
+      found.creatorProfileId = OFFICIAL_CREATOR_DEEP.creatorProfileId;
+      found.email = OFFICIAL_CREATOR_DEEP.email;
+      StorageService.saveUsers(allUsers);
+    } else if (found && isAriesGoogleEmail) {
+      found.role = 'creator';
+      found.creatorProfileId = OFFICIAL_CREATOR_ARIES.creatorProfileId;
+      found.email = OFFICIAL_CREATOR_ARIES.email;
+      StorageService.saveUsers(allUsers);
+    }
 
     const isAdminEmail =
       cleanEmail === OFFICIAL_ADMIN.email.toLowerCase() ||
       cleanEmail === OFFICIAL_ADMIN.altEmail.toLowerCase();
-    const assignedRole = isAdminEmail ? 'admin' : (requestedRole === 'admin' ? 'free_user' : requestedRole);
+    const assignedRole = isAdminEmail
+      ? 'admin'
+      : isDeepGoogleEmail || isAriesGoogleEmail
+      ? 'creator'
+      : requestedRole === 'admin'
+      ? 'free_user'
+      : requestedRole;
 
     if (!found) {
       const username = cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '') || `user_${Date.now().toString().slice(-4)}`;
@@ -623,33 +733,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateUsername = (newUsername: string): { success: boolean; error?: string } => {
-    const clean = newUsername.trim().replace(/^@/, '').toLowerCase();
+    const clean = newUsername.trim().replace(/^@+/, '').toLowerCase();
     if (!clean || clean.length < 3) {
       return { success: false, error: 'Username must be at least 3 characters long.' };
     }
     if (!/^[a-zA-Z0-9_]+$/.test(clean)) {
       return { success: false, error: 'Username can only contain letters, numbers, and underscores.' };
     }
-    // Check uniqueness among other users
+    // Check uniqueness among other users and creators
     const allUsers = StorageService.getUsers();
-    const existing = allUsers.find(u => u.id !== user.id && u.username?.toLowerCase() === clean);
-    if (existing) {
+    const allCreators = StorageService.getCreators();
+    const existingUser = allUsers.find(u => u.id !== user.id && u.username?.toLowerCase() === clean);
+    const existingCreator = allCreators.find(
+      c =>
+        c.userId !== user.id &&
+        c.id !== user.creatorProfileId &&
+        c.handle?.replace(/^@+/, '').trim().toLowerCase() === clean
+    );
+    if (existingUser || existingCreator) {
       return { success: false, error: 'This username is already taken. Please choose another.' };
     }
 
-    const updatedUser = { ...user, username: clean };
-    setUser(updatedUser);
-    StorageService.setCurrentUser(updatedUser);
-
-    // If user has creator profile, also sync their handle
-    if (user.creatorProfileId) {
-      const creators = StorageService.getCreators();
-      const cIdx = creators.findIndex(c => c.id === user.creatorProfileId);
-      if (cIdx >= 0) {
-        creators[cIdx].handle = `@${clean}`;
-        StorageService.saveCreators(creators);
-      }
-    }
+    const updated = StorageService.updateUser(user.id, { username: clean }) || { ...user, username: clean };
+    setUser(updated);
+    StorageService.setCurrentUser(updated);
+    setUsers(StorageService.getUsers());
 
     return { success: true };
   };

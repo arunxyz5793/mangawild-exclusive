@@ -33,11 +33,11 @@ interface CreatorTipJarProps {
 }
 
 const INR_TIP_PRESETS = [
-  { amountInr: 20, label: 'Chai (₹20)' },
-  { amountInr: 50, label: 'Pen Nibs (₹50)' },
-  { amountInr: 100, label: 'Art Supplies (₹100)' },
-  { amountInr: 200, label: 'Studio Boost (₹200)' },
-  { amountInr: 500, label: 'Super Patron (₹500)' },
+  { amountInr: 20 },
+  { amountInr: 50 },
+  { amountInr: 100 },
+  { amountInr: 200 },
+  { amountInr: 500 },
 ];
 
 interface Particle {
@@ -284,7 +284,7 @@ export const CreatorTipJar: React.FC<CreatorTipJarProps> = ({
 
       {/* INR Presets */}
       <div className="space-y-3">
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
           {INR_TIP_PRESETS.map((preset) => {
             const isSelected = !customInr && selectedInr === preset.amountInr;
             return (
@@ -295,7 +295,7 @@ export const CreatorTipJar: React.FC<CreatorTipJarProps> = ({
                   setSelectedInr(preset.amountInr);
                   setCustomInr('');
                 }}
-                className={`btn-interactive p-2.5 rounded-xl border text-left transition-all cursor-pointer box-border ${
+                className={`btn-interactive py-2.5 px-3 rounded-xl border text-center transition-all cursor-pointer box-border ${
                   isSelected
                     ? isLight
                       ? 'border-black bg-black text-white light-invert-pill'
@@ -307,9 +307,6 @@ export const CreatorTipJar: React.FC<CreatorTipJarProps> = ({
               >
                 <div className="text-sm font-black font-mono">
                   ₹{preset.amountInr}
-                </div>
-                <div className="text-[10px] truncate mt-0.5 opacity-75">
-                  {preset.label.split(' (')[0]}
                 </div>
               </button>
             );
@@ -539,7 +536,7 @@ export const CreatorTipJar: React.FC<CreatorTipJarProps> = ({
       </div>
 
       {/* INR Presets */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
         {INR_TIP_PRESETS.map((preset) => {
           const isSelected = !customInr && selectedInr === preset.amountInr;
           return (
@@ -550,7 +547,7 @@ export const CreatorTipJar: React.FC<CreatorTipJarProps> = ({
                 setSelectedInr(preset.amountInr);
                 setCustomInr('');
               }}
-              className={`btn-interactive p-2.5 rounded-xl border text-left transition-all cursor-pointer box-border ${
+              className={`btn-interactive py-2.5 px-3 rounded-xl border text-center transition-all cursor-pointer box-border ${
                 isSelected
                   ? isLight
                     ? 'border-black bg-black text-white light-invert-pill'
@@ -562,9 +559,6 @@ export const CreatorTipJar: React.FC<CreatorTipJarProps> = ({
             >
               <div className="text-xs font-black font-mono">
                 ₹{preset.amountInr}
-              </div>
-              <div className="text-[10px] truncate mt-0.5 opacity-75">
-                {preset.label.split(' (')[0]}
               </div>
             </button>
           );

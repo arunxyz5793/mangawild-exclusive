@@ -322,9 +322,9 @@ function AppContent() {
   // Anti-download & Image Protection: prevent long-press / hold to download / dragging on images & save shortcuts
   useEffect(() => {
     const preventContextMenuOnImages = (e: MouseEvent | TouchEvent) => {
-      const target = e.target as HTMLElement;
+      const target = e.target;
       if (
-        target &&
+        target instanceof Element &&
         (target.tagName === 'IMG' ||
           target.closest('img') ||
           target.hasAttribute('data-protected-img') ||
@@ -335,9 +335,9 @@ function AppContent() {
     };
 
     const preventDragOnImages = (e: DragEvent) => {
-      const target = e.target as HTMLElement;
+      const target = e.target;
       if (
-        target &&
+        target instanceof Element &&
         (target.tagName === 'IMG' ||
           target.closest('img') ||
           target.hasAttribute('data-protected-img') ||

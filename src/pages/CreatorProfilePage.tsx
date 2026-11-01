@@ -241,9 +241,8 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
     if (e) e.preventDefault();
     if (!creator) return;
 
-    const formattedHandle = editHandle.trim().startsWith('@')
-      ? editHandle.trim()
-      : `@${editHandle.trim().replace(/^@+/, '')}`;
+    const cleanRawHandle = editHandle.trim().replace(/^@+/, '').toLowerCase();
+    const formattedHandle = cleanRawHandle ? `@${cleanRawHandle}` : creator.handle;
 
     const updates: Partial<CreatorProfile> = {
       penName: editPenName.trim() || creator.penName,
@@ -265,7 +264,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
     if (user && (user.id === creator.userId || user.creatorProfileId === creator.id)) {
       updateUser({
         name: updates.penName,
-        username: updates.handle?.replace('@', ''),
+        username: cleanRawHandle || updates.handle?.replace(/^@+/, '').toLowerCase(),
         avatarUrl: updates.avatarUrl,
       });
     }
@@ -273,7 +272,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
     setCreators(StorageService.getCreators());
     setIsEditModalOpen(false);
     setActiveTab('works');
-    showToast('Profile updated!');
+    showToast('Profile & login username synced!');
   };
 
   const isFollowing = creator ? followedCreators.includes(creator.id) : false;
