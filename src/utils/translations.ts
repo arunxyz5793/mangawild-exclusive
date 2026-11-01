@@ -135,7 +135,7 @@ const enTranslations: Translations = {
     banner: {
       badge: 'MangaWild Spotlight',
       title: 'Unleash Original Stories. Experience Pure Manga.',
-      subtitle: 'Dive into thrilling supernatural sagas, mythic urban fantasies, and sports adrenaline created by visionary independent artists.',
+      subtitle: 'Dive into thrilling supernatural sagas, mythic urban fantasies, and sports adrenaline created by visionary independent creators.',
       becomeCreator: 'Start Publishing — Creator Studio',
       howEarningsWork: 'Creator Royalties & Payouts',
       reads: 'active readers',
@@ -178,7 +178,7 @@ const enTranslations: Translations = {
       of: 'of',
       comments: 'Discussion',
       lockedTitle: 'Exclusive VIP Chapter',
-      lockedDesc: 'This chapter is reserved for MangaWild Exclusive members or early-access patrons. Support the artist directly to read now.',
+      lockedDesc: 'This chapter is reserved for MangaWild Exclusive members or early-access patrons. Support the creator directly to read now.',
       unlockVIP: 'Unlock with MangaWild VIP Pass (₹199/mo)',
       freePreviewNotice: 'Free chapters available for all registered readers.',
     },

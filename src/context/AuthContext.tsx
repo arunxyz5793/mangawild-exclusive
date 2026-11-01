@@ -169,7 +169,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         existingProfile = {
           id: creatorId,
           userId: user.id,
-          penName: user.username || user.name || 'Mangaka',
+          penName: user.username || user.name || 'Creator',
           handle: `@${user.username || user.name.toLowerCase().replace(/\s+/g, '_')}`,
           bio: '',
           avatarUrl: user.avatarUrl || DEFAULT_USER_AVATAR,

@@ -244,8 +244,14 @@ app.post('/api/payment/create-order', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid order amount' });
     }
 
-    const keyId = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TiGD6mgGZQcUBE';
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const keyId =
+      process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_ID !== 'rzp_test_TiGD6mgGZQcUBE'
+        ? process.env.RAZORPAY_KEY_ID
+        : 'rzp_test_TusxJOMGjvZ5q3';
+    const keySecret =
+      process.env.RAZORPAY_KEY_SECRET && !process.env.RAZORPAY_KEY_SECRET.includes('placeholder')
+        ? process.env.RAZORPAY_KEY_SECRET
+        : 'aEZz8o5bUng5hSw3gutyrLMG';
 
     // If real credentials are provided (and not placeholder), call Razorpay Orders API
     if (keySecret && !keySecret.includes('placeholder')) {
@@ -317,7 +323,10 @@ app.post('/api/payment/verify-payment', (req, res) => {
       return res.status(400).json({ success: false, error: 'Payment ID is required' });
     }
 
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const keySecret =
+      process.env.RAZORPAY_KEY_SECRET && !process.env.RAZORPAY_KEY_SECRET.includes('placeholder')
+        ? process.env.RAZORPAY_KEY_SECRET
+        : 'aEZz8o5bUng5hSw3gutyrLMG';
 
     // Cryptographic signature check if key secret is configured
     if (keySecret && !keySecret.includes('placeholder') && razorpay_order_id && razorpay_signature) {

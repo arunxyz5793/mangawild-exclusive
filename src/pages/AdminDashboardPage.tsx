@@ -2424,7 +2424,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
               <div className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/40">
                 <p className="text-[11px] font-mono text-zinc-400 uppercase">Creator 70% Royalties</p>
                 <p className="text-3xl font-black text-white mt-1">₹{creatorRoyalties.toLocaleString('en-IN')}</p>
-                <p className="text-[10px] text-zinc-500 font-mono mt-1">Paid directly to mangakas</p>
+                <p className="text-[10px] text-zinc-500 font-mono mt-1">Paid directly to creators</p>
               </div>
 
               <div className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/40">
@@ -2488,7 +2488,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                 </div>
                 <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800">
                   <span className="text-zinc-500 text-[10px] block uppercase">Indexed Creators</span>
-                  <span className="text-white font-bold text-sm">{creatorsList.length} Artists</span>
+                  <span className="text-white font-bold text-sm">{creatorsList.length} Creators</span>
                 </div>
               </div>
             </div>
@@ -2663,7 +2663,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                   {inspectingSeries.titleJapanese && (
                     <p className="text-zinc-400 font-mono">Japanese: {inspectingSeries.titleJapanese}</p>
                   )}
-                  <p className="text-zinc-400">Author / Mangaka: <strong className="text-white">{inspectingSeries.author}</strong></p>
+                  <p className="text-zinc-400">Author / Creator: <strong className="text-white">{inspectingSeries.author}</strong></p>
                   <p className="text-zinc-300 leading-relaxed text-xs">{inspectingSeries.synopsis}</p>
                   <div className="flex flex-wrap gap-1.5 pt-2">
                     {inspectingSeries.genres.map(g => (

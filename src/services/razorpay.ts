@@ -43,7 +43,11 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
 ];
 
 export const RAZORPAY_KEY_ID =
-  (import.meta.env.VITE_RAZORPAY_KEY_ID as string) || 'rzp_test_TiGD6mgGZQcUBE';
+  (import.meta.env.VITE_RAZORPAY_KEY_ID &&
+  import.meta.env.VITE_RAZORPAY_KEY_ID !== 'rzp_test_placeholder_key' &&
+  import.meta.env.VITE_RAZORPAY_KEY_ID !== 'rzp_test_TiGD6mgGZQcUBE'
+    ? (import.meta.env.VITE_RAZORPAY_KEY_ID as string)
+    : 'rzp_test_TusxJOMGjvZ5q3');
 
 export interface RazorpayOptions {
   key: string;
@@ -272,7 +276,7 @@ export async function launchRazorpayTipCheckout({
     amount: Math.round(amountInr * 100), // paise
     currency: 'INR',
     name: 'MangaWild Creator Tip',
-    description: `Support Mangaka: ${creatorName}${seriesTitle ? ` (${seriesTitle})` : ''}`,
+    description: `Support Creator: ${creatorName}${seriesTitle ? ` (${seriesTitle})` : ''}`,
     prefill: {
       name: user?.name || 'Manga Supporter',
       email: user?.email || 'reader@mangawild.com',
@@ -282,7 +286,7 @@ export async function launchRazorpayTipCheckout({
       creatorId,
       creatorName,
       tipMessage: message || 'Fan appreciation',
-      platform: 'MangaWild Direct Mangaka Payouts',
+      platform: 'MangaWild Direct Creator Payouts',
     },
     theme: {
       color: '#000000',

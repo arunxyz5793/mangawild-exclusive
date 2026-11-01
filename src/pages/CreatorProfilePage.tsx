@@ -475,7 +475,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
       {/* Bio (Empty by Default — No Dummy Bio Pre-filled) */}
       <div className="space-y-1.5">
         <label className="font-bold uppercase tracking-wider opacity-75 block">
-          Bio / Artist Statement
+          Bio / Creator Statement
         </label>
         <textarea
           rows={3}
@@ -613,21 +613,6 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
         </button>
 
         <div className="flex items-center gap-2">
-          {isOwner && (
-            <button
-              type="button"
-              onClick={handleOpenEdit}
-              className={`px-3.5 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                isLight
-                  ? 'bg-black text-white border-black light-invert-pill'
-                  : 'bg-white text-black border-white hover:bg-zinc-200'
-              }`}
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-              <span>Edit Profile</span>
-            </button>
-          )}
-
           <button
             type="button"
             onClick={() => setIsShareModalOpen(true)}
@@ -683,7 +668,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                       isLight ? 'border-black text-black bg-white' : 'border-white/25 text-white bg-black'
                     }`}
                   >
-                    Mangaka
+                    Creator
                   </span>
                 </div>
 
@@ -705,7 +690,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
               </div>
             </div>
 
-            {/* Action Buttons: Tip Artist, Edit Profile, Switch to Reader, Delete Account, Follow */}
+            {/* Action Buttons: Tip Creator, Edit Profile, Switch to Reader, Delete Account, Follow */}
             <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto justify-start sm:justify-end max-w-full box-border">
               {creatorSeries.length > 0 && (
                 <button
@@ -722,7 +707,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                   }`}
                 >
                   <Coins className="w-4 h-4 shrink-0" />
-                  <span>Tip Artist</span>
+                  <span>Tip Creator</span>
                 </button>
               )}
 
@@ -812,7 +797,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
             <div className="mt-6 pt-6 border-t border-current/15 grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="md:col-span-2 space-y-1.5">
                 <h3 className="text-[11px] font-mono uppercase tracking-widest font-bold opacity-75">
-                  About the Mangaka
+                  About the Creator
                 </h3>
                 {creator.bio?.trim() ? (
                   <p className="text-sm leading-relaxed max-w-3xl break-words">
@@ -872,73 +857,6 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
           )}
         </div>
 
-        {/* Navigation Tabs (Only if owner) */}
-        {isOwner && (
-          <div className="flex items-center gap-2 border-b border-current/15 pb-3">
-            <button
-              type="button"
-              onClick={() => setActiveTab('works')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition-all cursor-pointer border ${
-                activeTab === 'works'
-                  ? isLight
-                    ? 'bg-black text-white border-black light-invert-pill'
-                    : 'bg-white text-black border-white'
-                  : isLight
-                  ? 'bg-white text-black border-black/25'
-                  : 'bg-zinc-900 text-white border-white/20'
-              }`}
-            >
-              Published Works ({creatorSeries.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('edit');
-                handleOpenEdit();
-                setIsEditModalOpen(false);
-              }}
-              className={`px-4 py-2 rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 border ${
-                activeTab === 'edit'
-                  ? isLight
-                    ? 'bg-black text-white border-black light-invert-pill'
-                    : 'bg-white text-black border-white'
-                  : isLight
-                  ? 'bg-white text-black border-black/25'
-                  : 'bg-zinc-900 text-white border-white/20'
-              }`}
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-              <span>Edit Profile &amp; Socials</span>
-            </button>
-          </div>
-        )}
-
-        {/* INLINE EDIT PROFILE TAB */}
-        {isOwner && activeTab === 'edit' && (
-          <div
-            className={`p-5 sm:p-8 rounded-3xl border space-y-6 animate-fade-in w-full max-w-full box-border ${
-              isLight ? 'bg-white border-black' : 'bg-zinc-950 border-white/20'
-            }`}
-          >
-            <div className="flex items-center justify-between pb-4 border-b border-current/15">
-              <div>
-                <h3 className="text-base font-black">Creator Profile &amp; Social Settings</h3>
-                <p className="text-xs opacity-70">
-                  Update your pen name, bio, profile photo, and social media links.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveTab('works')}
-                className="text-xs font-mono underline cursor-pointer"
-              >
-                Back to Works →
-              </button>
-            </div>
-            {renderEditFormContent()}
-          </div>
-        )}
-
         {/* PUBLISHED WORKS MANGA GRID (Strictly Contained) */}
         {activeTab === 'works' && (
           <div className="space-y-5 w-full max-w-full box-border overflow-hidden">
@@ -973,7 +891,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                 <BookOpen className="w-10 h-10 mx-auto opacity-60" />
                 <p className="text-sm font-bold">No published series listed yet.</p>
                 <p className="text-xs opacity-70">
-                  New chapters and series by this artist will appear here as soon as they are published.
+                  New chapters and series by this creator will appear here as soon as they are published.
                 </p>
               </div>
             ) : (
@@ -1093,7 +1011,7 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
                   </div>
                   <div>
                     <h3 className="text-base font-black">Edit Creator Profile</h3>
-                    <p className="text-xs opacity-70">Update your public author identity &amp; social links.</p>
+                    <p className="text-xs opacity-70">Update your public creator identity &amp; social links.</p>
                   </div>
                 </div>
                 <button

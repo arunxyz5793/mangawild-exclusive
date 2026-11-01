@@ -2619,7 +2619,7 @@ export const StorageService = {
       userId: user.id,
       penName: user.name,
       handle: `@${user.username || user.name.toLowerCase().replace(/\s+/g, '_')}`,
-      bio: 'Original Manga Artist on MangaWild',
+      bio: 'Original Manga Creator on MangaWild',
       avatarUrl: user.avatarUrl || '/avatars/creator.svg',
       followersCount: 0,
       seriesCount: 0,

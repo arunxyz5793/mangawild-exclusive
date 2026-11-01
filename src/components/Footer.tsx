@@ -144,7 +144,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
           {/* Brand Info & Core Badges */}
           <div className="lg:col-span-2 space-y-3.5 max-w-full box-border">
             <p className="text-xs font-medium leading-relaxed max-w-sm text-zinc-400">
-              Read high-definition chapters directly from independent mangaka and studios, support creators with instant tips, and unlock unlimited reading with MangaWild Exclusive.
+              Read high-definition chapters directly from independent creators and studios, support creators with instant tips, and unlock unlimited reading with MangaWild Exclusive.
             </p>
             <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs">
               <span
@@ -251,7 +251,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 className="group flex items-center gap-2 py-1.5 px-2 rounded-lg text-xs text-zinc-400 hover:text-white hover:bg-white/[0.04] transition-all cursor-pointer w-full text-left max-w-full box-border"
               >
                 <Users className="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors shrink-0 stroke-[1.75px]" />
-                <span className="truncate">Mangaka</span>
+                <span className="truncate">Creators</span>
               </button>
               <button
                 type="button"

@@ -728,7 +728,7 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
           <button
             onClick={() => onNavigate('creator-profile', { id: creatorProfile?.id, author: creatorProfile?.penName || user.name })}
             className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-white font-medium text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer max-w-full box-border"
-            title="View Public Mangaka Profile & Tip Jar"
+            title="View Public Creator Profile & Tip Jar"
           >
             <Eye className="w-3.5 h-3.5 text-zinc-400" />
             <span>View Profile</span>

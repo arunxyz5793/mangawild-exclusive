@@ -187,7 +187,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
             </table>
             <div class="total">Total Paid (Inclusive of GST): ₹${amount}</div>
             <div class="footer">
-              Thank you for supporting indie mangaka and independent creators on MangaWild.
+              Thank you for supporting independent creators on MangaWild.
             </div>
           </body>
         </html>
@@ -562,7 +562,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
               <tr>
                 <td className="p-3.5 pl-4 font-sans font-medium text-white">Direct Manga Creator Royalty Share</td>
                 <td className="p-3.5 text-center text-zinc-500">Ad revenue pool</td>
-                <td className="p-3.5 text-center text-white font-bold bg-zinc-900/30">✓ 70% Direct to Artists</td>
+                <td className="p-3.5 text-center text-white font-bold bg-zinc-900/30">✓ 70% Direct to Creators</td>
               </tr>
               <tr>
                 <td className="p-3.5 pl-4 font-sans font-medium text-white">Exclusive Badge on Profile & Comments</td>
@@ -585,7 +585,7 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
           <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 space-y-2">
             <h4 className="text-sm font-bold text-white">How does creator revenue sharing work?</h4>
             <p className="text-xs text-stone-400 leading-relaxed">
-              70% of subscription revenue pool is distributed weekly to manga creators whose chapters you read. This directly funds artists so they can produce more chapters.
+              70% of subscription revenue pool is distributed weekly to manga creators whose chapters you read. This directly funds creators so they can produce more chapters.
             </p>
           </div>
 
