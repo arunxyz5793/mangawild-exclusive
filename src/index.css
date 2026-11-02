@@ -9,8 +9,8 @@
     --bg-surface: #121215;
     --bg-elevated: #18181b;
     
-    --border-color: rgba(255, 255, 255, 0.22);
-    --border-subtle: rgba(255, 255, 255, 0.14);
+    --border-color: transparent;
+    --border-subtle: transparent;
     
     --text-primary: #ffffff;
     --text-secondary: #ffffff;
@@ -23,21 +23,21 @@
     --accent-contrast-bg: #ffffff;
     
     --badge-bg: rgba(255, 255, 255, 0.12);
-    --badge-border: rgba(255, 255, 255, 0.25);
+    --badge-border: transparent;
     --badge-text: #ffffff;
     
     --glow-color: rgba(255, 255, 255, 0.12);
   }
 
   html.light {
-    /* Pure Plain White Monochrome Theme (Zero Beige/Grey, Crisp Black Text & Black Layer Lines) */
+    /* Pure Plain White Monochrome Theme with Realistic Soft Depth Shadows (Zero Hard Line Borders) */
     --bg-page: #ffffff;
     --bg-card: #ffffff;
     --bg-surface: #ffffff;
     --bg-elevated: #ffffff;
     
-    --border-color: #000000;
-    --border-subtle: #000000;
+    --border-color: transparent;
+    --border-subtle: transparent;
     
     --text-primary: #000000;
     --text-secondary: #000000;
@@ -50,7 +50,7 @@
     --accent-contrast-bg: #000000;
     
     --badge-bg: #ffffff;
-    --badge-border: #000000;
+    --badge-border: transparent;
     --badge-text: #000000;
     
     --glow-color: rgba(0, 0, 0, 0.08);
@@ -371,7 +371,8 @@ html.light .btn-primary-mono,
 html.light .light-invert-pill {
   background-color: #000000 !important;
   color: #ffffff !important;
-  border-color: #000000 !important;
+  border-color: transparent !important;
+  box-shadow: 0 6px 18px -2px rgba(0, 0, 0, 0.22), 0 2px 6px -1px rgba(0, 0, 0, 0.12) !important;
 }
 
 html.light button.bg-white *,
@@ -383,22 +384,105 @@ html.light .light-invert-pill * {
   color: #ffffff !important;
 }
 
-/* Crisp Black Hairline Borders Around All Layers, Cards, Panels & Manga Covers in White Mode */
-html.light .border,
-html.light .border-2,
-html.light .border-t,
-html.light .border-b,
-html.light .border-l,
-html.light .border-r,
-html.light .border-x,
-html.light .border-y,
-html.light [class*="border-"],
+/* ============================================================================
+   3. UNIVERSAL REALISTIC SHADOWS IN PLACE OF LINE BORDERS (LIGHT & DARK MODES)
+   ============================================================================ */
+
+/* Remove all hard border lines globally (preserving only loading spinners) */
+*:not(.animate-spin),
+*::before:not(.animate-spin),
+*::after:not(.animate-spin) {
+  border-color: transparent !important;
+  --tw-ring-color: transparent !important;
+}
+
+hr {
+  border: none !important;
+  height: 1px;
+  background: transparent !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* --- LIGHT MODE: Realistic Multi-Layered Soft Elevation Shadows --- */
+html.light .border:not(.animate-spin),
+html.light .border-2:not(.animate-spin),
 html.light input,
 html.light select,
 html.light textarea,
+html.light .gsi-material-button {
+  border-color: transparent !important;
+  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.09), 0 2px 6px -1px rgba(0, 0, 0, 0.06), 0 1px 3px 0 rgba(0, 0, 0, 0.04) !important;
+}
+
 html.light .hero-card,
-html.light .manga-poster-frame {
-  border-color: #000000 !important;
+html.light .manga-poster-frame,
+html.light .rounded-2xl.border,
+html.light .rounded-3xl.border,
+html.light .rounded-3xl.border-2 {
+  border-color: transparent !important;
+  box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.13), 0 4px 12px -2px rgba(0, 0, 0, 0.08), 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light button.border:hover,
+html.light a.border:hover,
+html.light .group:hover .manga-poster-frame,
+html.light .cursor-pointer.border:hover {
+  box-shadow: 0 16px 38px -4px rgba(0, 0, 0, 0.16), 0 6px 16px -2px rgba(0, 0, 0, 0.10) !important;
+}
+
+html.light .border-b:not(.border):not(.border-2),
+html.light header,
+html.light thead,
+html.light .divide-y > *:not(:last-child) {
+  border-color: transparent !important;
+  box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.09) !important;
+}
+
+html.light .border-t:not(.border):not(.border-2),
+html.light footer {
+  border-color: transparent !important;
+  box-shadow: 0 -6px 16px -6px rgba(0, 0, 0, 0.09) !important;
+}
+
+/* --- DARK MODE: Realistic Deep Ambient + Soft Rim Elevation Shadows --- */
+html.dark .border:not(.animate-spin),
+html.dark .border-2:not(.animate-spin),
+html.dark input,
+html.dark select,
+html.dark textarea,
+html.dark .gsi-material-button {
+  border-color: transparent !important;
+  box-shadow: 0 8px 24px -3px rgba(0, 0, 0, 0.9), 0 3px 12px -1px rgba(255, 255, 255, 0.07), 0 1px 4px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+html.dark .hero-card,
+html.dark .manga-poster-frame,
+html.dark .rounded-2xl.border,
+html.dark .rounded-3xl.border,
+html.dark .rounded-3xl.border-2 {
+  border-color: transparent !important;
+  box-shadow: 0 14px 36px -4px rgba(0, 0, 0, 0.95), 0 5px 18px -2px rgba(255, 255, 255, 0.09), 0 2px 6px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+html.dark button.border:hover,
+html.dark a.border:hover,
+html.dark .group:hover .manga-poster-frame,
+html.dark .cursor-pointer.border:hover {
+  box-shadow: 0 18px 42px -4px rgba(0, 0, 0, 0.98), 0 6px 22px -2px rgba(255, 255, 255, 0.13), 0 2px 8px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+html.dark .border-b:not(.border):not(.border-2),
+html.dark header,
+html.dark thead,
+html.dark .divide-y > *:not(:last-child) {
+  border-color: transparent !important;
+  box-shadow: 0 8px 18px -6px rgba(0, 0, 0, 0.9), 0 4px 10px -6px rgba(255, 255, 255, 0.07) !important;
+}
+
+html.dark .border-t:not(.border):not(.border-2),
+html.dark footer {
+  border-color: transparent !important;
+  box-shadow: 0 -8px 18px -6px rgba(0, 0, 0, 0.9), 0 -4px 10px -6px rgba(255, 255, 255, 0.07) !important;
 }
 
 /* Keep Modal Backdrop Semitransparent Black in Both Modes so Centered Popups Stand Out */
