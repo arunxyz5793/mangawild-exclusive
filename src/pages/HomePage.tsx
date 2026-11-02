@@ -385,7 +385,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         {/* ========================================================================= */}
         {/* 2. MINIMAL GENRE FILTER                                                   */}
         {/* ========================================================================= */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="flex items-center gap-1.5 overflow-x-auto py-1.5 scrollbar-none -mx-4 px-4 sm:-mx-2 sm:px-2">
           {genres.map(genre => {
             const isSelected = selectedGenre === genre;
             return (
@@ -410,7 +410,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         {/* ========================================================================= */}
         {/* 3. TRENDING TITLES (Minimalist Ranked Carousel)                           */}
         {/* ========================================================================= */}
-        <section className="space-y-3.5">
+        <section className="space-y-2.5">
           <div className={`flex items-center justify-between border-b pb-2 ${isLight ? 'border-black' : 'border-white/15'}`}>
             <h2 className="text-xs font-bold uppercase tracking-widest font-sans">
               Trending Titles
@@ -418,7 +418,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             <span className="text-[11px] font-mono uppercase tracking-wider font-semibold">Top Ranked</span>
           </div>
 
-          <div className="flex items-start gap-3.5 sm:gap-4 overflow-x-auto pb-2 scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="flex items-start gap-3.5 sm:gap-4 overflow-x-auto py-3 scrollbar-none -mx-4 px-4 sm:-mx-2 sm:px-2">
             {trendingSeries.slice(0, 8).map((series, idx) => (
               <div
                 key={series.id}

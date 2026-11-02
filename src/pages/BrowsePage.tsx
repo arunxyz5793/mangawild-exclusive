@@ -276,7 +276,7 @@ export const BrowsePage: React.FC<BrowsePageProps> = ({
               </div>
 
               {/* Views and Likes footer */}
-              <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800/60 flex items-center justify-between text-[11px] font-mono text-zinc-400">
+              <div className="pt-1.5 flex items-center justify-between text-[11px] font-mono text-zinc-400">
                 <div className="flex items-center gap-2">
                   <span className="flex items-center gap-0.5" title="Total Views">
                     <Eye className="w-3 h-3 text-zinc-400" />
