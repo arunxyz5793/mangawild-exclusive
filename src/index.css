@@ -385,10 +385,10 @@ html.light .light-invert-pill * {
 }
 
 /* ============================================================================
-   3. UNIVERSAL REALISTIC SHADOWS IN PLACE OF LINE BORDERS (LIGHT & DARK MODES)
+   3. STUDIO-GRADE ARCHITECTURAL ELEVATION & SHADOW SYSTEM (LIGHT & DARK MODES)
    ============================================================================ */
 
-/* Remove all hard border lines globally (preserving only loading spinners) */
+/* Remove hard border lines globally (preserving loading spinners) */
 *:not(.animate-spin),
 *::before:not(.animate-spin),
 *::after:not(.animate-spin) {
@@ -400,10 +400,14 @@ hr {
   border: none !important;
   height: 1px;
   background: transparent !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
 }
 
-/* --- LIGHT MODE: Realistic Multi-Layered Soft Elevation Shadows --- */
+/* ----------------------------------------------------------------------------
+   LIGHT MODE: Apple / Linear-Style Multi-Stage Ambient & Key-Light Diffusion
+   ---------------------------------------------------------------------------- */
+
+/* Tier 1: Interactive Controls, Inputs, Buttons & Micro-Elements */
 html.light .border:not(.animate-spin),
 html.light .border-2:not(.animate-spin),
 html.light input,
@@ -411,40 +415,109 @@ html.light select,
 html.light textarea,
 html.light .gsi-material-button {
   border-color: transparent !important;
-  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.09), 0 2px 6px -1px rgba(0, 0, 0, 0.06), 0 1px 3px 0 rgba(0, 0, 0, 0.04) !important;
+  box-shadow:
+    0 1px 2px 0 rgba(15, 23, 42, 0.035),
+    0 3px 8px -2px rgba(15, 23, 42, 0.055),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.9),
+    0 0 0 1px rgba(15, 23, 42, 0.045) !important;
 }
 
-html.light .hero-card,
-html.light .manga-poster-frame,
+/* Small Badges & Tags: Crisp Micro-Shadow (No Muddy Spread) */
+html.light span.border,
+html.light span[class*="border-"] {
+  box-shadow:
+    0 1px 2px 0 rgba(15, 23, 42, 0.05),
+    0 2px 5px -1px rgba(15, 23, 42, 0.04),
+    0 0 0 1px rgba(15, 23, 42, 0.05) !important;
+}
+
+/* Tier 2: Cards, Panels & Containers */
+html.light .rounded-xl.border,
 html.light .rounded-2xl.border,
 html.light .rounded-3xl.border,
 html.light .rounded-3xl.border-2 {
   border-color: transparent !important;
-  box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.13), 0 4px 12px -2px rgba(0, 0, 0, 0.08), 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+  box-shadow:
+    0 2px 4px -1px rgba(15, 23, 42, 0.03),
+    0 8px 20px -4px rgba(15, 23, 42, 0.06),
+    0 18px 36px -10px rgba(15, 23, 42, 0.045),
+    inset 0 1px 0 0 rgba(255, 255, 255, 1),
+    0 0 0 1px rgba(15, 23, 42, 0.04) !important;
 }
 
+/* Manga Poster Frame inside Cards: Balanced Crisp Inner Elevation (No Double-Shadow Stacking) */
+html.light .manga-poster-frame {
+  border-color: transparent !important;
+  box-shadow:
+    0 2px 6px -1px rgba(15, 23, 42, 0.06),
+    0 6px 14px -3px rgba(15, 23, 42, 0.06),
+    0 0 0 1px rgba(15, 23, 42, 0.04) !important;
+}
+
+/* Tier 3: Hero Spotlight & Floating Modals */
+html.light .hero-card,
+html.light .modal-backdrop-overlay > div {
+  border-color: transparent !important;
+  box-shadow:
+    0 4px 8px -2px rgba(15, 23, 42, 0.035),
+    0 16px 36px -6px rgba(15, 23, 42, 0.085),
+    0 32px 64px -14px rgba(15, 23, 42, 0.09),
+    inset 0 1px 0 0 rgba(255, 255, 255, 1),
+    0 0 0 1px rgba(15, 23, 42, 0.045) !important;
+}
+
+/* Interactive Hover Lift */
 html.light button.border:hover,
-html.light a.border:hover,
-html.light .group:hover .manga-poster-frame,
-html.light .cursor-pointer.border:hover {
-  box-shadow: 0 16px 38px -4px rgba(0, 0, 0, 0.16), 0 6px 16px -2px rgba(0, 0, 0, 0.10) !important;
+html.light a.border:hover {
+  box-shadow:
+    0 2px 5px -1px rgba(15, 23, 42, 0.05),
+    0 6px 14px -3px rgba(15, 23, 42, 0.08),
+    0 0 0 1px rgba(15, 23, 42, 0.06) !important;
+}
+
+html.light .cursor-pointer.rounded-2xl.border:hover,
+html.light .group.rounded-2xl.border:hover {
+  box-shadow:
+    0 4px 8px -2px rgba(15, 23, 42, 0.04),
+    0 14px 28px -6px rgba(15, 23, 42, 0.09),
+    0 24px 48px -12px rgba(15, 23, 42, 0.075),
+    0 0 0 1px rgba(15, 23, 42, 0.055) !important;
+}
+
+/* Subtle Header, Footer & Section Whisper Shadows */
+html.light header {
+  border-color: transparent !important;
+  box-shadow:
+    0 1px 2px 0 rgba(15, 23, 42, 0.025),
+    0 6px 20px -6px rgba(15, 23, 42, 0.055) !important;
 }
 
 html.light .border-b:not(.border):not(.border-2),
-html.light header,
 html.light thead,
 html.light .divide-y > *:not(:last-child) {
   border-color: transparent !important;
-  box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.09) !important;
+  box-shadow: 0 4px 10px -6px rgba(15, 23, 42, 0.045) !important;
 }
 
 html.light .border-t:not(.border):not(.border-2),
 html.light footer {
   border-color: transparent !important;
-  box-shadow: 0 -6px 16px -6px rgba(0, 0, 0, 0.09) !important;
+  box-shadow: 0 -4px 12px -6px rgba(15, 23, 42, 0.05) !important;
 }
 
-/* --- DARK MODE: Realistic Deep Ambient + Soft Rim Elevation Shadows --- */
+/* ----------------------------------------------------------------------------
+   DARK MODE: Obsidian Surface + Top Specular Light Catch + Deep Ambient Shadow
+   (Zero Milky Outer Glow — True Hardware-Grade Dark Depth)
+   ---------------------------------------------------------------------------- */
+
+/* Elevate Dark Cards Slightly Above #000000 Canvas so Shadows Read Naturally */
+html.dark div.rounded-2xl.border,
+html.dark div.rounded-3xl.border,
+html.dark div.rounded-3xl.border-2 {
+  background-color: #0b0b0e !important;
+}
+
+/* Tier 1: Interactive Controls, Inputs, Buttons & Micro-Elements */
 html.dark .border:not(.animate-spin),
 html.dark .border-2:not(.animate-spin),
 html.dark input,
@@ -452,37 +525,93 @@ html.dark select,
 html.dark textarea,
 html.dark .gsi-material-button {
   border-color: transparent !important;
-  box-shadow: 0 8px 24px -3px rgba(0, 0, 0, 0.9), 0 3px 12px -1px rgba(255, 255, 255, 0.07), 0 1px 4px 0 rgba(255, 255, 255, 0.05) !important;
+  box-shadow:
+    0 2px 5px 0 rgba(0, 0, 0, 0.65),
+    0 6px 14px -3px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.085),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.045) !important;
 }
 
-html.dark .hero-card,
-html.dark .manga-poster-frame,
+/* Small Badges & Tags in Dark Mode */
+html.dark span.border,
+html.dark span[class*="border-"] {
+  box-shadow:
+    0 2px 6px 0 rgba(0, 0, 0, 0.75),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Tier 2: Cards, Panels & Containers */
+html.dark .rounded-xl.border,
 html.dark .rounded-2xl.border,
 html.dark .rounded-3xl.border,
 html.dark .rounded-3xl.border-2 {
   border-color: transparent !important;
-  box-shadow: 0 14px 36px -4px rgba(0, 0, 0, 0.95), 0 5px 18px -2px rgba(255, 255, 255, 0.09), 0 2px 6px 0 rgba(255, 255, 255, 0.06) !important;
+  box-shadow:
+    0 4px 10px -2px rgba(0, 0, 0, 0.75),
+    0 14px 32px -6px rgba(0, 0, 0, 0.9),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.09),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.045) !important;
 }
 
+/* Manga Poster Frame inside Cards in Dark Mode */
+html.dark .manga-poster-frame {
+  border-color: transparent !important;
+  box-shadow:
+    0 4px 12px -2px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.07),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04) !important;
+}
+
+/* Tier 3: Hero Spotlight & Floating Modals in Dark Mode */
+html.dark .hero-card,
+html.dark .modal-backdrop-overlay > div {
+  border-color: transparent !important;
+  box-shadow:
+    0 8px 20px -4px rgba(0, 0, 0, 0.85),
+    0 24px 56px -10px rgba(0, 0, 0, 0.96),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Interactive Hover Lift in Dark Mode */
 html.dark button.border:hover,
-html.dark a.border:hover,
-html.dark .group:hover .manga-poster-frame,
-html.dark .cursor-pointer.border:hover {
-  box-shadow: 0 18px 42px -4px rgba(0, 0, 0, 0.98), 0 6px 22px -2px rgba(255, 255, 255, 0.13), 0 2px 8px 0 rgba(255, 255, 255, 0.08) !important;
+html.dark a.border:hover {
+  box-shadow:
+    0 4px 10px -2px rgba(0, 0, 0, 0.8),
+    0 10px 22px -4px rgba(0, 0, 0, 0.9),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.075) !important;
+}
+
+html.dark .cursor-pointer.rounded-2xl.border:hover,
+html.dark .group.rounded-2xl.border:hover {
+  box-shadow:
+    0 8px 18px -4px rgba(0, 0, 0, 0.85),
+    0 22px 44px -8px rgba(0, 0, 0, 0.95),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.075) !important;
+}
+
+/* Subtle Header, Footer & Section Dividers in Dark Mode */
+html.dark header {
+  border-color: transparent !important;
+  box-shadow:
+    0 4px 20px -4px rgba(0, 0, 0, 0.85),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.04) !important;
 }
 
 html.dark .border-b:not(.border):not(.border-2),
-html.dark header,
 html.dark thead,
 html.dark .divide-y > *:not(:last-child) {
   border-color: transparent !important;
-  box-shadow: 0 8px 18px -6px rgba(0, 0, 0, 0.9), 0 4px 10px -6px rgba(255, 255, 255, 0.07) !important;
+  box-shadow: 0 6px 14px -8px rgba(0, 0, 0, 0.85), inset 0 -1px 0 0 rgba(255, 255, 255, 0.035) !important;
 }
 
 html.dark .border-t:not(.border):not(.border-2),
 html.dark footer {
   border-color: transparent !important;
-  box-shadow: 0 -8px 18px -6px rgba(0, 0, 0, 0.9), 0 -4px 10px -6px rgba(255, 255, 255, 0.07) !important;
+  box-shadow: 0 -6px 14px -8px rgba(0, 0, 0, 0.85), inset 0 1px 0 0 rgba(255, 255, 255, 0.035) !important;
 }
 
 /* Keep Modal Backdrop Semitransparent Black in Both Modes so Centered Popups Stand Out */
