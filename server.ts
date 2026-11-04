@@ -380,8 +380,8 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, () => {
-    console.log(`MangaWild server running on port ${PORT}`);
+  app.listen(Number(PORT), '0.0.0.0', () => {
+    console.log(`MangaWild server running on http://0.0.0.0:${PORT}`);
   });
 }
 

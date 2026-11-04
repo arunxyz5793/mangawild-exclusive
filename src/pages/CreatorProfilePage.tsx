@@ -259,6 +259,10 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
     if (!creator) return;
 
     const cleanRawHandle = editHandle.trim().replace(/^@+/, '').toLowerCase();
+    if (cleanRawHandle && StorageService.isUsernameTaken(cleanRawHandle, creator.userId, creator.id)) {
+      showToast(`Username @${cleanRawHandle} already exists!`);
+      return;
+    }
     const formattedHandle = cleanRawHandle ? `@${cleanRawHandle}` : creator.handle;
 
     const updates: Partial<CreatorProfile> = {
@@ -414,23 +418,75 @@ export const CreatorProfilePage: React.FC<CreatorProfilePageProps> = ({
           />
         </div>
 
-        {/* Handle */}
+        {/* Handle / Username with Live Side Existence / Active Status */}
         <div className="space-y-1.5">
           <label className="font-bold uppercase tracking-wider opacity-75 block">
             Handle / Username *
           </label>
-          <input
-            type="text"
-            required
-            value={editHandle}
-            onChange={(e) => setEditHandle(e.target.value)}
-            placeholder="@username"
-            className={`w-full p-2.5 rounded-xl border text-xs font-mono focus:outline-none box-border ${
-              isLight
-                ? 'bg-white border-black text-black'
-                : 'bg-black border-white/25 text-white focus:border-white'
-            }`}
-          />
+          {(() => {
+            const cleanEdit = editHandle.trim().replace(/^@+/, '').toLowerCase();
+            const currentClean = (creator.handle || '').trim().replace(/^@+/, '').toLowerCase();
+            const isOwnCurrent = cleanEdit.length >= 2 && cleanEdit === currentClean;
+            const isTaken =
+              cleanEdit.length >= 2 &&
+              !isOwnCurrent &&
+              StorageService.isUsernameTaken(cleanEdit, creator.userId, creator.id);
+
+            return (
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  required
+                  value={editHandle}
+                  onChange={(e) => setEditHandle(e.target.value)}
+                  placeholder="@username"
+                  className={`w-full p-2.5 pr-32 rounded-xl border text-xs font-mono focus:outline-none box-border ${
+                    isLight
+                      ? 'bg-white border-black text-black'
+                      : 'bg-black border-white/25 text-white focus:border-white'
+                  }`}
+                />
+                {cleanEdit.length >= 2 && (
+                  <div className="absolute right-2 flex items-center pointer-events-none">
+                    {isOwnCurrent ? (
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold border ${
+                          isLight
+                            ? 'bg-black text-white border-black light-invert-pill'
+                            : 'bg-white text-black border-white'
+                        }`}
+                      >
+                        <Check className="w-3 h-3 shrink-0" />
+                        <span>Active</span>
+                      </span>
+                    ) : isTaken ? (
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold border ${
+                          isLight
+                            ? 'bg-white text-black border-black'
+                            : 'bg-zinc-900 text-white border-white/30'
+                        }`}
+                      >
+                        <AlertTriangle className="w-3 h-3 shrink-0" />
+                        <span>Already Exists</span>
+                      </span>
+                    ) : (
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold border ${
+                          isLight
+                            ? 'bg-black text-white border-black light-invert-pill'
+                            : 'bg-white text-black border-white'
+                        }`}
+                      >
+                        <CheckCircle2 className="w-3 h-3 shrink-0" />
+                        <span>Available</span>
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </div>
 

@@ -2636,6 +2636,51 @@ export const StorageService = {
     return newProfile;
   },
 
+  isUsernameTaken(username: string, excludeUserId?: string, excludeCreatorId?: string): boolean {
+    const clean = (username || '').trim().replace(/^@+/, '').toLowerCase();
+    if (!clean) return false;
+
+    const users = this.getUsers();
+    const userMatch = users.some(u => {
+      if (u.id === 'guest_reader') return false;
+      if (excludeUserId && u.id === excludeUserId) return false;
+      if (excludeCreatorId && u.creatorProfileId === excludeCreatorId) return false;
+      const uClean = (u.username || '').trim().replace(/^@+/, '').toLowerCase();
+      return uClean === clean;
+    });
+    if (userMatch) return true;
+
+    const creators = this.getCreators();
+    const creatorMatch = creators.some(c => {
+      if (excludeCreatorId && c.id === excludeCreatorId) return false;
+      if (excludeUserId && c.userId === excludeUserId) return false;
+      const hClean = (c.handle || '').trim().replace(/^@+/, '').toLowerCase();
+      return hClean === clean;
+    });
+    return creatorMatch;
+  },
+
+  checkIdentifierExists(identifier: string): boolean {
+    const raw = (identifier || '').trim().toLowerCase();
+    if (!raw) return false;
+    const cleanHandle = raw.replace(/^@+/, '');
+
+    const users = this.getUsers();
+    const foundUser = users.some(u => {
+      if (u.id === 'guest_reader') return false;
+      const uEmail = (u.email || '').trim().toLowerCase();
+      const uName = (u.username || '').trim().replace(/^@+/, '').toLowerCase();
+      return (raw.includes('@') && !raw.startsWith('@') && uEmail === raw) || uName === cleanHandle;
+    });
+    if (foundUser) return true;
+
+    const creators = this.getCreators();
+    return creators.some(c => {
+      const hClean = (c.handle || '').trim().replace(/^@+/, '').toLowerCase();
+      return hClean === cleanHandle;
+    });
+  },
+
   updateUser(id: string, updates: Partial<User>): User | undefined {
     const users = this.getUsers();
     const idx = users.findIndex(u => u.id === id);

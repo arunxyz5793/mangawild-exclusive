@@ -378,6 +378,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           setLoading(false);
           return;
         }
+        const cleanUser = username.trim().replace(/^@/, '').toLowerCase().replace(/[^a-zA-Z0-9_]/g, '');
+        if (StorageService.isUsernameTaken(cleanUser)) {
+          setErrorMsg(`Username "@${cleanUser}" already exists. Please choose a different username.`);
+          setLoading(false);
+          return;
+        }
         if (!email.trim() || !email.includes('@')) {
           setErrorMsg('Please enter a valid email address.');
           setLoading(false);
@@ -388,13 +394,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           setLoading(false);
           return;
         }
-        const cleanUser = username.trim().replace(/^@/, '').toLowerCase().replace(/[^a-zA-Z0-9_]/g, '');
 
         await signUp(cleanUser, email.trim(), password, assignedRole);
       } else {
         const idToUse = email.trim() || loginIdentifier.trim() || username.trim();
         if (!idToUse) {
-          setErrorMsg('Please enter your registered email address.');
+          setErrorMsg('Please enter your registered email address or username.');
           setLoading(false);
           return;
         }
@@ -475,6 +480,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
+  const cleanTypedUsername = username.trim().replace(/^@+/, '').toLowerCase();
+  const isSignupUsernameTaken =
+    cleanTypedUsername.length >= 3 ? StorageService.isUsernameTaken(cleanTypedUsername) : false;
+
+  const activeSignInIdentifier = (email || loginIdentifier).trim();
+  const doesSignInIdentifierExist =
+    activeSignInIdentifier.length >= 3
+      ? StorageService.checkIdentifierExists(activeSignInIdentifier)
+      : false;
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 modal-backdrop-overlay bg-black/80 backdrop-blur-sm animate-fade-in">
       <div
@@ -486,95 +501,172 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       >
         {/* Header with Title and Close Button */}
         <div className="relative px-6 pt-6 pb-4 border-b border-zinc-800/60 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-black tracking-tight flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {/* Editorial Emblem Badge (Replacing Stars Icon) */}
+            <div
+              className={`w-10 h-10 rounded-2xl border flex items-center justify-center shrink-0 ${
+                theme === 'dark'
+                  ? 'bg-zinc-900 border-zinc-700 text-white'
+                  : 'bg-black border-black text-white'
+              }`}
+            >
               {isDedicatedAdmin ? (
-                <Shield className="w-5 h-5 text-zinc-300" />
+                <Shield className="w-5 h-5" />
               ) : (
-                <Sparkles className="w-5 h-5 text-white" />
+                <BookOpen className="w-5 h-5" />
               )}
-              <span>
-                {customTitle ||
+            </div>
+            <div>
+              <h2 className="text-xl font-black tracking-tight flex items-center gap-2">
+                <span>
+                  {customTitle ||
+                    (isDedicatedAdmin
+                      ? 'Admin Portal Sign In'
+                      : mode === 'signup'
+                      ? 'Join MangaWild'
+                      : 'Welcome Back')}
+                </span>
+              </h2>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                {customSubtitle ||
                   (isDedicatedAdmin
-                    ? 'Admin Portal Sign In'
+                    ? 'Enter official administrator credentials to access the Editorial Suite'
                     : mode === 'signup'
-                    ? 'Join MangaWild'
-                    : 'Welcome Back')}
-              </span>
-            </h2>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              {customSubtitle ||
-                (isDedicatedAdmin
-                  ? 'Enter official administrator credentials to access the Editorial Suite'
-                  : mode === 'signup'
-                  ? 'Select your role and create your customized manga profile'
-                  : 'Sign in with your email and password to access your account')}
-            </p>
+                    ? 'Select your role and create your customized manga profile'
+                    : 'Sign in with your email or username to access your account')}
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+            className="p-2 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="p-6 space-y-5 max-h-[85vh] overflow-y-auto">
-          {/* Role Selection is ONLY shown during Sign Up to make Sign In fast and simple */}
+          {/* Redesigned Role Selection Cards during Sign Up */}
           {mode === 'signup' && (
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2">
-                Select Your Account Role
-              </label>
+              <div className="flex items-center justify-between mb-2.5">
+                <label className="block text-[11px] font-bold uppercase tracking-widest text-zinc-400">
+                  Select Account Type
+                </label>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+                  {selectedPersona === 'creator' ? 'Creator Studio Mode' : 'Reader Library Mode'}
+                </span>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 {/* I am a Reader Card */}
                 <button
                   type="button"
                   onClick={() => setSelectedPersona('reader')}
-                  className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer relative ${
+                  className={`group p-4 rounded-2xl border text-left transition-all cursor-pointer relative flex flex-col justify-between gap-2.5 ${
                     selectedPersona === 'reader'
-                      ? 'border-white bg-white/10 shadow-md ring-1 ring-white'
-                      : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/40 text-zinc-400'
+                      ? theme === 'dark'
+                        ? 'border-white bg-zinc-900 shadow-lg'
+                        : 'border-black bg-zinc-50 shadow-md'
+                      : 'border-zinc-800/80 hover:border-zinc-700 bg-zinc-950/50 opacity-75 hover:opacity-100'
                   }`}
                 >
-                  {selectedPersona === 'reader' && (
-                    <CheckCircle className="w-4 h-4 text-white absolute top-3 right-3" />
-                  )}
-                  <div className="w-9 h-9 rounded-xl bg-zinc-800 flex items-center justify-center text-white mb-2">
-                    <BookOpen className="w-5 h-5" />
+                  <div className="flex items-center justify-between w-full">
+                    <div
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
+                        selectedPersona === 'reader'
+                          ? 'bg-white text-black'
+                          : 'bg-zinc-800/90 text-zinc-300'
+                      }`}
+                    >
+                      <BookOpen className="w-5 h-5" />
+                    </div>
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider border ${
+                        selectedPersona === 'reader'
+                          ? 'bg-white text-black border-white'
+                          : 'bg-zinc-900 text-zinc-400 border-zinc-800'
+                      }`}
+                    >
+                      {selectedPersona === 'reader' ? (
+                        <>
+                          <Check className="w-3 h-3 stroke-[2.5]" />
+                          <span>Active</span>
+                        </>
+                      ) : (
+                        <span>Select</span>
+                      )}
+                    </span>
                   </div>
-                  <p className="text-sm font-bold text-white">I am a Reader</p>
-                  <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">
-                    Read manga, save library, write reviews & unlock VIP chapters
-                  </p>
-                  <span className="inline-block mt-2 text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-300">
-                    Reader Account
-                  </span>
+
+                  <div>
+                    <p className="text-sm font-black tracking-tight text-white">
+                      I am a Reader
+                    </p>
+                    <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">
+                      Read original series, save bookmarks &amp; review chapters
+                    </p>
+                  </div>
+
+                  <div className="pt-1 border-t border-zinc-800/60 flex items-center justify-between text-[10px] font-mono text-zinc-300">
+                    <span>Personal Library</span>
+                    <ArrowRight className="w-3 h-3 opacity-70 group-hover:translate-x-0.5 transition-transform" />
+                  </div>
                 </button>
 
                 {/* I am a Creator Card */}
                 <button
                   type="button"
                   onClick={() => setSelectedPersona('creator')}
-                  className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer relative ${
+                  className={`group p-4 rounded-2xl border text-left transition-all cursor-pointer relative flex flex-col justify-between gap-2.5 ${
                     selectedPersona === 'creator'
-                      ? 'border-white bg-white/10 shadow-md ring-1 ring-white'
-                      : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/40 text-zinc-400'
+                      ? theme === 'dark'
+                        ? 'border-white bg-zinc-900 shadow-lg'
+                        : 'border-black bg-zinc-50 shadow-md'
+                      : 'border-zinc-800/80 hover:border-zinc-700 bg-zinc-950/50 opacity-75 hover:opacity-100'
                   }`}
                 >
-                  {selectedPersona === 'creator' && (
-                    <CheckCircle className="w-4 h-4 text-white absolute top-3 right-3" />
-                  )}
-                  <div className="w-9 h-9 rounded-xl bg-zinc-800 flex items-center justify-center text-white mb-2">
-                    <PenTool className="w-5 h-5" />
+                  <div className="flex items-center justify-between w-full">
+                    <div
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
+                        selectedPersona === 'creator'
+                          ? 'bg-white text-black'
+                          : 'bg-zinc-800/90 text-zinc-300'
+                      }`}
+                    >
+                      <PenTool className="w-5 h-5" />
+                    </div>
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider border ${
+                        selectedPersona === 'creator'
+                          ? 'bg-white text-black border-white'
+                          : 'bg-zinc-900 text-zinc-400 border-zinc-800'
+                      }`}
+                    >
+                      {selectedPersona === 'creator' ? (
+                        <>
+                          <Check className="w-3 h-3 stroke-[2.5]" />
+                          <span>Active</span>
+                        </>
+                      ) : (
+                        <span>Select</span>
+                      )}
+                    </span>
                   </div>
-                  <p className="text-sm font-bold text-white">I am a Creator</p>
-                  <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">
-                    Upload manga, manage pages, submit for review & earn 70% royalties
-                  </p>
-                  <span className="inline-block mt-2 text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-300">
-                    Creator Account
-                  </span>
+
+                  <div>
+                    <p className="text-sm font-black tracking-tight text-white">
+                      I am a Creator
+                    </p>
+                    <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">
+                      Publish manga series, manage chapters &amp; earn 70% share
+                    </p>
+                  </div>
+
+                  <div className="pt-1 border-t border-zinc-800/60 flex items-center justify-between text-[10px] font-mono text-zinc-300">
+                    <span>Creator Studio</span>
+                    <ArrowRight className="w-3 h-3 opacity-70 group-hover:translate-x-0.5 transition-transform" />
+                  </div>
                 </button>
               </div>
             </div>
@@ -797,16 +889,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <form onSubmit={handleSubmit} className="space-y-3.5">
               {mode === 'signup' ? (
                 <>
-                  {/* Unique Username Input */}
+                  {/* Unique Username Input with Live Side Existence / Active Status */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-xs font-semibold text-zinc-300">
                         Choose Your Unique Username
                       </label>
-                      <span className="text-[10px] text-zinc-500 font-mono">Unique handle, no spaces</span>
+                      <span className="text-[10px] text-zinc-500 font-mono">
+                        Unique handle, no spaces
+                      </span>
                     </div>
-                    <div className="relative">
-                      <AtSign className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
+                    <div className="relative flex items-center">
+                      <AtSign className="w-4 h-4 absolute left-3.5 text-zinc-500 pointer-events-none" />
                       <input
                         type="text"
                         required
@@ -816,14 +910,42 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                             e.target.value.toLowerCase().replace(/[^a-zA-Z0-9_]/g, '').slice(0, 30)
                           )
                         }
-                        placeholder="e.g. shadow_slayer or manga_artist"
-                        className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs font-mono focus:outline-none focus:border-white transition-colors"
+                        placeholder="e.g. shadow_slayer or manga_creator"
+                        className="w-full pl-10 pr-36 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs font-mono focus:outline-none focus:border-white transition-colors"
                       />
+
+                      {/* Live Side Status Indicator inside Username Input */}
+                      {cleanTypedUsername.length > 0 && (
+                        <div className="absolute right-2.5 flex items-center pointer-events-none">
+                          {cleanTypedUsername.length < 3 ? (
+                            <span className="px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold bg-zinc-800 text-zinc-400 border border-zinc-700">
+                              Min 3 chars
+                            </span>
+                          ) : isSignupUsernameTaken ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold bg-zinc-900 text-white border border-zinc-700">
+                              <AlertCircle className="w-3 h-3 shrink-0" />
+                              <span>Already Exists</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold bg-white text-black border border-white">
+                              <CheckCircle className="w-3 h-3 shrink-0" />
+                              <span>Available • Active</span>
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    {username && (
-                      <p className="text-[11px] text-zinc-400 mt-1 font-mono">
-                        Your unique profile ID: <span className="text-white font-bold">@{username}</span>
-                      </p>
+                    {cleanTypedUsername.length >= 3 && (
+                      <div className="flex items-center justify-between mt-1 text-[11px] font-mono">
+                        <span>
+                          Profile ID: <span className="text-white font-bold">@{cleanTypedUsername}</span>
+                        </span>
+                        <span className="font-semibold">
+                          {isSignupUsernameTaken
+                            ? 'This username already exists'
+                            : 'Username available & active'}
+                        </span>
+                      </div>
                     )}
                   </div>
 
@@ -862,22 +984,39 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </>
               ) : (
                 <>
-                  {/* Sign In Mode: Strictly Email/Username & Password ONLY */}
+                  {/* Sign In Mode: Email/Username & Password with Live Side Existence Check */}
                   <div>
                     <label className="block text-xs font-semibold text-zinc-300 mb-1">
                       {isDedicatedAdmin ? 'Administrator Email or Username' : 'Email Address or Username'}
                     </label>
-                    <div className="relative">
-                      <UserIcon className="w-4 h-4 absolute left-3.5 top-3 text-zinc-500" />
+                    <div className="relative flex items-center">
+                      <UserIcon className="w-4 h-4 absolute left-3.5 text-zinc-500 pointer-events-none" />
                       <input
                         type="text"
                         required
                         value={email || loginIdentifier}
                         onChange={e => handleEmailChange(e.target.value)}
                         placeholder={isDedicatedAdmin ? 'admin@mangawild.com or admin' : 'name@example.com or @username'}
-                        className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
+                        className="w-full pl-10 pr-32 py-2.5 rounded-xl border border-zinc-800 bg-zinc-900/70 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
                         autoFocus
                       />
+
+                      {/* Live Side Status Indicator showing if Username/Email Exists */}
+                      {activeSignInIdentifier.length >= 3 && (
+                        <div className="absolute right-2.5 flex items-center pointer-events-none">
+                          {doesSignInIdentifierExist ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold bg-white text-black border border-white">
+                              <CheckCircle className="w-3 h-3 shrink-0" />
+                              <span>Active</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold bg-zinc-900 text-zinc-400 border border-zinc-700">
+                              <AlertCircle className="w-3 h-3 shrink-0" />
+                              <span>Not Found</span>
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -917,7 +1056,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || (mode === 'signup' && isSignupUsernameTaken)}
                 className="w-full py-3 px-4 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-bold text-sm transition-all shadow-md active:scale-98 flex items-center justify-center gap-2 cursor-pointer mt-2 disabled:opacity-50"
               >
                 <span>
