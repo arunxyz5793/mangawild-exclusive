@@ -236,7 +236,7 @@ app.post('/api/auth/verify-email-otp', (req, res) => {
   }
 });
 
-// Razorpay Order Creation Endpoint
+// Razorpay Order Creation Endpoint (Live Mode)
 app.post('/api/payment/create-order', async (req, res) => {
   try {
     const { planId, amountInPaise, currency = 'INR', notes = {} } = req.body;
@@ -245,62 +245,50 @@ app.post('/api/payment/create-order', async (req, res) => {
     }
 
     const keyId =
-      process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_ID !== 'rzp_test_TiGD6mgGZQcUBE'
+      process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_ID.startsWith('rzp_live_')
         ? process.env.RAZORPAY_KEY_ID
-        : 'rzp_test_TusxJOMGjvZ5q3';
+        : 'rzp_live_TyPIbdkIBH1OQU';
     const keySecret =
-      process.env.RAZORPAY_KEY_SECRET && !process.env.RAZORPAY_KEY_SECRET.includes('placeholder')
+      process.env.RAZORPAY_KEY_SECRET &&
+      !process.env.RAZORPAY_KEY_SECRET.includes('placeholder') &&
+      process.env.RAZORPAY_KEY_SECRET !== 'aEZz8o5bUng5hSw3gutyrLMG'
         ? process.env.RAZORPAY_KEY_SECRET
-        : 'aEZz8o5bUng5hSw3gutyrLMG';
+        : '7WeAPfio4L9TovzXk5bFBsvP';
 
-    // If real credentials are provided (and not placeholder), call Razorpay Orders API
-    if (keySecret && !keySecret.includes('placeholder')) {
-      const authHeader = 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64');
-      const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: authHeader,
+    const authHeader = 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+    const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authHeader,
+      },
+      body: JSON.stringify({
+        amount: Math.round(amountInPaise),
+        currency,
+        receipt: `rcpt_${Date.now().toString(36)}`,
+        notes: {
+          ...notes,
+          planId: planId || 'vip_pass',
         },
-        body: JSON.stringify({
-          amount: Math.round(amountInPaise),
-          currency,
-          receipt: `rcpt_${Date.now().toString(36)}`,
-          notes: {
-            ...notes,
-            planId: planId || 'vip_pass',
-          },
-        }),
-      });
+      }),
+    });
 
-      if (!rzpRes.ok) {
-        const errData = await rzpRes.json().catch(() => ({}));
-        console.warn('[Razorpay API] create-order failed:', errData);
-        return res.status(rzpRes.status).json({
-          success: false,
-          error: (errData as any)?.error?.description || 'Failed to create order on Razorpay',
-        });
-      }
-
-      const orderData = await rzpRes.json();
-      return res.json({
-        success: true,
-        orderId: orderData.id,
-        amount: orderData.amount,
-        currency: orderData.currency,
-        keyId,
+    if (!rzpRes.ok) {
+      const errData = await rzpRes.json().catch(() => ({}));
+      console.warn('[Razorpay API] create-order failed:', errData);
+      return res.status(rzpRes.status).json({
+        success: false,
+        error: (errData as any)?.error?.description || 'Failed to create order on Razorpay',
       });
     }
 
-    // Standard fallback / sandbox mode when secret is not configured in environment
-    const sandboxOrderId = `order_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 8)}`;
+    const orderData = await rzpRes.json();
     return res.json({
       success: true,
-      orderId: sandboxOrderId,
-      amount: Math.round(amountInPaise),
-      currency,
+      orderId: orderData.id,
+      amount: orderData.amount,
+      currency: orderData.currency,
       keyId,
-      isTestMode: true,
     });
   } catch (err: any) {
     console.error('[Payment API] create-order error:', err);
@@ -308,7 +296,7 @@ app.post('/api/payment/create-order', async (req, res) => {
   }
 });
 
-// Razorpay Payment Verification Endpoint
+// Razorpay Payment Verification Endpoint (Live Mode)
 app.post('/api/payment/verify-payment', (req, res) => {
   try {
     const {
@@ -324,12 +312,13 @@ app.post('/api/payment/verify-payment', (req, res) => {
     }
 
     const keySecret =
-      process.env.RAZORPAY_KEY_SECRET && !process.env.RAZORPAY_KEY_SECRET.includes('placeholder')
+      process.env.RAZORPAY_KEY_SECRET &&
+      !process.env.RAZORPAY_KEY_SECRET.includes('placeholder') &&
+      process.env.RAZORPAY_KEY_SECRET !== 'aEZz8o5bUng5hSw3gutyrLMG'
         ? process.env.RAZORPAY_KEY_SECRET
-        : 'aEZz8o5bUng5hSw3gutyrLMG';
+        : '7WeAPfio4L9TovzXk5bFBsvP';
 
-    // Cryptographic signature check if key secret is configured
-    if (keySecret && !keySecret.includes('placeholder') && razorpay_order_id && razorpay_signature) {
+    if (razorpay_order_id && razorpay_signature) {
       const generatedSignature = crypto
         .createHmac('sha256', keySecret)
         .update(`${razorpay_order_id}|${razorpay_payment_id}`)
@@ -348,7 +337,7 @@ app.post('/api/payment/verify-payment', (req, res) => {
       }
     }
 
-    console.log(`[Payment API] Payment verified successfully: ${razorpay_payment_id} for user ${userId || 'anonymous'}`);
+    console.log(`[Payment API] Live payment verified: ${razorpay_payment_id} for user ${userId || 'anonymous'}`);
     return res.json({
       success: true,
       verified: true,

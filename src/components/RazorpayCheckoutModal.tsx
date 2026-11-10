@@ -12,7 +12,6 @@ import {
 import {
   SUBSCRIPTION_PLANS,
   loadRazorpayScript,
-  RAZORPAY_KEY_ID,
   launchRazorpayCheckout,
 } from '../services/razorpay';
 import { useAuth } from '../context/AuthContext';
@@ -149,8 +148,8 @@ export const RazorpayCheckoutModal: React.FC<RazorpayCheckoutModalProps> = ({
                   Verified
                 </span>
               </div>
-              <p className="text-[11px] font-mono mt-0.5">
-                Key: {RAZORPAY_KEY_ID ? `${RAZORPAY_KEY_ID.slice(0, 10)}...` : 'Connected'}
+              <p className="text-[11px] font-mono mt-0.5 opacity-75">
+                256-Bit SSL Encrypted • Official Payment Gateway
               </p>
             </div>
           </div>

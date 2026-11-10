@@ -144,35 +144,6 @@ const INITIAL_USERS: User[] = [
     "isVIP": false,
     "creatorProfileId": "creator_arieschitrakatha",
     "createdAt": "2026-01-25T00:00:00Z"
-  },
-  {
-    "id": "user_vip_01",
-    "email": "vip.reader@mangawild.online",
-    "name": "rahul_otaku",
-    "username": "rahul_otaku",
-    "password": "password123",
-    "role": "subscriber",
-    "avatarUrl": "/avatars/avatar-1.svg",
-    "isVIP": true,
-    "subscription": {
-      "planId": "monthly",
-      "status": "active",
-      "startDate": "2026-09-01T00:00:00Z",
-      "expiresAt": "2026-10-01T00:00:00Z",
-      "razorpayPaymentId": "pay_MW_SAMPLE_998"
-    },
-    "createdAt": "2026-02-01T00:00:00Z"
-  },
-  {
-    "id": "user_free_01",
-    "email": "guest.reader@mangawild.online",
-    "name": "tanvi_manga",
-    "username": "tanvi_manga",
-    "password": "password123",
-    "role": "free_user",
-    "avatarUrl": "/avatars/avatar-2.svg",
-    "isVIP": false,
-    "createdAt": "2026-03-15T00:00:00Z"
   }
 ];
 

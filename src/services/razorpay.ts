@@ -43,11 +43,10 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
 ];
 
 export const RAZORPAY_KEY_ID =
-  (import.meta.env.VITE_RAZORPAY_KEY_ID &&
-  import.meta.env.VITE_RAZORPAY_KEY_ID !== 'rzp_test_placeholder_key' &&
-  import.meta.env.VITE_RAZORPAY_KEY_ID !== 'rzp_test_TiGD6mgGZQcUBE'
+  import.meta.env.VITE_RAZORPAY_KEY_ID &&
+  String(import.meta.env.VITE_RAZORPAY_KEY_ID).startsWith('rzp_live_')
     ? (import.meta.env.VITE_RAZORPAY_KEY_ID as string)
-    : 'rzp_test_TusxJOMGjvZ5q3');
+    : 'rzp_live_TyPIbdkIBH1OQU';
 
 export interface RazorpayOptions {
   key: string;
@@ -115,7 +114,37 @@ export function loadRazorpayScript(): Promise<boolean> {
 }
 
 /**
- * Launch official Razorpay standard checkout popup
+ * Helper to create a live Razorpay order on the server
+ */
+async function createRazorpayServerOrder(params: {
+  planId: string;
+  amountInPaise: number;
+  notes?: Record<string, string>;
+}): Promise<{ orderId?: string; keyId?: string }> {
+  try {
+    const res = await fetch('/api/payment/create-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        planId: params.planId,
+        amountInPaise: params.amountInPaise,
+        currency: 'INR',
+        notes: params.notes || {},
+      }),
+    });
+    if (!res.ok) return {};
+    const data = await res.json();
+    if (data && data.success && data.orderId) {
+      return { orderId: data.orderId, keyId: data.keyId };
+    }
+    return {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Launch official Razorpay standard checkout popup (Live Mode)
  */
 export async function launchRazorpayCheckout({
   plan,
@@ -136,26 +165,65 @@ export async function launchRazorpayCheckout({
     return false;
   }
 
+  const amountInPaise = Math.round(plan.priceInr * 100);
+  const notes = {
+    planId: plan.id,
+    userId: user.id,
+    platform: 'MangaWild VIP Subscriptions',
+  };
+
+  const serverOrder = await createRazorpayServerOrder({
+    planId: plan.id,
+    amountInPaise,
+    notes,
+  });
+
+  const prefill: { name?: string; email?: string; contact?: string } = {
+    name: user.name || undefined,
+    email: user.email || undefined,
+  };
+  if ((user as any)?.phone) {
+    prefill.contact = (user as any).phone;
+  }
+
   const options: RazorpayOptions = {
-    key: RAZORPAY_KEY_ID,
-    amount: plan.priceInr * 100, // paise
+    key: serverOrder.keyId || RAZORPAY_KEY_ID,
+    amount: amountInPaise,
     currency: 'INR',
     name: 'MangaWild',
     description: `${plan.name} · ${plan.durationDays} Days Unrestricted VIP Access`,
-    prefill: {
-      name: user.name || 'MangaWild Reader',
-      email: user.email || 'reader@mangawild.com',
-      contact: (user as any).phone || '9999999999',
-    },
-    notes: {
-      planId: plan.id,
-      userId: user.id,
-      platform: 'MangaWild VIP Subscriptions',
-    },
+    ...(serverOrder.orderId ? { order_id: serverOrder.orderId } : {}),
+    prefill,
+    notes,
     theme: {
       color: '#000000',
     },
-    handler: (response) => {
+    handler: async (response) => {
+      if (response.razorpay_order_id && response.razorpay_signature) {
+        try {
+          const verifyRes = await fetch('/api/payment/verify-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              planId: plan.id,
+              userId: user.id,
+            }),
+          });
+          const verifyData = await verifyRes.json();
+          if (!verifyRes.ok || !verifyData.verified) {
+            if (onError) {
+              onError(new Error(verifyData.error || 'Payment verification failed.'));
+            }
+            return;
+          }
+        } catch (err: any) {
+          if (onError) onError(err);
+          return;
+        }
+      }
       onSuccess(response.razorpay_payment_id);
     },
     modal: {
@@ -242,7 +310,7 @@ export function processSubscriptionSuccess(
 }
 
 /**
- * Launch Razorpay checkout specifically for Creator Tipping
+ * Launch Razorpay checkout specifically for Creator Tipping (Live Mode)
  */
 export async function launchRazorpayTipCheckout({
   amountInr,
@@ -271,27 +339,66 @@ export async function launchRazorpayTipCheckout({
     return false;
   }
 
+  const amountInPaise = Math.round(amountInr * 100);
+  const notes = {
+    creatorId,
+    creatorName,
+    tipMessage: message || 'Fan appreciation',
+    platform: 'MangaWild Direct Creator Payouts',
+  };
+
+  const serverOrder = await createRazorpayServerOrder({
+    planId: `tip_${creatorId}`,
+    amountInPaise,
+    notes,
+  });
+
+  const prefill: { name?: string; email?: string; contact?: string } = {
+    name: user?.name || undefined,
+    email: user?.email || undefined,
+  };
+  if ((user as any)?.phone) {
+    prefill.contact = (user as any).phone;
+  }
+
   const options: RazorpayOptions = {
-    key: RAZORPAY_KEY_ID,
-    amount: Math.round(amountInr * 100), // paise
+    key: serverOrder.keyId || RAZORPAY_KEY_ID,
+    amount: amountInPaise,
     currency: 'INR',
     name: 'MangaWild Creator Tip',
     description: `Support Creator: ${creatorName}${seriesTitle ? ` (${seriesTitle})` : ''}`,
-    prefill: {
-      name: user?.name || 'Manga Supporter',
-      email: user?.email || 'reader@mangawild.com',
-      contact: (user as any)?.phone || '9999999999',
-    },
-    notes: {
-      creatorId,
-      creatorName,
-      tipMessage: message || 'Fan appreciation',
-      platform: 'MangaWild Direct Creator Payouts',
-    },
+    ...(serverOrder.orderId ? { order_id: serverOrder.orderId } : {}),
+    prefill,
+    notes,
     theme: {
       color: '#000000',
     },
-    handler: (response) => {
+    handler: async (response) => {
+      if (response.razorpay_order_id && response.razorpay_signature) {
+        try {
+          const verifyRes = await fetch('/api/payment/verify-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              planId: `tip_${creatorId}`,
+              userId: user?.id,
+            }),
+          });
+          const verifyData = await verifyRes.json();
+          if (!verifyRes.ok || !verifyData.verified) {
+            if (onError) {
+              onError(new Error(verifyData.error || 'Tip payment verification failed.'));
+            }
+            return;
+          }
+        } catch (err: any) {
+          if (onError) onError(err);
+          return;
+        }
+      }
       onSuccess(response.razorpay_payment_id);
     },
     modal: {

@@ -8,12 +8,9 @@ import {
   Crown,
   HelpCircle,
   X,
-  Gift,
-  Tag,
   Zap,
   Printer,
   Info,
-  Calendar,
 } from 'lucide-react';
 import { SUBSCRIPTION_PLANS } from '../services/razorpay';
 import { SubscriptionPlan } from '../types/manga';
@@ -32,11 +29,6 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
   const [selectedPlanId, setSelectedPlanId] = useState<'monthly' | 'yearly'>('yearly');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('yearly');
   const [detailsModalPlan, setDetailsModalPlan] = useState<SubscriptionPlan | null>(null);
-
-  // Promo code state
-  const [couponCode, setCouponCode] = useState('');
-  const [couponDiscount, setCouponDiscount] = useState<number | null>(null);
-  const [couponMessage, setCouponMessage] = useState<{ text: string; isError: boolean } | null>(null);
 
   // Cancellation state
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
@@ -101,32 +93,6 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
 
   const payments = StorageService.getPayments().filter(p => p.userId === user.id);
   const activePlanId = user?.subscription?.planId || (isVIP ? 'yearly' : null);
-
-  const handleApplyCoupon = () => {
-    const clean = couponCode.trim().toUpperCase();
-    if (!clean) return;
-
-    if (clean === 'MANGAWILD20' || clean === 'VIP20' || clean === 'EXCLUSIVE20') {
-      setCouponDiscount(20); // 20% discount
-      setCouponMessage({ text: 'Coupon applied! 20% discount applied to your order.', isError: false });
-    } else if (clean === 'FIRST50' || clean === 'SPECIAL50') {
-      setCouponDiscount(50); // ₹50 flat
-      setCouponMessage({ text: 'Special ₹50 savings voucher applied!', isError: false });
-    } else {
-      setCouponDiscount(null);
-      setCouponMessage({ text: 'Invalid or expired coupon code. Try MANGAWILD20 for 20% off.', isError: true });
-    }
-  };
-
-  const handleStartFreeTrial = (plan: SubscriptionPlan) => {
-    try {
-      activateSubscription(plan.id, 'UPI', `trial_free_7days_${Date.now()}`);
-      setDetailsModalPlan(null);
-      showToast('🎉 Congratulations! Your 7-Day All-Access Exclusive Free Trial has been activated.');
-    } catch {
-      showToast('Could not activate trial. Please sign in first.');
-    }
-  };
 
   const handleSendGift = (e: React.FormEvent) => {
     e.preventDefault();
@@ -673,66 +639,21 @@ export const MembershipPage: React.FC<MembershipPageProps> = ({ onOpenVIPModal }
                 </ul>
               </div>
 
-              {/* Promo / Coupon Code & Payment Actions — ONLY shown when user has NOT purchased yet */}
+              {/* Payment Action — ONLY shown when user has NOT purchased yet */}
               {!isVIP ? (
-                <>
-                  <div className="space-y-2 p-3.5 rounded-2xl bg-zinc-950 border border-white/20">
-                    <span className="text-[11px] font-mono text-white flex items-center gap-1.5">
-                      <Tag className="w-3.5 h-3.5 text-white" />
-                      <span>Have a discount coupon? (Try: MANGAWILD20)</span>
-                    </span>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={couponCode}
-                        onChange={e => setCouponCode(e.target.value)}
-                        placeholder="Enter promo coupon code..."
-                        className="flex-1 px-3 py-1.5 rounded-xl bg-black border border-white/25 text-xs text-white placeholder-white/50 uppercase font-mono focus:outline-none focus:border-white"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleApplyCoupon}
-                        className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-bold transition-colors cursor-pointer"
-                      >
-                        Apply
-                      </button>
-                    </div>
-                    {couponMessage && (
-                      <p className="text-[11px] font-mono text-white">
-                        {couponMessage.text}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDetailsModalPlan(null);
-                        onOpenVIPModal(detailsModalPlan.id);
-                      }}
-                      className="w-full py-3.5 px-4 bg-white hover:bg-zinc-200 text-black font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
-                    >
-                      <Zap className="w-4 h-4 text-black" />
-                      <span>
-                        {couponDiscount
-                          ? `Proceed with Discount (₹${Math.round(detailsModalPlan.priceInr * (1 - couponDiscount / 100))})`
-                          : `Proceed to Payment (₹${detailsModalPlan.priceInr})`}
-                      </span>
-                    </button>
-
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => handleStartFreeTrial(detailsModalPlan)}
-                        className="w-full py-2.5 px-3 bg-zinc-950 hover:bg-zinc-900 border border-white/25 rounded-xl text-xs font-bold text-white transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <Calendar className="w-3.5 h-3.5 text-white" />
-                        <span>Start 7-Day Trial</span>
-                      </button>
-                    </div>
-                  </div>
-                </>
+                <div className="space-y-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDetailsModalPlan(null);
+                      onOpenVIPModal(detailsModalPlan.id);
+                    }}
+                    className="w-full py-3.5 px-4 bg-white hover:bg-zinc-200 text-black font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                  >
+                    <Zap className="w-4 h-4 text-black" />
+                    <span>Proceed to Payment (₹{detailsModalPlan.priceInr})</span>
+                  </button>
+                </div>
               ) : (
                 <div className="space-y-3 pt-2">
                   <div className="p-4 rounded-2xl bg-zinc-950 border border-white/25 flex items-center justify-between gap-3">
