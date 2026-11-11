@@ -43,7 +43,8 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
 ];
 
 export const RAZORPAY_KEY_ID =
-  import.meta.env.VITE_RAZORPAY_KEY_ID &&
+  typeof import.meta !== 'undefined' &&
+  import.meta.env?.VITE_RAZORPAY_KEY_ID &&
   String(import.meta.env.VITE_RAZORPAY_KEY_ID).startsWith('rzp_live_')
     ? (import.meta.env.VITE_RAZORPAY_KEY_ID as string)
     : 'rzp_live_TyPIbdkIBH1OQU';
