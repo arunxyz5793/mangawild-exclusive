@@ -39,6 +39,7 @@ import { StorageService } from '../services/storage';
 import { MangaSeries, Chapter, ChapterPanel, MangaGenre, CreatorProfile } from '../types/manga';
 import { generateChapterPanelSvg, generateMangaCoverSvg } from '../utils/mangaAssets';
 import { CreatorAnalyticsCharts } from '../components/CreatorAnalyticsCharts';
+import { uploadImageToR2 } from '../services/r2Storage';
 
 interface CreatorDashboardPageProps {
   onNavigate: (view: string, params?: Record<string, string>) => void;
@@ -271,18 +272,15 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
     }
   };
 
-  // Cover image file upload handler (converts file to data URL)
-  const handleCoverFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Cover image file upload handler (uploads to R2 with compressed fallback)
+  const handleCoverFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (uploadEvent) => {
-        if (uploadEvent.target?.result) {
-          setNewHeroCoverUrl(uploadEvent.target.result as string);
-          showToast('Hero Cover Image loaded successfully!');
-        }
-      };
-      reader.readAsDataURL(file);
+      const uploadedUrl = await uploadImageToR2(file, 'covers', 1200, 0.88);
+      if (uploadedUrl) {
+        setNewHeroCoverUrl(uploadedUrl);
+        showToast('Hero Cover Image loaded successfully!');
+      }
     }
   };
 
@@ -344,18 +342,13 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
       a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
     );
 
-    const promises = fileArray.map((file, i) => {
-      return new Promise<NewPageItem>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          resolve({
-            id: `scan_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
-            imageUrl: (e.target?.result as string) || '',
-            caption: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
-          });
-        };
-        reader.readAsDataURL(file);
-      });
+    const promises = fileArray.map(async (file, i) => {
+      const imageUrl = await uploadImageToR2(file, 'chapters', 1600, 0.88);
+      return {
+        id: `scan_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
+        imageUrl,
+        caption: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
+      };
     });
 
     Promise.all(promises).then(newItems => {
@@ -406,19 +399,16 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
     setChapterPages(copy);
   };
 
-  const handlePageFileUpload = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePageFileUpload = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (uploadEvent) => {
-        if (uploadEvent.target?.result) {
-          const copy = [...chapterPages];
-          copy[index].imageUrl = uploadEvent.target.result as string;
-          setChapterPages(copy);
-          showToast(`Image loaded for Page ${index + 1}!`);
-        }
-      };
-      reader.readAsDataURL(file);
+      const uploadedUrl = await uploadImageToR2(file, 'chapters', 1600, 0.88);
+      if (uploadedUrl) {
+        const copy = [...chapterPages];
+        copy[index].imageUrl = uploadedUrl;
+        setChapterPages(copy);
+        showToast(`Image loaded for Page ${index + 1}!`);
+      }
     }
   };
 
@@ -494,19 +484,16 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
     setEditChapterPanels(copy);
   };
 
-  const handleReplaceEditPanelFile = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleReplaceEditPanelFile = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (uploadEvent) => {
-        if (uploadEvent.target?.result) {
-          const copy = [...editChapterPanels];
-          copy[index].imageUrl = uploadEvent.target.result as string;
-          setEditChapterPanels(copy);
-          showToast(`Panel ${index + 1} image replaced!`);
-        }
-      };
-      reader.readAsDataURL(file);
+      const uploadedUrl = await uploadImageToR2(file, 'chapters', 1600, 0.88);
+      if (uploadedUrl) {
+        const copy = [...editChapterPanels];
+        copy[index].imageUrl = uploadedUrl;
+        setEditChapterPanels(copy);
+        showToast(`Panel ${index + 1} image replaced!`);
+      }
     }
   };
 
@@ -516,19 +503,14 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
     const fileArray = Array.from(files).filter(f => f.type.startsWith('image/'));
     fileArray.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
 
-    const promises = fileArray.map((file, i) => {
-      return new Promise<ChapterPanel>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (uploadEvt) => {
-          resolve({
-            id: `edit_pnl_${Date.now()}_${i}`,
-            panelNumber: editChapterPanels.length + i + 1,
-            imageUrl: (uploadEvt.target?.result as string) || '',
-            caption: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
-          });
-        };
-        reader.readAsDataURL(file);
-      });
+    const promises = fileArray.map(async (file, i) => {
+      const imageUrl = await uploadImageToR2(file, 'chapters', 1600, 0.88);
+      return {
+        id: `edit_pnl_${Date.now()}_${i}`,
+        panelNumber: editChapterPanels.length + i + 1,
+        imageUrl,
+        caption: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
+      };
     });
 
     Promise.all(promises).then(newPanels => {
@@ -2102,18 +2084,14 @@ export const CreatorDashboardPage: React.FC<CreatorDashboardPageProps> = ({
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={e => {
+                      onChange={async e => {
                         const file = e.target.files?.[0];
                         if (!file) return;
-                        const reader = new FileReader();
-                        reader.onload = ev => {
-                          const dataUrl = ev.target?.result as string;
-                          if (dataUrl) {
-                            setEditCoverUrl(dataUrl);
-                            setEditBannerUrl(dataUrl);
-                          }
-                        };
-                        reader.readAsDataURL(file);
+                        const uploadedUrl = await uploadImageToR2(file, 'covers', 1200, 0.88);
+                        if (uploadedUrl) {
+                          setEditCoverUrl(uploadedUrl);
+                          setEditBannerUrl(uploadedUrl);
+                        }
                       }}
                       className="hidden"
                     />
